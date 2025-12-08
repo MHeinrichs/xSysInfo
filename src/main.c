@@ -1,0 +1,599 @@
+/*
+ * xSysInfo - Main entry point and display management
+ */
+
+#include <string.h>
+
+#include <exec/execbase.h>
+#include <intuition/intuition.h>
+#include <intuition/screens.h>
+#include <graphics/gfxbase.h>
+#include <graphics/displayinfo.h>
+#include <libraries/identify.h>
+#include <dos/rdargs.h>
+
+#include <proto/exec.h>
+#include <proto/intuition.h>
+#include <proto/graphics.h>
+#include <proto/dos.h>
+#include <proto/identify.h>
+
+#include "xsysinfo.h"
+#include "gui.h"
+#include "hardware.h"
+#include "software.h"
+#include "memory.h"
+#include "boards.h"
+#include "drives.h"
+#include "benchmark.h"
+#include "locale_str.h"
+#include "debug.h"
+
+/* Global library bases */
+extern struct ExecBase *SysBase;
+struct IntuitionBase *IntuitionBase = NULL;
+struct GfxBase *GfxBase = NULL;
+struct Library *IdentifyBase = NULL;
+
+/* Global debug flag */
+BOOL g_debug_enabled = FALSE;
+
+/* Global application context */
+AppContext app_context;
+struct TextAttr Topaz8Font = {
+    (STRPTR)DEFAULT_FONT_NAME,
+    DEFAULT_FONT_HEIGHT,
+    FS_NORMAL,
+    FPF_ROMFONT
+};
+AppContext *app = &app_context;
+
+/* Command line argument template */
+#define TEMPLATE "DEBUG/S"
+
+/* Argument array indices */
+enum {
+    ARG_DEBUG,
+    ARG_COUNT
+};
+
+/* Color palette matching original SysInfo */
+static const UWORD palette[8] = {
+    0x0AAA,     /* 0: Gray screen background */
+    0x0AAA,     /* 1: Gray panel background */
+    0x0000,     /* 2: Black text */
+    0x0FFF,     /* 3: White highlight */
+    0x0068,     /* 4: Blue bar fill */
+    0x0F00,     /* 5: Red "You" bar */
+    0x0DDD,     /* 6: Light (3D button top) */
+    0x0444,     /* 7: Dark (3D button shadow) */
+};
+
+/* Forward declarations */
+static BOOL open_libraries(void);
+static void close_libraries(void);
+static BOOL open_display(void);
+static void close_display(void);
+static void main_loop(void);
+static void set_palette(void);
+static BOOL is_rtg_mode(struct Screen *screen);
+
+/*
+ * Parse command line arguments
+ * Returns TRUE on success, FALSE on failure
+ */
+static BOOL parse_args(void)
+{
+    struct RDArgs *rdargs;
+    LONG args[ARG_COUNT] = { 0 };
+
+    rdargs = ReadArgs((CONST_STRPTR)TEMPLATE, args, NULL);
+    if (!rdargs) {
+        /* ReadArgs failed - but we'll continue with defaults */
+        return TRUE;
+    }
+
+    /* Check for DEBUG switch */
+    if (args[ARG_DEBUG]) {
+        g_debug_enabled = TRUE;
+    }
+
+    FreeArgs(rdargs);
+    return TRUE;
+}
+
+/*
+ * Main entry point
+ */
+int main(int argc, char **argv)
+{
+    int ret = RETURN_OK;
+
+    (void)argc;
+    (void)argv;
+
+    /* Parse command line arguments first */
+    parse_args();
+
+    debug("xSysInfo: Starting...\n");
+
+    /* Initialize application context */
+    memset(app, 0, sizeof(AppContext));
+    app->current_view = VIEW_MAIN;
+    app->software_type = SOFTWARE_LIBRARIES;
+    app->bar_scale = SCALE_SHRINK;
+    app->running = TRUE;
+    app->pressed_button = -1;
+
+    debug("xSysInfo: Initializing locale...\n");
+    /* Initialize locale */
+    init_locale();
+
+    debug("xSysInfo: Opening libraries...\n");
+    /* Open required libraries */
+    if (!open_libraries()) {
+        ret = RETURN_FAIL;
+        goto cleanup;
+    }
+
+    debug("xSysInfo: Detecting hardware...\n");
+    /* Detect hardware */
+    if (!detect_hardware()) {
+        Printf((CONST_STRPTR)"Failed to detect hardware\n");
+        ret = RETURN_FAIL;
+        goto cleanup;
+    }
+
+    debug("xSysInfo: Enumerating software...\n");
+    /* Enumerate system software */
+    enumerate_all_software();
+
+    debug("xSysInfo: Enumerating memory...\n");
+    /* Enumerate memory regions */
+    enumerate_memory_regions();
+
+    debug("xSysInfo: Enumerating boards...\n");
+    /* Enumerate expansion boards */
+    enumerate_boards();
+
+    debug("xSysInfo: Enumerating drives...\n");
+    /* Enumerate drives */
+    enumerate_drives();
+
+    debug("xSysInfo: Opening display...\n");
+    /* Open display (screen or window) */
+    if (!open_display()) {
+        Printf((CONST_STRPTR)"%s\n", (LONG)get_string(MSG_ERR_NO_WINDOW));
+        ret = RETURN_FAIL;
+        goto cleanup;
+    }
+
+    /* Initialize GUI buttons */
+    init_buttons();
+
+    /* Initialize benchmark timer */
+    if (!init_timer()) {
+        Printf((CONST_STRPTR)"Failed to initialize timer\n");
+        ret = RETURN_FAIL;
+        goto cleanup;
+    }
+
+    /* Draw initial view */
+    redraw_current_view();
+
+    /* Main event loop */
+    main_loop();
+
+cleanup:
+    cleanup_timer();
+    close_display();
+    close_libraries();
+    cleanup_locale();
+
+    return ret;
+}
+
+/*
+ * Open required libraries
+ */
+static BOOL open_libraries(void)
+{
+    /* exec.library is always available via SysBase */
+    // SysBase = *(struct ExecBase **)4;
+
+    /* Open intuition.library */
+    IntuitionBase = (struct IntuitionBase *)
+        OpenLibrary((CONST_STRPTR)"intuition.library", MIN_INTUITION_VERSION);
+    if (!IntuitionBase) {
+        Printf((CONST_STRPTR)"Could not open intuition.library v%ld\n",
+               (LONG)MIN_INTUITION_VERSION);
+        return FALSE;
+    }
+
+    /* Open graphics.library */
+    GfxBase = (struct GfxBase *)
+        OpenLibrary((CONST_STRPTR)"graphics.library", MIN_GRAPHICS_VERSION);
+    if (!GfxBase) {
+        Printf((CONST_STRPTR)"Could not open graphics.library v%ld\n",
+               (LONG)MIN_GRAPHICS_VERSION);
+        return FALSE;
+    }
+
+    /* Open identify.library - required */
+    IdentifyBase = OpenLibrary((CONST_STRPTR)"identify.library", MIN_IDENTIFY_VERSION);
+    if (!IdentifyBase) {
+        Printf((CONST_STRPTR)"%s\n", (LONG)get_string(MSG_ERR_NO_IDENTIFY));
+        return FALSE;
+    }
+
+    app->IdentifyBase = IdentifyBase;
+
+    return TRUE;
+}
+
+/*
+ * Close libraries
+ */
+static void close_libraries(void)
+{
+    if (IdentifyBase) {
+        CloseLibrary(IdentifyBase);
+        IdentifyBase = NULL;
+    }
+
+    if (GfxBase) {
+        CloseLibrary((struct Library *)GfxBase);
+        GfxBase = NULL;
+    }
+
+    if (IntuitionBase) {
+        CloseLibrary((struct Library *)IntuitionBase);
+        IntuitionBase = NULL;
+    }
+}
+
+/*
+ * Check if a screen is using RTG (high resolution) mode
+ */
+static BOOL is_rtg_mode(struct Screen *screen)
+{
+    if (!screen) return FALSE;
+
+    /* Check if resolution exceeds native chipset limits */
+    if (screen->Width > RTG_WIDTH_THRESHOLD ||
+        screen->Height > RTG_HEIGHT_THRESHOLD) {
+        return TRUE;
+    }
+
+    /* Could also check the ModeID for RTG modes, but resolution check
+     * is sufficient for our purposes */
+
+    return FALSE;
+}
+
+/*
+ * Open display - either a window on Workbench or a custom screen
+ */
+static BOOL open_display(void)
+{
+    struct Screen *wb_screen;
+    BOOL use_window = FALSE;
+
+    /* Lock Workbench screen to check its mode */
+    wb_screen = LockPubScreen((CONST_STRPTR)"Workbench");
+    if (!wb_screen) {
+        wb_screen = LockPubScreen(NULL);  /* Default public screen */
+    }
+
+    if (wb_screen) {
+        /* Check if Workbench is in RTG mode */
+        use_window = is_rtg_mode(wb_screen);
+        UnlockPubScreen(NULL, wb_screen);
+    }
+
+    /* Determine if system is PAL or NTSC */
+    app->is_pal = (GfxBase->DisplayFlags & PAL) ? TRUE : FALSE;
+    app->screen_height = app->is_pal ? SCREEN_HEIGHT_PAL : SCREEN_HEIGHT_NTSC;
+
+    if (use_window) {
+        /* Open window on Workbench */
+        app->use_custom_screen = FALSE;
+
+        app->window = OpenWindowTags(NULL,
+            WA_Title, (ULONG)"xSysInfo " XSYSINFO_VERSION,
+            WA_InnerWidth, SCREEN_WIDTH,
+            WA_InnerHeight, app->screen_height,
+            WA_IDCMP, IDCMP_CLOSEWINDOW | IDCMP_MOUSEBUTTONS |
+                      IDCMP_REFRESHWINDOW | IDCMP_VANILLAKEY |
+                      IDCMP_MOUSEMOVE,
+            WA_Flags, WFLG_CLOSEGADGET | WFLG_DRAGBAR | WFLG_DEPTHGADGET |
+                      WFLG_ACTIVATE | WFLG_SMART_REFRESH | WFLG_GIMMEZEROZERO |
+                      WFLG_REPORTMOUSE,
+            WA_PubScreenName, (ULONG)"Workbench",
+            TAG_DONE);
+
+        if (!app->window) {
+            return FALSE;
+        }
+
+        app->rp = app->window->RPort;
+        app->screen = app->window->WScreen;
+
+    } else {
+        /* Open custom screen */
+        app->use_custom_screen = TRUE;
+
+        app->screen = OpenScreenTags(NULL,
+            SA_Width, SCREEN_WIDTH,
+            SA_Height, app->screen_height,
+            SA_Depth, SCREEN_DEPTH,
+            SA_Title, (ULONG)"xSysInfo " XSYSINFO_VERSION,
+            SA_Type, CUSTOMSCREEN,
+            SA_Font, (ULONG)&Topaz8Font,
+            SA_DisplayID, app->is_pal ? PAL_MONITOR_ID | HIRES_KEY
+                                      : NTSC_MONITOR_ID | HIRES_KEY,
+            SA_Pens, (ULONG)~0,
+            SA_ShowTitle, FALSE,
+            TAG_DONE);
+
+        if (!app->screen) {
+            Printf((CONST_STRPTR)"%s\n", (LONG)get_string(MSG_ERR_NO_SCREEN));
+            return FALSE;
+        }
+
+        /* Set our palette */
+        set_palette();
+
+        /* Open borderless window on our screen */
+        app->window = OpenWindowTags(NULL,
+            WA_CustomScreen, (ULONG)app->screen,
+            WA_Left, 0,
+            WA_Top, 0,
+            WA_Width, SCREEN_WIDTH,
+            WA_Height, app->screen_height,
+            WA_IDCMP, IDCMP_MOUSEBUTTONS | IDCMP_VANILLAKEY | IDCMP_REFRESHWINDOW |
+                      IDCMP_MOUSEMOVE,
+            WA_Flags, WFLG_BORDERLESS | WFLG_ACTIVATE | WFLG_BACKDROP |
+                      WFLG_RMBTRAP | WFLG_SMART_REFRESH | WFLG_REPORTMOUSE,
+            TAG_DONE);
+
+        if (!app->window) {
+            CloseScreen(app->screen);
+            app->screen = NULL;
+            return FALSE;
+        }
+
+        app->rp = app->window->RPort;
+    }
+
+    return TRUE;
+}
+
+/*
+ * Close display
+ */
+static void close_display(void)
+{
+    if (app->window) {
+        CloseWindow(app->window);
+        app->window = NULL;
+    }
+
+    if (app->use_custom_screen && app->screen) {
+        CloseScreen(app->screen);
+        app->screen = NULL;
+    }
+
+    app->rp = NULL;
+}
+
+/*
+ * Set color palette for custom screen
+ */
+static void set_palette(void)
+{
+    UWORD i;
+
+    if (!app->screen) return;
+
+    for (i = 0; i < 8; i++) {
+        SetRGB4(&app->screen->ViewPort,
+                i,
+                (palette[i] >> 8) & 0xF,
+                (palette[i] >> 4) & 0xF,
+                palette[i] & 0xF);
+    }
+}
+
+/*
+ * Main event loop
+ */
+static void main_loop(void)
+{
+    struct IntuiMessage *msg;
+    ULONG signals;
+    ULONG win_signal;
+
+    win_signal = 1L << app->window->UserPort->mp_SigBit;
+
+    while (app->running) {
+        signals = Wait(win_signal | SIGBREAKF_CTRL_C);
+
+        /* Check for break */
+        if (signals & SIGBREAKF_CTRL_C) {
+            app->running = FALSE;
+            break;
+        }
+
+        /* Process window messages */
+        while ((msg = (struct IntuiMessage *)
+                GetMsg(app->window->UserPort)) != NULL) {
+
+            ULONG class = msg->Class;
+            UWORD code = msg->Code;
+            WORD mx = msg->MouseX;
+            WORD my = msg->MouseY;
+
+            ReplyMsg((struct Message *)msg);
+
+            switch (class) {
+                case IDCMP_CLOSEWINDOW:
+                    app->running = FALSE;
+                    break;
+
+                case IDCMP_MOUSEBUTTONS:
+                    if (code == SELECTDOWN) {
+                        ButtonID btn = handle_click(mx, my);
+                        if (btn != BTN_NONE) {
+                            if (btn == BTN_SOFTWARE_SCROLLBAR) {
+                                app->scrollbar_dragging = TRUE;
+                                handle_scrollbar_click(mx, my);
+                            } else {
+                                /* Set button as pressed and redraw */
+                                app->pressed_button = btn;
+                                set_button_pressed(btn, TRUE);
+                                redraw_button(btn);
+                            }
+                        }
+                    } else if (code == SELECTUP) {
+                        app->scrollbar_dragging = FALSE;
+                        /* Release pressed button */
+                        if (app->pressed_button != -1) {
+                            ButtonID btn = (ButtonID)app->pressed_button;
+                            set_button_pressed(btn, FALSE);
+                            redraw_button(btn);
+                            /* Check if mouse is still over the button */
+                            if (handle_click(mx, my) == btn) {
+                                handle_button_press(btn);
+                            }
+                            app->pressed_button = -1;
+                        }
+                    }
+                    break;
+
+                case IDCMP_MOUSEMOVE:
+                    if (app->scrollbar_dragging) {
+                        handle_scrollbar_click(mx, my);
+                    }
+                    break;
+
+                case IDCMP_VANILLAKEY:
+                    /* Handle keyboard shortcuts */
+                    switch (code) {
+                        case 'q':
+                        case 'Q':
+                        case 0x1B:  /* Escape */
+                            if (app->current_view == VIEW_MAIN) {
+                                app->running = FALSE;
+                            } else {
+                                switch_to_view(VIEW_MAIN);
+                            }
+                            break;
+                        case 'm':
+                        case 'M':
+                            if (app->current_view == VIEW_MAIN) {
+                                switch_to_view(VIEW_MEMORY);
+                            }
+                            break;
+                        case 'd':
+                        case 'D':
+                            if (app->current_view == VIEW_MAIN) {
+                                switch_to_view(VIEW_DRIVES);
+                            }
+                            break;
+                        case 'b':
+                        case 'B':
+                            if (app->current_view == VIEW_MAIN) {
+                                switch_to_view(VIEW_BOARDS);
+                            }
+                            break;
+                        case 's':
+                        case 'S':
+                            if (app->current_view == VIEW_MAIN) {
+                                run_benchmarks();
+                                redraw_current_view();
+                            }
+                            break;
+                        case 'p':
+                        case 'P':
+                            if (app->current_view == VIEW_MAIN) {
+                                handle_button_press(BTN_PRINT);
+                            }
+                            break;
+                    }
+                    break;
+
+                case IDCMP_REFRESHWINDOW:
+                    BeginRefresh(app->window);
+                    redraw_current_view();
+                    EndRefresh(app->window, TRUE);
+                    break;
+            }
+        }
+    }
+}
+
+/*
+ * Utility: Determine memory location classification
+ */
+MemoryLocation determine_mem_location(APTR addr)
+{
+    ULONG address = (ULONG)addr;
+
+    /* ROM area: $F80000-$FFFFFF (256K) or $E00000-$E7FFFF (512K extended) */
+    if ((address >= 0xF80000 && address <= 0xFFFFFF) ||
+		    (address >= 0xE0000 && address < 0xE80000)) {
+        return LOC_ROM;
+    }
+
+    /* Chip RAM: $000000-$1FFFFF (2MB max) */
+    if (address < 0x200000) {
+        return LOC_CHIP_RAM;
+    }
+
+    /* 24-bit addressable fast RAM: up to $00FFFFFF */
+    if (address < 0x01000000) {
+        return LOC_24BIT_RAM;
+    }
+
+    /* 32-bit RAM: above $01000000 */
+    return LOC_32BIT_RAM;
+}
+
+/*
+ * Utility: Get location string
+ */
+const char *get_location_string(MemoryLocation loc)
+{
+    switch (loc) {
+        case LOC_ROM:       return "ROM";
+        case LOC_CHIP_RAM:  return "CHIP RAM";
+        case LOC_24BIT_RAM: return "24BitRAM";
+        case LOC_32BIT_RAM: return "32BitRAM";
+        default:            return "???";
+    }
+}
+
+/*
+ * Utility: Format byte size to human-readable string
+ */
+void format_size(ULONG bytes, char *buffer, ULONG bufsize)
+{
+    if (bytes >= 1024 * 1024 * 1024) {
+        snprintf(buffer, bufsize, "%luG", (unsigned long)(bytes / (1024 * 1024 * 1024)));
+    } else if (bytes >= 1024 * 1024) {
+        snprintf(buffer, bufsize, "%luM", (unsigned long)(bytes / (1024 * 1024)));
+    } else if (bytes >= 1024) {
+        snprintf(buffer, bufsize, "%luK", (unsigned long)(bytes / 1024));
+    } else {
+        snprintf(buffer, bufsize, "%lu", (unsigned long)bytes);
+    }
+}
+
+/*
+ * Utility: Format hex value
+ */
+void format_hex(ULONG value, char *buffer, ULONG bufsize)
+{
+    snprintf(buffer, bufsize, "$%08lX", (unsigned long)value);
+}

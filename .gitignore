@@ -1,0 +1,5 @@
+*.o
+attic/
+xsysinfo
+xsysinfo.adf
+downloads/

@@ -1,0 +1,6 @@
+[submodule "3rdparty/identify"]
+	path = 3rdparty/identify
+	url = https://codeberg.org/shred/identify.git
+[submodule "3rdparty/flexcat"]
+	path = 3rdparty/flexcat
+	url = https://github.com/adtools/flexcat

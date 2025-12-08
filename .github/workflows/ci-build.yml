@@ -1,0 +1,38 @@
+name: xsysinfo software CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    container: stefanreinauer/amiga-gcc
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: true
+        fetch-depth: 0
+
+    - name: Mark git directory as safe
+      run: git config --global --add safe.directory '*'
+
+    - name: Building all targets
+      run: make all disk 
+
+    - name: Archive CI artifacts
+      uses: actions/upload-artifact@v4
+      with:
+          name: Xsysinfo Program
+          path: ${{ github.workspace }}/xsysinfo
+
+    - name: Archive CI artifacts (ADF)
+      uses: actions/upload-artifact@v4
+      with:
+          name: Disk Image (ADF)
+          path: ${{ github.workspace }}/xsysinfo.adf
+

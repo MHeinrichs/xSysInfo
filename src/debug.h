@@ -1,0 +1,21 @@
+/*
+ * xSysInfo - Debug output support
+ */
+
+#ifndef DEBUG_H
+#define DEBUG_H
+
+#include <proto/dos.h>
+
+/* Global debug flag - set via /D command line switch */
+extern BOOL g_debug_enabled;
+
+/* Debug output macro - only prints if debugging is enabled */
+#define debug(fmt, ...) \
+    do { \
+        if (g_debug_enabled) { \
+            Printf((CONST_STRPTR)fmt, ##__VA_ARGS__); \
+        } \
+    } while (0)
+
+#endif /* DEBUG_H */
