@@ -3,4 +3,4 @@
 	url = https://codeberg.org/shred/identify.git
 [submodule "3rdparty/flexcat"]
 	path = 3rdparty/flexcat
-	url = https://github.com/adtools/flexcat
+	url = https://github.com/reinauer/flexcat
