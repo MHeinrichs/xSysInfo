@@ -150,9 +150,9 @@ $(OPENPCI_LHA): | $(DOWNLOAD_DIR)
 # Download all libraries
 download-libs: $(IDENTIFY_USR_LHA) $(IDENTIFY_PCI_LHA) $(OPENPCI_LHA)
 	mkdir -p 3rdparty/identify/build
-	# Extract Identify library
-	lha xq $(IDENTIFY_USR_LHA) Identify/libs/identify.library
-	mv Identify/libs/identify.library 3rdparty/identify/build/
+	# Extract Identify library (use 68000-compatible version)
+	lha xq $(IDENTIFY_USR_LHA) Identify/libs/identify.library_000
+	mv Identify/libs/identify.library_000 3rdparty/identify/build/identify.library
 	rm -rf Identify
 	# Extract PCI database
 	lha xq $(IDENTIFY_PCI_LHA) Identify/s/pci.db

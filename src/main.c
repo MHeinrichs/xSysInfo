@@ -69,6 +69,9 @@ static const UWORD palette[8] = {
     0x0444,     /* 7: Dark (3D button shadow) */
 };
 
+/* Default pens array for SA_Pens (use system defaults) */
+static const UWORD default_pens[] = { (UWORD)~0 };
+
 /* Forward declarations */
 static BOOL open_libraries(void);
 static void close_libraries(void);
@@ -330,9 +333,8 @@ static BOOL open_display(void)
             SA_Title, (ULONG)"xSysInfo " XSYSINFO_VERSION,
             SA_Type, CUSTOMSCREEN,
             SA_Font, (ULONG)&Topaz8Font,
-            SA_DisplayID, app->is_pal ? PAL_MONITOR_ID | HIRES_KEY
-                                      : NTSC_MONITOR_ID | HIRES_KEY,
-            SA_Pens, (ULONG)~0,
+            SA_DisplayID, HIRES_KEY,
+            SA_Pens, (ULONG)default_pens,
             SA_ShowTitle, FALSE,
             TAG_DONE);
 
