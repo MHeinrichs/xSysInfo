@@ -157,6 +157,8 @@ static const char *default_strings[MSG_COUNT] = {
     /* MSG_PFS */               "Professional File System",
     /* MSG_UNKNOWN_FS */        "Unknown File System",
 
+    /* Requester dialogs */
+    /* MSG_ENTER_FILENAME */    "Enter Filename or RETURN",
     /* Error messages */
     /* MSG_ERR_NO_IDENTIFY */   "Could not open identify.library v13+",
     /* MSG_ERR_NO_MEMORY */     "Out of memory",

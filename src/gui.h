@@ -151,4 +151,7 @@ void redraw_button(ButtonID id);
 /* View switching */
 void switch_to_view(ViewMode view);
 
+/* Overlay requester for filename input */
+BOOL show_filename_requester(const char *title, char *filename, ULONG filename_size);
+
 #endif /* GUI_H */

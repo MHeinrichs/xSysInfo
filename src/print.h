@@ -7,13 +7,14 @@
 
 #include "xsysinfo.h"
 
-/* Output file path */
-#define OUTPUT_FILE "RAM:sysinfo_results.txt"
+/* Default output file path */
+#define DEFAULT_OUTPUT_FILE "RAM:xsysinfo.txt"
+#define MAX_FILENAME_LEN 128
 
 /* Function prototypes */
 
 /* Export all information to file */
-BOOL export_to_file(void);
+BOOL export_to_file(const char *filename);
 
 /* Individual section exports (used internally) */
 void export_header(BPTR fh);

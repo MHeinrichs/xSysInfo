@@ -377,11 +377,11 @@ void export_drives(BPTR fh)
 /*
  * Export all information to file
  */
-BOOL export_to_file(void)
+BOOL export_to_file(const char *filename)
 {
     BPTR fh;
 
-    fh = Open((STRPTR)OUTPUT_FILE, MODE_NEWFILE);
+    fh = Open((STRPTR)filename, MODE_NEWFILE);
     if (!fh) {
         return FALSE;
     }

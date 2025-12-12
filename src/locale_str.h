@@ -158,6 +158,8 @@ typedef enum {
     MSG_PFS,
     MSG_UNKNOWN_FS,
 
+    /* Requester dialogs */
+    MSG_ENTER_FILENAME,
     /* Error messages */
     MSG_ERR_NO_IDENTIFY,
     MSG_ERR_NO_MEMORY,

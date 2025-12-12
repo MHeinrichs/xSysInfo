@@ -308,7 +308,7 @@ static BOOL open_display(void)
             WA_InnerHeight, app->screen_height,
             WA_IDCMP, IDCMP_CLOSEWINDOW | IDCMP_MOUSEBUTTONS |
                       IDCMP_REFRESHWINDOW | IDCMP_VANILLAKEY |
-                      IDCMP_MOUSEMOVE,
+                      IDCMP_MOUSEMOVE | IDCMP_RAWKEY,
             WA_Flags, WFLG_CLOSEGADGET | WFLG_DRAGBAR | WFLG_DEPTHGADGET |
                       WFLG_ACTIVATE | WFLG_SMART_REFRESH | WFLG_GIMMEZEROZERO |
                       WFLG_REPORTMOUSE,
@@ -354,7 +354,7 @@ static BOOL open_display(void)
             WA_Width, SCREEN_WIDTH,
             WA_Height, app->screen_height,
             WA_IDCMP, IDCMP_MOUSEBUTTONS | IDCMP_VANILLAKEY | IDCMP_REFRESHWINDOW |
-                      IDCMP_MOUSEMOVE,
+                      IDCMP_MOUSEMOVE | IDCMP_RAWKEY,
             WA_Flags, WFLG_BORDERLESS | WFLG_ACTIVATE | WFLG_BACKDROP |
                       WFLG_RMBTRAP | WFLG_SMART_REFRESH | WFLG_REPORTMOUSE,
             TAG_DONE);

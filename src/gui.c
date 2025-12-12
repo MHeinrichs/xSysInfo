@@ -7,6 +7,8 @@
 
 #include <graphics/rastport.h>
 #include <graphics/text.h>
+#include <devices/inputevent.h>
+#include <intuition/intuition.h>
 
 #include <proto/graphics.h>
 #include <proto/intuition.h>
@@ -1161,8 +1163,15 @@ void handle_button_press(ButtonID btn_id)
             break;
 
         case BTN_PRINT:
-            if (export_to_file()) {
-                /* Could show a confirmation message */
+            {
+                char filename[MAX_FILENAME_LEN];
+                strncpy(filename, DEFAULT_OUTPUT_FILE, sizeof(filename) - 1);
+                filename[sizeof(filename) - 1] = '\0';
+
+                if (show_filename_requester(
+                        get_string(MSG_ENTER_FILENAME), filename, sizeof(filename))) {
+                    export_to_file(filename);
+                }
             }
             break;
 
@@ -1370,4 +1379,282 @@ void switch_to_view(ViewMode view)
     }
 
     redraw_current_view();
+}
+
+/*
+ * Draw just the text field contents (for fast updates while typing)
+ */
+static void draw_requester_field(WORD field_x, WORD field_y, WORD field_w, WORD field_h,
+                                 const char *filename, ULONG cursor_pos)
+{
+    struct RastPort *rp = app->rp;
+
+    /* Clear field interior */
+    SetAPen(rp, COLOR_BACKGROUND);
+    RectFill(rp, field_x + 2, field_y + 2,
+             field_x + field_w - 3, field_y + field_h - 3);
+
+    /* Draw filename text */
+    SetAPen(rp, COLOR_TEXT);
+    SetBPen(rp, COLOR_BACKGROUND);
+    Move(rp, field_x + 4, field_y + 10);
+    Text(rp, (CONST_STRPTR)filename, strlen(filename));
+
+    /* Draw cursor */
+    {
+        WORD cursor_x = field_x + 4 + cursor_pos * 8;
+        SetAPen(rp, COLOR_TEXT);
+        RectFill(rp, cursor_x, field_y + 2, cursor_x + 7, field_y + field_h - 3);
+        /* Draw character at cursor position in inverse */
+        if (filename[cursor_pos]) {
+            SetAPen(rp, COLOR_BACKGROUND);
+            SetBPen(rp, COLOR_TEXT);
+            Move(rp, cursor_x, field_y + 10);
+            Text(rp, (CONST_STRPTR)&filename[cursor_pos], 1);
+        }
+    }
+}
+
+/*
+ * Draw overlay requester dialog (full redraw)
+ */
+static void draw_requester_overlay(WORD x, WORD y, WORD w, WORD h,
+                                   const char *title, const char *filename,
+                                   ULONG cursor_pos)
+{
+    struct RastPort *rp = app->rp;
+    WORD field_x, field_y, field_w, field_h;
+    WORD btn_y, btn_w, btn_h;
+
+    /* Draw outer panel with shadow effect */
+    //SetAPen(rp, COLOR_BUTTON_DARK);
+    //RectFill(rp, x + 2, y + 2, x + w + 1, y + h + 1);
+
+    /* Draw main panel background */
+    SetAPen(rp, COLOR_PANEL_BG);
+    RectFill(rp, x, y, x + w - 1, y + h - 1);
+
+    /* Draw 3D border */
+    draw_3d_box(x, y, w, h, FALSE);
+
+    /* Draw title bar */
+    SetAPen(rp, COLOR_BUTTON_DARK);
+    RectFill(rp, x + 2, y + 2, x + w - 3, y + 14);
+    SetAPen(rp, COLOR_BUTTON_LIGHT);
+    SetBPen(rp, COLOR_BUTTON_DARK);
+    Move(rp, x + (w - strlen(title) * 8) / 2, y + 11);
+    Text(rp, (CONST_STRPTR)title, strlen(title));
+
+    /* Draw filename input field border */
+    field_x = x + 16;
+    field_y = y + 24;
+    field_w = w - 32;
+    field_h = 14;
+
+    /* Recessed field background */
+    SetAPen(rp, COLOR_BACKGROUND);
+    RectFill(rp, field_x, field_y, field_x + field_w - 1, field_y + field_h - 1);
+    draw_3d_box(field_x, field_y, field_w, field_h, TRUE);
+
+    /* Draw field contents */
+    draw_requester_field(field_x, field_y, field_w, field_h, filename, cursor_pos);
+
+    /* Draw OK and CANCEL buttons */
+    btn_y = y + h - 20;
+    btn_w = 80;
+    btn_h = 14;
+
+    /* OK button */
+    SetAPen(rp, COLOR_PANEL_BG);
+    RectFill(rp, x + 24, btn_y, x + 24 + btn_w - 1, btn_y + btn_h - 1);
+    draw_3d_box(x + 24, btn_y, btn_w, btn_h, FALSE);
+    SetAPen(rp, COLOR_TEXT);
+    SetBPen(rp, COLOR_PANEL_BG);
+    Move(rp, x + 24 + (btn_w - 16) / 2, btn_y + 10);
+    Text(rp, (CONST_STRPTR)"OK", 2);
+
+    /* CANCEL button */
+    SetAPen(rp, COLOR_PANEL_BG);
+    RectFill(rp, x + w - 24 - btn_w, btn_y, x + w - 24 - 1, btn_y + btn_h - 1);
+    draw_3d_box(x + w - 24 - btn_w, btn_y, btn_w, btn_h, FALSE);
+    SetAPen(rp, COLOR_TEXT);
+    SetBPen(rp, COLOR_PANEL_BG);
+    Move(rp, x + w - 24 - btn_w + (btn_w - 48) / 2, btn_y + 10);
+    Text(rp, (CONST_STRPTR)"CANCEL", 6);
+}
+
+/*
+ * Show filename requester overlay
+ * Returns TRUE if OK was pressed, FALSE if cancelled
+ * filename buffer is modified with the entered filename
+ */
+BOOL show_filename_requester(const char *title, char *filename, ULONG filename_size)
+{
+    struct IntuiMessage *msg;
+    BOOL running = TRUE;
+    BOOL result = FALSE;
+    ULONG cursor_pos;
+    ULONG filename_len;
+    Button *pressed_btn = NULL;
+
+    /* Dialog dimensions and position (centered) */
+    WORD dialog_w = 320;
+    WORD dialog_h = 60;
+    WORD dialog_x = (SCREEN_WIDTH - dialog_w) / 2;
+    WORD dialog_y = (app->screen_height - dialog_h) / 2;
+
+    /* Field position (must match draw_requester_overlay) */
+    WORD field_x = dialog_x + 16;
+    WORD field_y = dialog_y + 24;
+    WORD field_w = dialog_w - 32;
+    WORD field_h = 14;
+
+    /* Button positions */
+    WORD btn_y = dialog_y + dialog_h - 20;
+    WORD btn_w = 80;
+    WORD btn_h = 14;
+    WORD ok_x = dialog_x + 24;
+    WORD cancel_x = dialog_x + dialog_w - 24 - btn_w;
+
+    /* Button structs for OK and CANCEL */
+    Button ok_btn = { ok_x, btn_y, btn_w, btn_h, "OK", BTN_NONE, TRUE, FALSE };
+    Button cancel_btn = { cancel_x, btn_y, btn_w, btn_h, "CANCEL", BTN_NONE, TRUE, FALSE };
+
+    /* Initialize cursor position at end of filename */
+    filename_len = strlen(filename);
+    cursor_pos = filename_len;
+
+    /* Draw initial dialog */
+    draw_requester_overlay(dialog_x, dialog_y, dialog_w, dialog_h,
+                           title, filename, cursor_pos);
+
+    /* Event loop for dialog */
+    while (running) {
+        WaitPort(app->window->UserPort);
+
+        while ((msg = (struct IntuiMessage *)
+                GetMsg(app->window->UserPort)) != NULL) {
+
+            ULONG class = msg->Class;
+            UWORD code = msg->Code;
+            WORD mx = msg->MouseX;
+            WORD my = msg->MouseY;
+
+            ReplyMsg((struct Message *)msg);
+
+            switch (class) {
+                case IDCMP_MOUSEBUTTONS:
+                    if (code == SELECTDOWN) {
+                        /* Check OK button */
+                        if (mx >= ok_x && mx < ok_x + btn_w &&
+                            my >= btn_y && my < btn_y + btn_h) {
+                            pressed_btn = &ok_btn;
+                            ok_btn.pressed = TRUE;
+                            draw_button(&ok_btn);
+                        }
+                        /* Check CANCEL button */
+                        else if (mx >= cancel_x && mx < cancel_x + btn_w &&
+                                 my >= btn_y && my < btn_y + btn_h) {
+                            pressed_btn = &cancel_btn;
+                            cancel_btn.pressed = TRUE;
+                            draw_button(&cancel_btn);
+                        }
+                    } else if (code == SELECTUP && pressed_btn) {
+                        /* Release the button */
+                        pressed_btn->pressed = FALSE;
+                        draw_button(pressed_btn);
+                        /* Check if still over the same button */
+                        if (pressed_btn == &ok_btn &&
+                            mx >= ok_x && mx < ok_x + btn_w &&
+                            my >= btn_y && my < btn_y + btn_h) {
+                            result = TRUE;
+                            running = FALSE;
+                        } else if (pressed_btn == &cancel_btn &&
+                                   mx >= cancel_x && mx < cancel_x + btn_w &&
+                                   my >= btn_y && my < btn_y + btn_h) {
+                            result = FALSE;
+                            running = FALSE;
+                        }
+                        pressed_btn = NULL;
+                    }
+                    break;
+
+                case IDCMP_VANILLAKEY:
+                    if (code == 0x0D) {  /* Return/Enter */
+                        result = TRUE;
+                        running = FALSE;
+                    } else if (code == 0x1B) {  /* Escape */
+                        result = FALSE;
+                        running = FALSE;
+                    } else if (code == 0x08) {  /* Backspace */
+                        if (cursor_pos > 0) {
+                            /* Remove character before cursor */
+                            memmove(&filename[cursor_pos - 1],
+                                    &filename[cursor_pos],
+                                    filename_len - cursor_pos + 1);
+                            cursor_pos--;
+                            filename_len--;
+                            draw_requester_field(field_x, field_y, field_w, field_h,
+                                                 filename, cursor_pos);
+                        }
+                    } else if (code == 0x7F) {  /* Delete */
+                        if (cursor_pos < filename_len) {
+                            memmove(&filename[cursor_pos],
+                                    &filename[cursor_pos + 1],
+                                    filename_len - cursor_pos);
+                            filename_len--;
+                            draw_requester_field(field_x, field_y, field_w, field_h,
+                                                 filename, cursor_pos);
+                        }
+                    } else if (code >= 32 && code < 127) {  /* Printable character */
+                        if (filename_len < filename_size - 1) {
+                            /* Insert character at cursor */
+                            memmove(&filename[cursor_pos + 1],
+                                    &filename[cursor_pos],
+                                    filename_len - cursor_pos + 1);
+                            filename[cursor_pos] = (char)code;
+                            cursor_pos++;
+                            filename_len++;
+                            draw_requester_field(field_x, field_y, field_w, field_h,
+                                                 filename, cursor_pos);
+                        }
+                    }
+                    break;
+
+                case IDCMP_RAWKEY:
+                    /* Ignore key up events (bit 7 set) */
+                    if (code & IECODE_UP_PREFIX) break;
+
+                    /* Handle cursor keys and delete */
+                    if (code == CURSORLEFT) {
+                        if (cursor_pos > 0) {
+                            cursor_pos--;
+                            draw_requester_field(field_x, field_y, field_w, field_h,
+                                                 filename, cursor_pos);
+                        }
+                    } else if (code == CURSORRIGHT) {
+                        if (cursor_pos < filename_len) {
+                            cursor_pos++;
+                            draw_requester_field(field_x, field_y, field_w, field_h,
+                                                 filename, cursor_pos);
+                        }
+                    } else if (code == 0x46) {  /* Delete key */
+                        if (cursor_pos < filename_len) {
+                            memmove(&filename[cursor_pos],
+                                    &filename[cursor_pos + 1],
+                                    filename_len - cursor_pos);
+                            filename_len--;
+                            draw_requester_field(field_x, field_y, field_w, field_h,
+                                                 filename, cursor_pos);
+                        }
+                    }
+                    break;
+            }
+        }
+    }
+
+    /* Redraw the main view to restore the area */
+    redraw_current_view();
+
+    return result;
 }
