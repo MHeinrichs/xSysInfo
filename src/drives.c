@@ -363,6 +363,84 @@ static BOOL is_floppy_device(ULONG total_blocks)
 }
 
 /*
+ * Check if a disk is present in the drive using TD_CHANGESTATE.
+ * Returns TRUE if a disk is present, FALSE otherwise.
+ */
+BOOL check_disk_present(ULONG index)
+{
+    DriveInfo *drive;
+    struct MsgPort *port = NULL;
+    struct IOStdReq *io = NULL;
+    BYTE error;
+    BOOL disk_present = FALSE;
+
+    if (index >= (ULONG)drive_list.count) {
+        return FALSE;
+    }
+
+    drive = &drive_list.drives[index];
+
+    /* Check if we have device info */
+    if (!drive->handler_name[0]) {
+        return FALSE;
+    }
+
+    /* Only check floppy-type devices */
+    if (!is_floppy_device(drive->total_blocks)) {
+        /* Non-floppy devices are assumed to have media present */
+        return TRUE;
+    }
+
+    /* Create message port */
+    port = CreateMsgPort();
+    if (!port) {
+        return FALSE;
+    }
+
+    /* Create I/O request */
+    io = (struct IOStdReq *)CreateIORequest(port, sizeof(struct IOStdReq));
+    if (!io) {
+        DeleteMsgPort(port);
+        return FALSE;
+    }
+
+    /* Open the device */
+    error = OpenDevice((CONST_STRPTR)drive->handler_name, drive->unit_number,
+                       (struct IORequest *)io, 0);
+    if (error != 0) {
+        DeleteIORequest((struct IORequest *)io);
+        DeleteMsgPort(port);
+        return FALSE;
+    }
+
+    /* Use TD_CHANGESTATE to check if disk is present */
+    io->io_Command = TD_CHANGESTATE;
+    error = DoIO((struct IORequest *)io);
+
+    if (error == 0) {
+        /* io_Actual is 0 if disk is present, non-zero if no disk */
+        disk_present = (io->io_Actual == 0);
+    }
+
+    /* Update drive state based on result */
+    if (!disk_present) {
+        drive->disk_state = DISK_NO_DISK;
+        drive->volume_name[0] = '\0';
+    }
+
+    /* Clean up */
+    CloseDevice((struct IORequest *)io);
+    DeleteIORequest((struct IORequest *)io);
+    DeleteMsgPort(port);
+
+    debug("  drives: TD_CHANGESTATE on %s unit %ld: disk %s\n",
+          (LONG)drive->handler_name, (LONG)drive->unit_number,
+          (LONG)(disk_present ? "present" : "not present"));
+
+    return disk_present;
+}
+
+/*
  * Measure drive speed (bytes/second)
  */
 ULONG measure_drive_speed(ULONG index)
@@ -439,8 +517,8 @@ ULONG measure_drive_speed(ULONG index)
               (LONG)drive->handler_name, (LONG)drive->unit_number, (LONG)error);
         DeleteIORequest((struct IORequest *)io);
         DeleteMsgPort(port);
-        /* Mark as measured with 0 speed so user sees it was attempted */
-        drive->speed_measured = TRUE;
+        /* Mark as not measured */
+        drive->speed_measured = FALSE;
         drive->speed_bytes_sec = 0;
         return 0;
     }
@@ -499,13 +577,15 @@ ULONG measure_drive_speed(ULONG index)
     if (elapsed > 0 && total_read > 0) {
         /* Timer ticks are in microseconds */
         bytes_per_sec = (ULONG)(((uint64_t)total_read * 1000000ULL) / elapsed);
+        drive->speed_bytes_sec = bytes_per_sec;
+        drive->speed_measured = TRUE;
+    } else {
+        drive->speed_bytes_sec = 0;
+        drive->speed_measured = FALSE;
     }
 
     debug("  drives: Read %ld bytes in %ld us = %ld bytes/sec\n",
           (LONG)total_read, (LONG)elapsed, (LONG)bytes_per_sec);
-
-    drive->speed_bytes_sec = bytes_per_sec;
-    drive->speed_measured = TRUE;
 
     return bytes_per_sec;
 }
@@ -562,33 +642,49 @@ void draw_drives_view(void)
         y += 9;
 
         /* Disk state */
-        draw_label_value(120, y, get_string(MSG_DISK_STATE),
-                         get_disk_state_string(drive->disk_state), 224);
+        if (drive->disk_state == DISK_NO_DISK) {
+            draw_label_value(120, y, get_string(MSG_DISK_STATE), "---", 224);
+        } else {
+            draw_label_value(120, y, get_string(MSG_DISK_STATE),
+                             get_disk_state_string(drive->disk_state), 224);
+        }
         y += 9;
 
-        /* Total blocks */
+        /* Total blocks - always show since it's a drive geometry property */
         snprintf(buffer, sizeof(buffer), "%lu", (unsigned long)drive->total_blocks);
         draw_label_value(120, y, get_string(MSG_TOTAL_BLOCKS), buffer, 224);
         y += 9;
 
         /* Blocks used */
-        snprintf(buffer, sizeof(buffer), "%lu", (unsigned long)drive->blocks_used);
+        if (drive->disk_state == DISK_NO_DISK) {
+            strncpy(buffer, "---", sizeof(buffer));
+        } else {
+            snprintf(buffer, sizeof(buffer), "%lu", (unsigned long)drive->blocks_used);
+        }
         draw_label_value(120, y, get_string(MSG_BLOCKS_USED), buffer, 224);
         y += 9;
 
         /* Bytes per block */
-        snprintf(buffer, sizeof(buffer), "%lu", (unsigned long)drive->bytes_per_block);
+        if (drive->disk_state == DISK_NO_DISK) {
+            strncpy(buffer, "---", sizeof(buffer));
+        } else {
+            snprintf(buffer, sizeof(buffer), "%lu", (unsigned long)drive->bytes_per_block);
+        }
         draw_label_value(120, y, get_string(MSG_BYTES_PER_BLOCK), buffer, 224);
         y += 9;
 
         /* Filesystem type */
-        draw_label_value(120, y, get_string(MSG_DISK_TYPE),
-                         get_filesystem_string(drive->fs_type), 224);
+        if (drive->disk_state == DISK_NO_DISK) {
+            draw_label_value(120, y, get_string(MSG_DISK_TYPE), "No Disk Inserted", 224);
+        } else {
+            draw_label_value(120, y, get_string(MSG_DISK_TYPE),
+                             get_filesystem_string(drive->fs_type), 224);
+        }
         y += 9;
 
         /* Volume name */
         draw_label_value(120, y, get_string(MSG_VOLUME_NAME),
-                         drive->volume_name[0] ? drive->volume_name : "---", 224);
+                         (drive->disk_state == DISK_NO_DISK || !drive->volume_name[0]) ? "---" : drive->volume_name, 224);
         y += 9;
 
         /* Device name */

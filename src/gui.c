@@ -179,9 +179,9 @@ void update_button_states(void)
                        get_string(MSG_BTN_QUIT), BTN_QUIT, TRUE);
             add_button(239, 176, 60, 11,
                        get_string(MSG_BTN_MEMORY), BTN_MEMORY, TRUE);
-            add_button(301, 176, 60, 11,
-                       get_string(MSG_BTN_DRIVES), BTN_DRIVES, TRUE);
             add_button(177, 187, 60, 11,
+                       get_string(MSG_BTN_DRIVES), BTN_DRIVES, TRUE);
+            add_button(301, 176, 60, 11,
                        get_string(MSG_BTN_BOARDS), BTN_BOARDS, TRUE);
             add_button(239, 187, 60, 11,
                        get_string(MSG_BTN_SPEED), BTN_SPEED, TRUE);
@@ -206,7 +206,7 @@ void update_button_states(void)
                        SOFTWARE_PANEL_Y + 15 + 10, 12, SOFTWARE_PANEL_H - 15 - 10 - 12,
                        NULL, BTN_SOFTWARE_SCROLLBAR, TRUE);  /* Scroll bar */
             add_button(SOFTWARE_PANEL_X + SOFTWARE_PANEL_W - 14,
-                       SOFTWARE_PANEL_Y + SOFTWARE_PANEL_H - 12, 12, 10,
+                       SOFTWARE_PANEL_Y + SOFTWARE_PANEL_H - 12 + 1, 12, 10,
                        NULL, BTN_SOFTWARE_DOWN, TRUE); /* Down arrow */
 
             /* Scale toggle button */
@@ -254,6 +254,7 @@ void update_button_states(void)
         case VIEW_DRIVES:
             {
                 BOOL scsi_enabled = FALSE;
+                BOOL speed_enabled = FALSE;
 
                 ULONG i;
                 WORD y = 28;
@@ -266,13 +267,14 @@ void update_button_states(void)
 
                 if (app->selected_drive >= 0 &&
                     app->selected_drive < (LONG)drive_list.count) {
-                    scsi_enabled = drive_list.drives[app->selected_drive].scsi_supported;
+                    DriveInfo *drive = &drive_list.drives[app->selected_drive];
+                    scsi_enabled = drive->scsi_supported;
+                    speed_enabled = (drive->disk_state != DISK_NO_DISK);
                 }
                 add_button(100, 188, 52, 12,
                            get_string(MSG_BTN_SCSI), BTN_DRV_SCSI, scsi_enabled);
                 add_button(160, 188, 52, 12,
-                           get_string(MSG_BTN_SPEED), BTN_DRV_SPEED,
-                           app->selected_drive >= 0);
+                           get_string(MSG_BTN_SPEED), BTN_DRV_SPEED, speed_enabled);
                 add_button(220, 188, 52, 12,
                            get_string(MSG_BTN_EXIT), BTN_DRV_EXIT, TRUE);
             }
@@ -1351,7 +1353,10 @@ void handle_button_press(ButtonID btn_id)
             /* Check for drive selection buttons */
             if (btn_id >= BTN_DRV_DRIVE_BASE &&
                 btn_id < BTN_DRV_DRIVE_BASE + MAX_DRIVES) {
-                app->selected_drive = btn_id - BTN_DRV_DRIVE_BASE;
+                ULONG drive_index = btn_id - BTN_DRV_DRIVE_BASE;
+                app->selected_drive = drive_index;
+                /* Check if disk is present when selecting a drive */
+                check_disk_present(drive_index);
                 redraw_current_view();
             }
             break;
