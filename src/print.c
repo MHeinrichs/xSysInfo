@@ -68,7 +68,7 @@ void export_header(BPTR fh)
     DateToStr(&dt);
 
     WRITE_LINE(fh, "================================================================================");
-    WRITE_LINE(fh, "                    xSysInfo " XSYSINFO_VERSION " System Report");
+    WRITE_LINE(fh, "                    " XSYSINFO_NAME " " XSYSINFO_VERSION " System Report");
     WRITE_LINE(fh, "================================================================================");
     write_formatted(fh, "Generated: %s %s", date_str, time_str);
     WRITE_LINE(fh, "");
@@ -418,7 +418,7 @@ BOOL export_to_file(const char *filename)
     export_drives(fh);
 
     WRITE_LINE(fh, "================================================================================");
-    WRITE_LINE(fh, "                          End of xSysInfo Report");
+    WRITE_LINE(fh, "                          End of " XSYSINFO_NAME " Report");
     WRITE_LINE(fh, "================================================================================");
 
     Close(fh);

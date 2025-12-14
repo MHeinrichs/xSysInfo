@@ -180,7 +180,7 @@ int main(int argc, char **argv)
         parse_args();
     }
 
-    debug("xSysInfo: Starting...\n");
+    debug(XSYSINFO_NAME ": Starting...\n");
 
     /* Initialize application context */
     memset(app, 0, sizeof(AppContext));
@@ -190,11 +190,11 @@ int main(int argc, char **argv)
     app->running = TRUE;
     app->pressed_button = -1;
 
-    debug("xSysInfo: Initializing locale...\n");
+    debug(XSYSINFO_NAME ": Initializing locale...\n");
     /* Initialize locale */
     init_locale();
 
-    debug("xSysInfo: Opening libraries...\n");
+    debug(XSYSINFO_NAME ": Opening libraries...\n");
     /* Open required libraries */
     if (!open_libraries()) {
         ret = RETURN_FAIL;
@@ -206,7 +206,7 @@ int main(int argc, char **argv)
         parse_tooltypes();
     }
 
-    debug("xSysInfo: Detecting hardware...\n");
+    debug(XSYSINFO_NAME ": Detecting hardware...\n");
     /* Detect hardware */
     if (!detect_hardware()) {
         Printf((CONST_STRPTR)"Failed to detect hardware\n");
@@ -214,23 +214,23 @@ int main(int argc, char **argv)
         goto cleanup;
     }
 
-    debug("xSysInfo: Enumerating software...\n");
+    debug(XSYSINFO_NAME ": Enumerating software...\n");
     /* Enumerate system software */
     enumerate_all_software();
 
-    debug("xSysInfo: Enumerating memory...\n");
+    debug(XSYSINFO_NAME ": Enumerating memory...\n");
     /* Enumerate memory regions */
     enumerate_memory_regions();
 
-    debug("xSysInfo: Enumerating boards...\n");
+    debug(XSYSINFO_NAME ": Enumerating boards...\n");
     /* Enumerate expansion boards */
     enumerate_boards();
 
-    debug("xSysInfo: Enumerating drives...\n");
+    debug(XSYSINFO_NAME ": Enumerating drives...\n");
     /* Enumerate drives */
     enumerate_drives();
 
-    debug("xSysInfo: Opening display...\n");
+    debug(XSYSINFO_NAME ": Opening display...\n");
     /* Open display (screen or window) */
     if (!open_display()) {
         Printf((CONST_STRPTR)"%s\n", (LONG)get_string(MSG_ERR_NO_WINDOW));
