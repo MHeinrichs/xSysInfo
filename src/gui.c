@@ -800,17 +800,11 @@ static void draw_speed_panel(void)
     /* Draw reference systems */
     y += 8;
     for (i = 0; i < NUM_REFERENCE_SYSTEMS; i++) {
-        const char *ref_names[] = {
-            get_string(MSG_REF_A600),
-            get_string(MSG_REF_B2000),
-            get_string(MSG_REF_A1200),
-            get_string(MSG_REF_A2500),
-            get_string(MSG_REF_A3000),
-            get_string(MSG_REF_A4000)
-        };
+        char ref_label[24];
+        format_reference_label(ref_label, sizeof(ref_label), &reference_systems[i]);
 
         SetAPen(rp, COLOR_TEXT);
-        TightText(rp, SPEED_PANEL_X + 4, y, (CONST_STRPTR)ref_names[i], -1, 4);
+        TightText(rp, SPEED_PANEL_X + 4, y, (CONST_STRPTR)ref_label, -1, 4);
 
         /* Draw speed factor (your speed / reference speed) */
         if (bench_results.benchmarks_valid && reference_systems[i].dhrystones > 0) {

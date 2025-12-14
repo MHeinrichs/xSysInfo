@@ -282,18 +282,15 @@ void export_benchmarks(BPTR fh)
 
     /* Reference systems */
     WRITE_LINE(fh, "Reference Systems:");
-    write_formatted(fh, "  A600  68000  7MHz:  %lu Dhrystones",
-                    (unsigned long)reference_systems[REF_A600].dhrystones);
-    write_formatted(fh, "  B2000 68000  7MHz:  %lu Dhrystones",
-                    (unsigned long)reference_systems[REF_B2000].dhrystones);
-    write_formatted(fh, "  A1200 EC020 14MHz:  %lu Dhrystones",
-                    (unsigned long)reference_systems[REF_A1200].dhrystones);
-    write_formatted(fh, "  A2500 68020 14MHz:  %lu Dhrystones",
-                    (unsigned long)reference_systems[REF_A2500].dhrystones);
-    write_formatted(fh, "  A3000 68030 25MHz:  %lu Dhrystones",
-                    (unsigned long)reference_systems[REF_A3000].dhrystones);
-    write_formatted(fh, "  A4000 68040 25MHz:  %lu Dhrystones",
-                    (unsigned long)reference_systems[REF_A4000].dhrystones);
+    {
+        ULONG i;
+        for (i = 0; i < NUM_REFERENCE_SYSTEMS; i++) {
+            char ref_label[32];
+            format_reference_label(ref_label, sizeof(ref_label), &reference_systems[i]);
+            write_formatted(fh, "  %s:  %lu Dhrystones",
+                            ref_label, (unsigned long)reference_systems[i].dhrystones);
+        }
+    }
 
     WRITE_LINE(fh, "");
 }

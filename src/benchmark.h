@@ -46,6 +46,9 @@ extern BenchmarkResults bench_results;
 /* Global reference data */
 extern const ReferenceSystem reference_systems[NUM_REFERENCE_SYSTEMS];
 
+/* Format reference system label ("A600  68000  7MHz") */
+void format_reference_label(char *buffer, size_t buffer_size, const ReferenceSystem *ref);
+
 /* Function prototypes */
 
 /* Run all benchmarks */

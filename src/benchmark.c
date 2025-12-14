@@ -35,6 +35,14 @@ const ReferenceSystem reference_systems[NUM_REFERENCE_SYSTEMS] = {
     {"A4000", "68040",  25,  18000, 1024,  350,  140},
 };
 
+void format_reference_label(char *buffer, size_t buffer_size, const ReferenceSystem *ref)
+{
+    if (!buffer || buffer_size == 0 || !ref) return;
+
+    snprintf(buffer, buffer_size, "%-5s %-5s %luMHz",
+             ref->name, ref->cpu, (unsigned long)ref->mhz);
+}
+
 /* Timer resources */
 static struct MsgPort *timer_port = NULL;
 static struct timerequest *timer_req = NULL;
