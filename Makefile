@@ -41,7 +41,7 @@ SRCS = src/main.c \
 
 OBJS = $(SRCS:.c=.o)
 
-TARGET = xsysinfo
+TARGET = xSysInfo
 
 .PHONY: all clean identify
 
@@ -190,7 +190,8 @@ disk: $(TARGET) download-libs
 	@echo "  DISK"
 	@xdftool $(DISK) format "xSysInfo"
 	@xdftool $(DISK) write $(TARGET) $(TARGET)
-	@xdftool $(DISK) write $(TARGET).info $(TARGET).info
+	@xdftool $(DISK) write docs/$(TARGET).info $(TARGET).info
+	@xdftool $(DISK) write docs/Disk.info Disk.info
 	@xdftool $(DISK) makedir Libs
 	@xdftool $(DISK) write 3rdparty/identify/build/identify.library Libs/identify.library
 	@xdftool $(DISK) write 3rdparty/identify/build/openpci.library Libs/openpci.library

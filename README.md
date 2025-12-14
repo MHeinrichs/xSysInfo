@@ -35,11 +35,15 @@ To build `xSysInfo`, you will need a GCC cross-compiler for m68k-amigaos (e.g., 
     ```bash
     make disk
     ```
-    This will generate `xsysinfo.adf` in the project root.
+    This will generate `xsysinfo-<version>.adf` in the project root.
 
 ## Running `xSysInfo`
 
-After building, you can run `xSysInfo` on an Amiga emulator (like WinUAE or FS-UAE) by loading the generated `xsysinfo.adf` disk image. Alternatively, if building directly on an Amiga machine, you can execute the `xsysinfo` binary from your shell.
+The primary way to run `xSysInfo` on a real Amiga is via a GOTEK drive using the generated `xsysinfo-<version>.adf` disk image.
+
+You can also run the ADF on an Amiga emulator (like WinUAE or FS-UAE).
+
+Additionally, the `xsysinfo` binary itself can be executed directly from the shell on a real Amiga or emulator.
 
 ## Dependencies
 
