@@ -20,19 +20,20 @@
 BenchmarkResults bench_results;
 
 /* Reference system data (placeholder values - to be calibrated); scaled by 100 */
+    /* name,  cpu,     mhz,   dhry, mips, mfls */
 const ReferenceSystem reference_systems[NUM_REFERENCE_SYSTEMS] = {
     /* A600:  68000 @ 7.09 MHz, no FPU */
-    {"A600",  "68000",  7,   539,   31,    0,    100},
+    {"A600",  "68000",   7,   1028,   58,    0},
     /* B2000: 68000 @ 7.09 MHz, no FPU */
-    {"B2000", "68000",  7,   539,   31,    0,    100},
+    {"B2000", "68000",   7,   1028,   58,    0},
     /* A1200: 68EC020 @ 14 MHz, no FPU */
-    {"A1200", "EC020",  14,  1700,  97,    0,    115},
+    {"A1200", "EC020",  14,   2550,  145,    0},
     /* A2500: 68020 @ 14 MHz */
-    {"A2500", "68020",  14,  2100,  120,   0,    100},
-    /* A3000: 68030 @ 25 MHz */
-    {"A3000", "68030",  25,  4500,  256,   0,    130},
+    {"A2500", "68020",  14,   2100,  120,    0},
+    /* A3000: 68030 / 68882 @ 25 MHz */
+    {"A3000", "68030",  25,   7090,  403,  285},
     /* A4000: 68040 @ 25 MHz, internal FPU */
-    {"A4000", "68040",  25,  18000, 1024,  350,  140},
+    {"A4000", "68040",  25,  20530, 1168,  578},
 };
 
 void format_reference_label(char *buffer, size_t buffer_size, const ReferenceSystem *ref)

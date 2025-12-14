@@ -15,7 +15,6 @@ typedef struct {
     ULONG dhrystones;       /* Dhrystone score */
     ULONG mips;             /* MIPS rating * 100 */
     ULONG mflops;           /* MFLOPS rating * 100 (0 if no FPU) */
-    ULONG chip_speed;       /* Relative chip RAM speed * 100 (100 = A600) */
 } ReferenceSystem;
 
 /* Number of reference systems */
