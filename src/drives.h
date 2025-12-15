@@ -71,6 +71,7 @@ void enumerate_drives(void);
 void refresh_drive_info(ULONG index);
 ULONG measure_drive_speed(ULONG index);
 BOOL check_disk_present(ULONG index);
+ULONG get_display_block_size(const DriveInfo *drive);
 
 /* Helper functions */
 const char *get_disk_state_string(DiskState state);

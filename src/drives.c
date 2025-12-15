@@ -4,6 +4,7 @@
 
 #include <string.h>
 #include <stdio.h>
+#include <stdint.h>
 
 #include <dos/dos.h>
 #include <dos/dosextens.h>
@@ -99,6 +100,23 @@ const char *get_disk_state_string(DiskState state)
 }
 
 /*
+ * Get block size to display (adjusts for OFS overhead)
+ */
+ULONG get_display_block_size(const DriveInfo *drive)
+{
+    ULONG block_size;
+
+    if (!drive) return 0;
+
+    block_size = drive->bytes_per_block;
+    if (drive->fs_type == FS_OFS && block_size >= 24) {
+        block_size -= 24;
+    }
+
+    return block_size;
+}
+
+/*
  * Convert BSTR to C string
  */
 static void bstr_to_cstr(BSTR bstr, char *cstr, ULONG maxlen)
@@ -181,9 +199,6 @@ void enumerate_drives(void)
                         drive->dos_type = de->de_DosType;
                         drive->fs_type = identify_filesystem(de->de_DosType);
                     }
-
-                    /* OFS stores 24 bytes overhead in every block */
-                    if (drive->fs_type == FS_OFS) drive->bytes_per_block -= 24;
 
                     /* Calculate total blocks */
                     drive->total_blocks = (drive->high_cylinder - drive->low_cylinder + 1) *
@@ -453,10 +468,11 @@ ULONG measure_drive_speed(ULONG index)
     ULONG buffer_size;
     ULONG block_size;
     ULONG total_read = 0;
-    ULONG start_time, end_time, elapsed;
+    uint64_t start_time, end_time, elapsed;
     ULONG bytes_per_sec = 0;
     ULONG num_reads;
     ULONG read_offset;
+    uint64_t read_offset_bytes = 0;
     ULONG i;
     BYTE error;
     BOOL is_floppy;
@@ -479,7 +495,8 @@ ULONG measure_drive_speed(ULONG index)
         return 0;
     }
 
-    /* Determine buffer size based on device type */
+    /* Determine block size and buffer size based on device type */
+    block_size = drive->bytes_per_block ? drive->bytes_per_block : 512;
     is_floppy = is_floppy_device(drive->total_blocks);
     if (is_floppy) {
         /* Floppy: read small amount (one track worth) */
@@ -490,8 +507,9 @@ ULONG measure_drive_speed(ULONG index)
         buffer_size = 256 * 1024;  /* 256 KB */
         num_reads = 8;
     }
-
-    block_size = drive->bytes_per_block ? drive->bytes_per_block : 512;
+    if (block_size == 0) block_size = 512;
+    if (buffer_size < block_size) buffer_size = block_size;
+    if (block_size > 1) buffer_size -= buffer_size % block_size;
 
     /* Create message port */
     port = CreateMsgPort();
@@ -539,9 +557,26 @@ ULONG measure_drive_speed(ULONG index)
         return 0;
     }
 
-    /* Calculate read offset - start from low cylinder */
-    read_offset = drive->low_cylinder * drive->surfaces *
-                  drive->sectors_per_track * block_size;
+    /* Calculate read offset - start from low cylinder, clamp to 32-bit */
+    if (drive->surfaces && drive->sectors_per_track) {
+        read_offset_bytes = (uint64_t)drive->low_cylinder *
+                            (uint64_t)drive->surfaces *
+                            (uint64_t)drive->sectors_per_track *
+                            (uint64_t)block_size;
+        if (block_size > 1 && read_offset_bytes > 0) {
+            read_offset_bytes -= read_offset_bytes % block_size;
+        }
+    } else {
+        debug("  drives: Missing geometry, defaulting read offset to 0\n");
+    }
+
+    if (read_offset_bytes > (uint64_t)(ULONG_MAX - buffer_size)) {
+        uint64_t limit = (uint64_t)(ULONG_MAX - buffer_size);
+        if (block_size > 1) limit -= limit % block_size;
+        read_offset_bytes = limit;
+    }
+
+    read_offset = (ULONG)read_offset_bytes;
 
     debug("  drives: Speed test on %s unit %ld, %ld reads of %ld bytes at offset %ld\n",
           (LONG)drive->handler_name, (LONG)drive->unit_number,
@@ -690,7 +725,8 @@ void draw_drives_view(void)
         if (drive->disk_state == DISK_NO_DISK) {
             strncpy(buffer, "---", sizeof(buffer));
         } else {
-            snprintf(buffer, sizeof(buffer), "%lu", (unsigned long)drive->bytes_per_block);
+            ULONG display_block_size = get_display_block_size(drive);
+            snprintf(buffer, sizeof(buffer), "%lu", (unsigned long)display_block_size);
         }
         draw_label_value(120, y, get_string(MSG_BYTES_PER_BLOCK), buffer, 224);
         y += 9;
