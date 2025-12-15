@@ -10,6 +10,7 @@
 #include <graphics/gfxbase.h>
 #include <graphics/displayinfo.h>
 #include <libraries/identify.h>
+#include <dos/dosextens.h>
 #include <dos/rdargs.h>
 #include <workbench/startup.h>
 #include <workbench/workbench.h>
@@ -275,8 +276,8 @@ static BOOL open_libraries(void)
     IntuitionBase = (struct IntuitionBase *)
         OpenLibrary((CONST_STRPTR)"intuition.library", MIN_INTUITION_VERSION);
     if (!IntuitionBase) {
-        Printf((CONST_STRPTR)"Could not open intuition.library v%ld\n",
-               (LONG)MIN_INTUITION_VERSION);
+        Printf((CONST_STRPTR)"Could not open intuition.library v%d\n",
+               MIN_INTUITION_VERSION);
         return FALSE;
     }
 
@@ -284,8 +285,8 @@ static BOOL open_libraries(void)
     GfxBase = (struct GfxBase *)
         OpenLibrary((CONST_STRPTR)"graphics.library", MIN_GRAPHICS_VERSION);
     if (!GfxBase) {
-        Printf((CONST_STRPTR)"Could not open graphics.library v%ld\n",
-               (LONG)MIN_GRAPHICS_VERSION);
+        Printf((CONST_STRPTR)"Could not open graphics.library v%d\n",
+               MIN_GRAPHICS_VERSION);
         return FALSE;
     }
 
@@ -299,7 +300,15 @@ static BOOL open_libraries(void)
     app->IdentifyBase = IdentifyBase;
 
     /* Open icon.library - optional, for reading tooltypes */
-    IconBase = OpenLibrary((CONST_STRPTR)"icon.library", 37);
+    {
+        struct Process *proc = (struct Process *)FindTask(NULL);
+        APTR old_window = proc->pr_WindowPtr;
+        proc->pr_WindowPtr = (APTR)-1; /* Suppress system requesters */
+
+        IconBase = OpenLibrary((CONST_STRPTR)"icon.library", MIN_ICON_VERSION);
+
+        proc->pr_WindowPtr = old_window;
+    }
     /* Not a failure if icon.library can't be opened */
 
     return TRUE;

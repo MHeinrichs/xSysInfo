@@ -69,9 +69,9 @@ void enumerate_boards(void)
     memset(&board_list, 0, sizeof(board_list));
 
     debug("  boards: Opening expansion.library...\n");
-    ExpansionBase = OpenLibrary((CONST_STRPTR)"expansion.library", 37);
+    ExpansionBase = OpenLibrary((CONST_STRPTR)"expansion.library", MIN_EXPANSION_VERSION);
     if (!ExpansionBase) {
-        Printf((CONST_STRPTR)"Could not open expansion.library v37\n");
+        Printf((CONST_STRPTR)"Could not open expansion.library v%d\n", MIN_EXPANSION_VERSION);
         return;
     }
 
