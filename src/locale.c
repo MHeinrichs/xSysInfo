@@ -135,6 +135,8 @@ static const char *default_strings[MSG_COUNT] = {
     /* MSG_UNKNOWN */           "UNKNOWN",
     /* MSG_YES */               "YES",
     /* MSG_NO */                "NO",
+    /* MSG_ON */                "ON",
+    /* MSG_OFF */               "OFF",
     /* MSG_IN_USE */            "IN USE",
     /* MSG_CLOCK_FOUND */       "CLOCK FOUND",
     /* MSG_CLOCK_NOT_FOUND */   "NOT FOUND",

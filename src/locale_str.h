@@ -136,6 +136,8 @@ typedef enum {
     MSG_UNKNOWN,
     MSG_YES,
     MSG_NO,
+    MSG_ON,
+    MSG_OFF,
     MSG_IN_USE,
     MSG_CLOCK_FOUND,
     MSG_CLOCK_NOT_FOUND,
