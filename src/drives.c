@@ -230,7 +230,7 @@ static void match_volumes_to_drives(void)
     memset(dev_tasks, 0, sizeof(dev_tasks));
     dev_dol = LockDosList(LDF_DEVICES | LDF_READ);
     while ((dev_dol = NextDosEntry(dev_dol, LDF_DEVICES)) != NULL) {
-        char dev_name[32];
+        char dev_name[34];
         bstr_to_cstr(dev_dol->dol_Name, dev_name, sizeof(dev_name) - 2);
         strcat(dev_name, ":");
 

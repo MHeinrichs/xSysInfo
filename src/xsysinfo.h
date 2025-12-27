@@ -88,6 +88,13 @@ typedef enum {
     SOFTWARE_RESOURCES
 } SoftwareType;
 
+/* Software list types */
+typedef enum {
+    HARDWARE_STD,
+    HARDWARE_EXT
+} HardwareType;
+
+
 /* Memory location classification */
 typedef enum {
     LOC_ROM,
@@ -134,6 +141,7 @@ typedef struct {
 
     /* Main view state */
     SoftwareType software_type;     /* Which list is shown */
+    HardwareType hardware_type;     /* Which list is shown */
     LONG software_scroll;           /* Scroll offset */
     BarScale bar_scale;             /* Current bar graph scale */
     BOOL benchmarks_run;            /* Have benchmarks been executed? */

@@ -36,7 +36,6 @@ const char *get_memory_type_string(UWORD attrs, APTR addr)
     static char buffer[64];
     ULONG address = (ULONG)addr;
 
-    buffer[0] = '\0';
 
     /* Check for specific memory regions */
     if (attrs & MEMF_CHIP) {

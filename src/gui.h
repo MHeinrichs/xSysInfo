@@ -23,10 +23,12 @@ typedef enum {
 
     /* Main view toggles */
     BTN_SOFTWARE_CYCLE,     /* Libraries/Devices/Resources cycle */
+    BTN_HARDWARE_CYCLE,     /* Hardwareinfo cycle */
     BTN_SOFTWARE_UP,        /* Software list scroll up */
     BTN_SOFTWARE_DOWN,      /* Software list scroll down */
     BTN_SOFTWARE_SCROLLBAR, /* Software list scroll bar */
     BTN_SCALE_TOGGLE,       /* Expand/Shrink */
+
 
     /* Cache toggle buttons (inline in hardware panel) */
     BTN_ICACHE,

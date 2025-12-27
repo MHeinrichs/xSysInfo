@@ -419,10 +419,10 @@ static BOOL open_display(void)
         app->screen_height = app->screen->Height;
 
         /* If default screen font is larger than Topaz8, switch to Topaz8 */
-        if(app->window->IFont->tf_YSize > Topaz8Font.ta_YSize)
+        if (app->window->IFont->tf_YSize > Topaz8Font.ta_YSize)
         {
             app->tf = OpenFont(&Topaz8Font);
-            if(app->tf)
+            if (app->tf)
             {
                 SetFont(app->rp, app->tf);
             }
