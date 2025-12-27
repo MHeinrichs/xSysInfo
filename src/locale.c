@@ -229,6 +229,19 @@ static const char *default_strings[MSG_COUNT] = {
     /* MSG_COMMENT_GOOD */      "Good speed",
     /* MSG_COMMENT_CLASSIC */   "Classic Amiga",
     /* MSG_COMMENT_DEFAULT */   "What can I say!",
+    /* MSG_HARDWARE_STD */		"NORMAL",
+    /* MSG_HARDWARE_EXT */		"EXTENDED",
+    /* MSG_RAMSEY_CTRL */		"Ramsey control",
+    /* MSG_SDMAC_REVISION */	"SDMAC rev",
+    /* MSG_RAMSEY_PAGE */	"Page mode",
+    /* MSG_RAMSEY_BURST */	"Burst",
+    /* MSG_RAMSEY_WRAP */	"Wrap",
+    /* MSG_RAMSEY_SIZE */	"Ramsize",
+    /* MSG_RAMSEY_SKIP */	"Fast-mode",
+    /* MSG_RAMSEY_REFRESH */	"Refresh",
+    /* MSG_1M */			"1M-chips",
+    /* MSG_256K */			"256K-chips"
+
 };
 
 /* Get string by ID - uses catalog if available, falls back to English */

@@ -32,7 +32,7 @@ typedef enum {
     /* Scale toggle */
     MSG_EXPAND,
     MSG_SHRINK,
-
+    
     /* Hardware labels */
     MSG_CLOCK,
     MSG_DMA_GFX,
@@ -224,6 +224,19 @@ typedef enum {
     MSG_COMMENT_CLASSIC,
     MSG_COMMENT_DEFAULT,
 
+    /* Hardware toggle */
+    MSG_HARDWARE_STD,
+    MSG_HARDWARE_EXT,
+    MSG_RAMSEY_CTRL,
+    MSG_SDMAC_REV,
+    MSG_RAMSEY_PAGE,
+    MSG_RAMSEY_BURST,
+    MSG_RAMSEY_WRAP,
+    MSG_RAMSEY_SIZE,
+    MSG_RAMSEY_SKIP,
+    MSG_RAMSEY_REFRESH,
+    MSG_1M,
+    MSG_256K,
     MSG_COUNT  /* Total number of strings */
 } LocaleStringID;
 

@@ -386,6 +386,7 @@ void detect_clock(void)
 void detect_system_chips(void)
 {
     ULONG ramsey_num, gary_num;
+    unsigned char sdmac_rev;
 
     /* Ramsey (A3000/A4000 RAM controller) */
     ramsey_num = IdHardwareNum(IDHW_RAMSEY, NULL);
@@ -393,6 +394,23 @@ void detect_system_chips(void)
         hw_info.ramsey_rev = ramsey_num;
     } else {
         hw_info.ramsey_rev = 0;
+    }
+
+	hw_info.ramsey_ctl = *((volatile unsigned char *)(RAMSEY_CTRL));
+
+    hw_info.ramsey_page_enabled = hw_info.ramsey_ctl & RAMSEY_PAGE_MODE;
+    hw_info.ramsey_burst_enabled = hw_info.ramsey_ctl & RAMSEY_BURST_MODE;
+    hw_info.ramsey_wrap_enabled = hw_info.ramsey_ctl & RAMSEY_WRAP_MODE;
+    hw_info.ramsey_size_1M = hw_info.ramsey_ctl & RAMSEY_SIZE;
+    hw_info.ramsey_skip_enabled = hw_info.ramsey_ctl & RAMSEY_SKIP_MODE;
+	hw_info.ramsey_refresh_rate = (hw_info.ramsey_ctl & RAMSEY_REFESH_MODE)>>4;
+
+
+	sdmac_rev = *((volatile unsigned char *)(SDMAC_REVISION));
+	if (sdmac_rev != 0 && sdmac_rev != 0xFF) {
+        hw_info.sdmac_rev = sdmac_rev;
+    } else {
+        hw_info.sdmac_rev = 0;
     }
 
     /* Gary (A3000/A4000 I/O controller) */

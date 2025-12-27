@@ -10,6 +10,17 @@
 
 #include "xsysinfo.h"
 
+#define RAMSEY_VER     0x00DE0043 // Ramsey version register
+#define RAMSEY_CTRL    0x00DE0003 // Ramsey control register
+#define SDMAC_REVISION 0x00DD0020 // Read   Revision of ReSDMAC
+#define RAMSEY_PAGE_MODE 0x1
+#define RAMSEY_BURST_MODE 0x2
+#define RAMSEY_WRAP_MODE 0x4
+#define RAMSEY_SIZE 0x8
+#define RAMSEY_SKIP_MODE 0x10
+#define RAMSEY_REFESH_MODE 0x20
+
+
 /* CPU types */
 typedef enum {
     CPU_68000,
@@ -131,6 +142,17 @@ typedef struct {
     ULONG ramsey_rev;       /* 0 = not present */
     ULONG gary_rev;         /* 0 = not present */
 
+    unsigned char ramsey_ctl;       
+    unsigned char sdmac_rev;         /* 0 = not present */
+    
+    BOOL ramsey_page_enabled;
+    BOOL ramsey_burst_enabled;
+    BOOL ramsey_wrap_enabled;
+    BOOL ramsey_size_1M;
+    BOOL ramsey_skip_enabled;
+	ULONG ramsey_refresh_rate;     /* 0 = ???, 1 = ???, 2 = ???, 3 = ??? */
+	
+	
     /* System info */
     BOOL has_zorro_slots;
     BOOL has_pcmcia;
