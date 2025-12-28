@@ -33,6 +33,7 @@ LIBS = -lamiga -lgcc
 # Source files
 SRCS = src/main.c \
        src/gui.c \
+       src/battmem.c \
        src/hardware.c \
        src/benchmark.c \
        src/dhry_1.c \
