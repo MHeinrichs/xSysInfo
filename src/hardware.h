@@ -9,6 +9,7 @@
 #define HARDWARE_H
 
 #include "xsysinfo.h"
+#include "battmem.h"
 
 #define RAMSEY_VER     0x00DE0043 // Ramsey version register
 #define RAMSEY_CTRL    0x00DE0003 // Ramsey control register
@@ -152,7 +153,9 @@ typedef struct {
     BOOL ramsey_skip_enabled;
 	ULONG ramsey_refresh_rate;     /* 0 = ???, 1 = ???, 2 = ???, 3 = ??? */
 	
-	
+    /* BattMemRessources (if available)*/
+	BattMemData battMemData;
+
     /* System info */
     BOOL has_zorro_slots;
     BOOL has_pcmcia;
@@ -191,6 +194,7 @@ void detect_fpu(void);
 void detect_mmu(void);
 void detect_chipset(void);
 void detect_clock(void);
+void detect_batt_mem(void);
 void detect_system_chips(void);
 void detect_frequencies(void);
 void generate_comment(void);

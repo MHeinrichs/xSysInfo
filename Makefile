@@ -33,6 +33,7 @@ LIBS = -lamiga -lgcc
 # Source files
 SRCS = src/main.c \
        src/gui.c \
+       src/battmem.c \
        src/hardware.c \
        src/benchmark.c \
        src/dhry_1.c \
@@ -80,7 +81,7 @@ identify: $(FLEXCAT_BIN)
 # Catalog definitions - maps source directory to AmigaOS language name
 CATALOG_DESC = catalogs/xSysInfo.cd
 CATALOG_DIR = catalogs/build
-CATALOG_LANGS = german:deutsch french:français turkish:türkçe polish:polski
+CATALOG_LANGS = german:deutsch french:francais turkish:tuerkce polish:polski
 
 # Build all catalogs
 catalogs: $(FLEXCAT_BIN)

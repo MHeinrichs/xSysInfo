@@ -65,6 +65,8 @@ BOOL detect_hardware(void)
     detect_chipset();
     debug("  hw: Detecting clock...\n");
     detect_clock();
+    debug("  hw: Detecting batt mem ressources...\n");
+    detect_batt_mem();
     debug("  hw: Detecting system chips...\n");
     detect_system_chips();
     debug("  hw: Detecting frequencies...\n");
@@ -377,6 +379,21 @@ void detect_clock(void)
             strncpy(hw_info.clock_string, get_string(MSG_CLOCK_FOUND),
                     sizeof(hw_info.clock_string) - 1);
             break;
+    }
+}
+
+/*
+ * Detect if NV-Ram (batt Mem is available and read values)
+ * Call after detect_clock and detect_chips!
+ */
+void detect_batt_mem(void)
+{        
+    hw_info.battMemData.valid_data = FALSE;
+    if( hw_info.clock_type == CLOCK_RP5C01 //clock with NV-ram
+        && hw_info.ramsey_rev > 0 //we have a ramsey (and might be a A3000
+        && openBattMem() //batt mem ressource is open
+        ){
+        hw_info.battMemData.valid_data = readBattMem(&hw_info.battMemData);
     }
 }
 

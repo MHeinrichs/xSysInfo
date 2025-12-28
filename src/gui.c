@@ -1355,7 +1355,10 @@ static void draw_hardware_panel(void)
 	    /* Cache toggle buttons are drawn by draw_cache_buttons() */
 	    draw_cache_buttons();
 	}else{ //extended hw-info 
-		/* Ramsey */
+	    draw_label_value(HARDWARE_PANEL_X + 4, y,
+	                     "Extended Info for A3000/4000", NULL, 120);
+	    y += 8;
+        /* Ramsey */
 	   	if (hw_info.ramsey_rev) {
 	        snprintf(buffer, sizeof(buffer), "%lu", (unsigned long)hw_info.ramsey_rev);
 	    } else {
@@ -1404,12 +1407,54 @@ static void draw_hardware_panel(void)
 		    	default:
 		    		strncpy(buffer, "off", sizeof(buffer) - 1);
 		    		break;
-		   	}
-	        
+		   	}	        
 		    draw_label_value(HARDWARE_PANEL_X + 18, y,
 		                     get_string(MSG_RAMSEY_REFRESH), buffer, 110);
 		    y += 8;
-		    
+   		    draw_label_value(HARDWARE_PANEL_X + 4, y,
+		                     "NV-Ram (BattMem):", NULL, 120);
+		    y += 8;
+
+	        snprintf(buffer, sizeof(buffer), "%s", hw_info.battMemData.amnesia_amiga ? get_string(MSG_ON) : get_string(MSG_OFF));
+		    draw_label_value(HARDWARE_PANEL_X + 18, y,
+		                     "Amnesia", buffer, 110);
+		    y += 8;
+
+	        snprintf(buffer, sizeof(buffer), "%s", hw_info.battMemData.amnesia_shared ? get_string(MSG_ON) : get_string(MSG_OFF));
+		    draw_label_value(HARDWARE_PANEL_X + 18, y,
+		                     "Unix amnes.", buffer, 110);
+		    y += 8;
+
+	        snprintf(buffer, sizeof(buffer), "%s", hw_info.battMemData.long_timeout ? "LONG" : "SHORT");
+		    draw_label_value(HARDWARE_PANEL_X + 18, y,
+		                     "Timeout", buffer, 110);
+		    y += 8;
+
+	        snprintf(buffer, sizeof(buffer), "%s", hw_info.battMemData.scan_luns ? get_string(MSG_ON) : get_string(MSG_OFF));
+		    draw_label_value(HARDWARE_PANEL_X + 18, y,
+		                     "Scan LUNs", buffer, 110);
+		    y += 8;
+
+	        snprintf(buffer, sizeof(buffer), "%s", hw_info.battMemData.sync_transfer ? get_string(MSG_ON) : get_string(MSG_OFF));
+		    draw_label_value(HARDWARE_PANEL_X + 18, y,
+		                     "Sync", buffer, 110);
+		    y += 8;
+
+	        snprintf(buffer, sizeof(buffer), "%s", hw_info.battMemData.fast_sync_ransfer ? get_string(MSG_ON) : get_string(MSG_OFF));
+		    draw_label_value(HARDWARE_PANEL_X + 18, y,
+		                     "Fast Sync", buffer, 110);
+		    y += 8;
+
+	        snprintf(buffer, sizeof(buffer), "%s", hw_info.battMemData.tagged_queuing ? get_string(MSG_ON) : get_string(MSG_OFF));
+		    draw_label_value(HARDWARE_PANEL_X + 18, y,
+		                     "Queing", buffer, 110);
+		    y += 8;
+
+	        snprintf(buffer, sizeof(buffer), "%d", hw_info.battMemData.scsi_id);
+		    draw_label_value(HARDWARE_PANEL_X + 18, y,
+		                     "SCSI_ID", buffer, 110);
+		    y += 8;
+
 		    if (hw_info.sdmac_rev) {
 		        snprintf(buffer, sizeof(buffer), "$%02X", hw_info.sdmac_rev);
 		    } else {
