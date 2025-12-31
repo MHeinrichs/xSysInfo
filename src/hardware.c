@@ -438,7 +438,7 @@ void detect_sdmac(void)
 {
     unsigned char sdmac_rev;
     uint32_t ovalue, rvalue, wvalue;
-    uint8_t sdmac_version = 2;
+    uint8_t sdmac_version = 0;
     uint8_t istr;
     int pass;
     hw_info.sdmac_rev = 0;
@@ -478,7 +478,7 @@ void detect_sdmac(void)
 
                 ovalue = *SDMAC_WTC_ALT;
                 *SDMAC_WTC_ALT = wvalue;
-                //*RAMSEY_VER = 0; /* Push write to bus */
+                *((volatile unsigned char *)RAMSEY_VER) = 0;/* Push write to bus */
                 rvalue = *SDMAC_WTC;
                 *SDMAC_WTC_ALT = ovalue;
 
@@ -506,7 +506,7 @@ void detect_sdmac(void)
 void detect_gary(void){
     
     ULONG gary_num;
-    UWORD testVal1, testVal2,i ;  
+    UWORD testVal1, testVal2, garyRev,i ;  
     unsigned char val, tmp;  
     /* Gary (A3000/A4000 I/O controller) */
     gary_num = IdHardwareNum(IDHW_GARY, NULL);
@@ -572,13 +572,22 @@ void detect_gary(void){
     now we read the GAYLE_ID: Write a zero to the ID-register and read it back 8 times!
     */
 
-    val = 0;
-    *((volatile unsigned char *)(GAYLE_ID)) = 0;
+    garyRev = 0;
+    //test for mirroring (A500)
+    testVal1 = *((volatile UWORD *)(CUSTOM_DMACONR));
+    *((volatile UWORD *)(GAYLE_ID)) = 0;
     for(i=0; i<8; i++){
-        tmp = *((volatile unsigned char *)(GAYLE_ID));
-        val = val|(tmp>>i);
+        testVal2 = *((volatile UWORD *)(GAYLE_ID));
+        if(i == 0 && testVal2 == testVal1){ //a500 gary!
+            hw_info.gary_type = GARY_A500;
+            return; 
+        }
+        //mask
+        testVal2 &= 0x8000>>i;
+        garyRev = garyRev|(testVal2>>i);
     }
-    if(val!=0xFF){
+    garyRev = garyRev >> 8;
+    if(garyRev!=0xFF){
         hw_info.gary_type = GAYLE;
         hw_info.gary_rev = (ULONG)val;
         return;
