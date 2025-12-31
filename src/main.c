@@ -185,7 +185,6 @@ int main(int argc, char **argv)
     }
 
     debug(XSYSINFO_NAME ": Starting...\n");
-
     /* Initialize application context */
     memset(app, 0, sizeof(AppContext));
     app->current_view = VIEW_MAIN;
