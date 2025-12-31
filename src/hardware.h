@@ -20,7 +20,18 @@
 #define RAMSEY_SIZE 0x8
 #define RAMSEY_SKIP_MODE 0x10
 #define RAMSEY_REFESH_MODE 0x20
+#define CUSTOM_DMACONR  0xDFF002
+#define CUSTOM_DMACONR_MIRR  0xDC0002
+#define GAYLE_ID 0xDE1002
+#define FAT_GARY_POWER 0xDE0002
+#define SDMAC_ISTR      ((volatile uint8_t *)0xDD001F)
+#define SDMAC_WTC       ((volatile uint32_t *)0xDD0024)
+#define SDMAC_WTC_ALT   ((volatile uint32_t *)0xDD0028)
+#define NCR_CTEST8_REG 0x00dd0061
 
+/* ISTR bits */
+#define SDMAC_ISTR_FIFOE  0x01
+#define SDMAC_ISTR_FIFOF  0x02
 
 /* CPU types */
 typedef enum {
@@ -94,6 +105,15 @@ typedef enum {
     CLOCK_UNKNOWN
 } ClockType;
 
+/*Gayle/Gary types*/
+typedef enum{
+    GARY_UNKNOWN,
+    GARY_A1000,
+    GARY_A500,
+    GAYLE,
+    FAT_GARY
+}GaryType;
+
 /* Hardware information structure */
 typedef struct {
     /* CPU */
@@ -142,9 +162,11 @@ typedef struct {
     /* Other chips */
     ULONG ramsey_rev;       /* 0 = not present */
     ULONG gary_rev;         /* 0 = not present */
+    GaryType gary_type;
 
     unsigned char ramsey_ctl;       
     unsigned char sdmac_rev;         /* 0 = not present */
+    BOOL is_A4000T;
     
     BOOL ramsey_page_enabled;
     BOOL ramsey_burst_enabled;
@@ -195,6 +217,9 @@ void detect_mmu(void);
 void detect_chipset(void);
 void detect_clock(void);
 void detect_batt_mem(void);
+void detect_gary(void);
+void detect_ramsey(void);
+void detect_sdmac(void);
 void detect_system_chips(void);
 void detect_frequencies(void);
 void generate_comment(void);

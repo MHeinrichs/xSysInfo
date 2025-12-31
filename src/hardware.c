@@ -65,10 +65,10 @@ BOOL detect_hardware(void)
     detect_chipset();
     debug("  hw: Detecting clock...\n");
     detect_clock();
-    debug("  hw: Detecting batt mem ressources...\n");
-    detect_batt_mem();
     debug("  hw: Detecting system chips...\n");
     detect_system_chips();
+    debug("  hw: Detecting batt mem ressources...\n");
+    detect_batt_mem();
     debug("  hw: Detecting frequencies...\n");
     detect_frequencies();
     debug("  hw: Refreshing cache status...\n");
@@ -398,38 +398,116 @@ void detect_batt_mem(void)
 }
 
 /*
- * Detect Ramsey, Gary, and expansion slots
+ * Detect Ramsey
  */
-void detect_system_chips(void)
-{
-    ULONG ramsey_num, gary_num;
-    unsigned char sdmac_rev;
+void detect_ramsey(void){
 
     /* Ramsey (A3000/A4000 RAM controller) */
+/*  
+    ULONG ramsey_num;
     ramsey_num = IdHardwareNum(IDHW_RAMSEY, NULL);
     if (ramsey_num != 0 && ramsey_num != IDRSY_NONE) {
         hw_info.ramsey_rev = ramsey_num;
     } else {
         hw_info.ramsey_rev = 0;
     }
-
-	hw_info.ramsey_ctl = *((volatile unsigned char *)(RAMSEY_CTRL));
-
-    hw_info.ramsey_page_enabled = hw_info.ramsey_ctl & RAMSEY_PAGE_MODE;
-    hw_info.ramsey_burst_enabled = hw_info.ramsey_ctl & RAMSEY_BURST_MODE;
-    hw_info.ramsey_wrap_enabled = hw_info.ramsey_ctl & RAMSEY_WRAP_MODE;
-    hw_info.ramsey_size_1M = hw_info.ramsey_ctl & RAMSEY_SIZE;
-    hw_info.ramsey_skip_enabled = hw_info.ramsey_ctl & RAMSEY_SKIP_MODE;
-	hw_info.ramsey_refresh_rate = (hw_info.ramsey_ctl & RAMSEY_REFESH_MODE)>>4;
-
-
-	sdmac_rev = *((volatile unsigned char *)(SDMAC_REVISION));
-	if (sdmac_rev != 0 && sdmac_rev != 0xFF) {
-        hw_info.sdmac_rev = sdmac_rev;
-    } else {
-        hw_info.sdmac_rev = 0;
+*/
+    hw_info.ramsey_rev = (ULONG)*((volatile unsigned char *)(RAMSEY_VER));
+    if(hw_info.ramsey_rev == 0xFF){ // unlikely!
+        hw_info.ramsey_rev = 0; 
     }
+    if(hw_info.ramsey_rev > 0){
+        hw_info.ramsey_ctl = *((volatile unsigned char *)(RAMSEY_CTRL));
 
+        hw_info.ramsey_page_enabled = hw_info.ramsey_ctl & RAMSEY_PAGE_MODE;
+        hw_info.ramsey_burst_enabled = hw_info.ramsey_ctl & RAMSEY_BURST_MODE;
+        hw_info.ramsey_wrap_enabled = hw_info.ramsey_ctl & RAMSEY_WRAP_MODE;
+        hw_info.ramsey_size_1M = hw_info.ramsey_ctl & RAMSEY_SIZE;
+        hw_info.ramsey_skip_enabled = hw_info.ramsey_ctl & RAMSEY_SKIP_MODE;
+        hw_info.ramsey_refresh_rate = (hw_info.ramsey_ctl & RAMSEY_REFESH_MODE)>>4;
+    }
+}
+
+/*
+ * Detect SDMAC
+ */
+
+
+/* Returns 2 for SDMAC-02, 4 for SDMAC-04/ReSDMAC, 0 if not present/detection fails */
+void detect_sdmac(void)
+{
+    unsigned char sdmac_rev;
+    uint32_t ovalue, rvalue, wvalue;
+    uint8_t sdmac_version = 2;
+    uint8_t istr;
+    int pass;
+    hw_info.sdmac_rev = 0;
+    hw_info.is_A4000T = FALSE;
+    if(hw_info.ramsey_rev>0){ //you need ramsey to access sdmac!    
+        sdmac_rev = *((volatile unsigned char *)(SDMAC_REVISION)); //this works only on resdmac
+        if (sdmac_rev != 0 && sdmac_rev != 0xFF) {
+            hw_info.sdmac_rev = sdmac_rev;
+        } 
+        if(hw_info.sdmac_rev == 0){
+            //now test for A4000T NCR53C710: upper four bits of CTEST8-register contains the chip-rev.
+           sdmac_rev = *((volatile unsigned char *)(NCR_CTEST8_REG));  
+           sdmac_rev = (sdmac_rev&0xF0)>>4; //only upper four bits matter           
+           if (sdmac_rev != 0 && sdmac_rev != 0xF) {
+            hw_info.sdmac_rev = sdmac_rev;
+            hw_info.is_A4000T = TRUE;
+           }    
+        }
+        if(hw_info.sdmac_rev == 0){
+            /* Quick check: ISTR bits - FIFO cannot be both empty and full */
+            istr = *SDMAC_ISTR;
+            if (istr == 0xff)
+                return;
+            if ((istr & SDMAC_ISTR_FIFOE) && (istr & SDMAC_ISTR_FIFOF))
+                return;
+
+            /* Probe WTC registers to distinguish SDMAC-02 from SDMAC-04 */
+            for (pass = 0; pass < 6; pass++) {
+                switch (pass) {
+                    case 0: wvalue = 0x00000000; break;
+                    case 1: wvalue = 0xffffffff; break;
+                    case 2: wvalue = 0xa5a5a5a5; break;
+                    case 3: wvalue = 0x5a5a5a5a; break;
+                    case 4: wvalue = 0xc2c2c3c3; break;
+                    case 5: wvalue = 0x3c3c3c3c; break;
+                }
+
+                ovalue = *SDMAC_WTC_ALT;
+                *SDMAC_WTC_ALT = wvalue;
+                //*RAMSEY_VER = 0; /* Push write to bus */
+                rvalue = *SDMAC_WTC;
+                *SDMAC_WTC_ALT = ovalue;
+
+                if (rvalue == wvalue) {
+                    if ((wvalue != 0x00000000) && (wvalue != 0xffffffff))
+                        return; /* Detection failed */
+                } else if (((rvalue ^ wvalue) & 0x00ffffff) == 0) {
+                    /* SDMAC-02: only upper byte differs */
+                    sdmac_version = 2;
+                } else if ((rvalue & (1 << 2)) == 0) {
+                    /* SDMAC-04: bit 2 is always 0 */
+                    if (wvalue & (1 << 2))
+                        sdmac_version = 4;
+                } 
+                hw_info.sdmac_rev = sdmac_version;
+            }
+        }
+    }
+}
+
+
+/*
+ * Detect Gary
+ */
+void detect_gary(void){
+    
+    ULONG gary_num;
+    UWORD testVal1, testVal2,i ;  
+    unsigned char val, tmp;  
     /* Gary (A3000/A4000 I/O controller) */
     gary_num = IdHardwareNum(IDHW_GARY, NULL);
     if (gary_num != 0 && gary_num != IDGRY_NONE) {
@@ -437,6 +515,93 @@ void detect_system_chips(void)
     } else {
         hw_info.gary_rev = 0;
     }
+
+    /*tricky part for manual detection:
+        A1000 mirrors the chipregisters. 
+        A save register to read is DMACONR. If this register is mirrored A1000 is there.
+        If this register is not mirrored, proceed:
+        A600/A1200 have an undocumented revision register at DE1000, but the 8-bit code is
+        "morsed" only via the highest byte
+        If this is "FF", a A500/2000 or FatGary is present:
+        FatGary has a PowerUp-Detect-register at DE0002. However, it is read/writeable.
+        If the value changes with the writes, it's a FatGary
+    */
+    hw_info.gary_type = GARY_UNKNOWN;
+    //test for mirroring (A1000/ A2000BSW)
+    testVal1 = *((volatile UWORD *)(CUSTOM_DMACONR));
+    testVal2 = *((volatile UWORD *)(CUSTOM_DMACONR_MIRR));
+
+    //now mask the upper 6 bits, they may change
+    testVal1 &= 0x03FF;
+    testVal2 &= 0x03FF;
+
+    if(testVal1==testVal2){
+        hw_info.gary_type = GARY_A1000;
+        return;
+    }
+
+    /*
+    We are in A500..A4000 range!
+    A3000(T/+), A4000(T)
+    Next we have to check the Power-Up-Register (A3000/4000).
+    */
+    val =  *((volatile unsigned char *)(FAT_GARY_POWER)); //save old value
+    //write a FF    
+    *((volatile unsigned char *)FAT_GARY_POWER) = 0x80; //set bit 7
+    //read back
+    tmp = *((volatile unsigned char *)(FAT_GARY_POWER));
+    tmp &= 0x80; //mask bus rubbish
+    if(tmp == 0x80){
+        //write a zero to MSB
+        *((volatile unsigned char *)FAT_GARY_POWER) = 0;
+        //read back
+        tmp = *((volatile unsigned char *)(FAT_GARY_POWER));
+        tmp &= 0x80; //mask bus rubbish
+        if(tmp == 0){
+            hw_info.gary_type = FAT_GARY;
+            //restore old value
+            *((volatile unsigned char *)FAT_GARY_POWER) = val;
+            return;
+        }
+
+    }
+
+    /*
+    Leftovers:
+    A500, A2000, CDTV, A600/A1200:
+    now we read the GAYLE_ID: Write a zero to the ID-register and read it back 8 times!
+    */
+
+    val = 0;
+    *((volatile unsigned char *)(GAYLE_ID)) = 0;
+    for(i=0; i<8; i++){
+        tmp = *((volatile unsigned char *)(GAYLE_ID));
+        val = val|(tmp>>i);
+    }
+    if(val!=0xFF){
+        hw_info.gary_type = GAYLE;
+        hw_info.gary_rev = (ULONG)val;
+        return;
+    }
+    
+    hw_info.gary_type = GARY_A500;
+    return;
+}
+
+
+/*
+ * Detect Ramsey, Gary, and expansion slots
+ */
+void detect_system_chips(void)
+{
+    
+
+
+    detect_ramsey();
+    detect_sdmac();
+    detect_gary();
+
+
 
     /* Check for expansion slots */
     /* Check for Zorro slots */

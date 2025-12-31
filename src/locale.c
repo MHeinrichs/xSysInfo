@@ -232,16 +232,34 @@ static const char *default_strings[MSG_COUNT] = {
     /* MSG_HARDWARE_STD */		"NORMAL",
     /* MSG_HARDWARE_EXT */		"EXTENDED",
     /* MSG_RAMSEY_CTRL */		"Ramsey control",
-    /* MSG_SDMAC_REVISION */	"SDMAC rev",
+    /* MSG_SDMAC_REVISION */	"SCSI chip",
     /* MSG_RAMSEY_PAGE */	"Page mode",
     /* MSG_RAMSEY_BURST */	"Burst",
     /* MSG_RAMSEY_WRAP */	"Wrap",
     /* MSG_RAMSEY_SIZE */	"Ramsize",
     /* MSG_RAMSEY_SKIP */	"Fast-mode",
     /* MSG_RAMSEY_REFRESH */	"Refresh",
-    /* MSG_1M */			"1M-chips",
-    /* MSG_256K */			"256K-chips"
-
+    /* MSG_1M */			"4M-chips",
+    /* MSG_256K */			"1M-chips",
+    /*MSG_GARY_A1000,    */	"A1000",
+    /*MSG_GARY_A500,     */	"GARY",
+    /*MSG_GAYLE,         */	"GAYLE",
+    /*MSG_FAT_GARY,      */	"FAT GARY",
+    /*MSG_GARY_UNKNOWN,  */	"UNKNOWN",
+    /*MSG_EXT_INFO,      */	"Extended info for A3000/4000",
+    /*MSG_NV_RAM,        */	"NV-RAM (BattMem):",
+    /*MSG_AMNESIA,       */	"Amnesia",
+    /*MSG_SHARED_AMNESIA,*/	"Shared amn.",
+    /*MSG_TIMEOUT,       */	"Timeout",
+    /*MSG_SCAN_LUN,      */	"Scan LUNs",
+    /*MSG_SYC_TRANS,     */	"Sync",
+    /*MSG_FAST_SYNC,     */	"Fast Sync",
+    /*MSG_QUEING,        */	"Queing",
+    /*MSG_SCSI_HOST_ID,  */	"SCSI_ID",
+    /*MSG_LONG*/            "LONG",
+    /*MSG_SHORT*/           "SHORT",
+    /*MSG_NCR_53C710*/      "NCR 53C710",
+    /*MSG_SDMAC*/           "SDMAC"
 };
 
 /* Get string by ID - uses catalog if available, falls back to English */

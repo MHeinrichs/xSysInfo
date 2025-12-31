@@ -1331,7 +1331,7 @@ static void draw_hardware_panel(void)
 	
 	    /* Ramsey */
 	    if (hw_info.ramsey_rev) {
-	        snprintf(buffer, sizeof(buffer), "%lu", (unsigned long)hw_info.ramsey_rev);
+	        snprintf(buffer, sizeof(buffer), "%02X", (unsigned char)hw_info.ramsey_rev);
 	    } else {
 	        strncpy(buffer, get_string(MSG_NA), sizeof(buffer) - 1);
 	    }
@@ -1340,11 +1340,24 @@ static void draw_hardware_panel(void)
 	    y += 8;
 	
 	    /* Gary */
-	    if (hw_info.gary_rev) {
-	        snprintf(buffer, sizeof(buffer), "%lu", (unsigned long)hw_info.gary_rev);
-	    } else {
-	        strncpy(buffer, get_string(MSG_NA), sizeof(buffer) - 1);
-	    }
+        switch(hw_info.gary_type){
+            case GARY_A1000:
+                strncpy(buffer, get_string(MSG_GARY_A1000), sizeof(buffer) - 1);
+                break;
+            case GARY_A500:
+                strncpy(buffer, get_string(MSG_GARY_A500), sizeof(buffer) - 1);
+                break;
+            case GAYLE:
+	            snprintf(buffer, sizeof(buffer), "%s %02lX", get_string(MSG_GAYLE), (unsigned long)hw_info.gary_rev);
+                break;
+            case FAT_GARY:
+                strncpy(buffer, get_string(MSG_FAT_GARY), sizeof(buffer) - 1);
+                break;
+            case GARY_UNKNOWN:
+            default:
+                strncpy(buffer, get_string(MSG_GARY_UNKNOWN), sizeof(buffer) - 1);
+                break;
+        }
 	    draw_label_value(HARDWARE_PANEL_X + 4, y,
 	                     get_string(MSG_GARY_REV), buffer, 90);
 	    y += 8;
@@ -1356,11 +1369,11 @@ static void draw_hardware_panel(void)
 	    draw_cache_buttons();
 	}else{ //extended hw-info 
 	    draw_label_value(HARDWARE_PANEL_X + 4, y,
-	                     "Extended Info for A3000/4000", NULL, 120);
+	                     get_string(MSG_EXT_INFO), NULL, 120);
 	    y += 8;
         /* Ramsey */
 	   	if (hw_info.ramsey_rev) {
-	        snprintf(buffer, sizeof(buffer), "%lu", (unsigned long)hw_info.ramsey_rev);
+	        snprintf(buffer, sizeof(buffer), "%02X", (unsigned char)hw_info.ramsey_rev);
 	    } else {
 	        strncpy(buffer, get_string(MSG_NA), sizeof(buffer) - 1);
 	    }
@@ -1412,51 +1425,51 @@ static void draw_hardware_panel(void)
 		                     get_string(MSG_RAMSEY_REFRESH), buffer, 110);
 		    y += 8;
    		    draw_label_value(HARDWARE_PANEL_X + 4, y,
-		                     "NV-Ram (BattMem):", NULL, 120);
+		                     get_string(MSG_NV_RAM), NULL, 120);
 		    y += 8;
 
-	        snprintf(buffer, sizeof(buffer), "%s", hw_info.battMemData.amnesia_amiga ? get_string(MSG_ON) : get_string(MSG_OFF));
+	        snprintf(buffer, sizeof(buffer), "%s", hw_info.battMemData.amnesia_amiga ? get_string(MSG_YES) : get_string(MSG_NO));
 		    draw_label_value(HARDWARE_PANEL_X + 18, y,
-		                     "Amnesia", buffer, 110);
+		                     get_string(MSG_AMNESIA), buffer, 110);
 		    y += 8;
 
-	        snprintf(buffer, sizeof(buffer), "%s", hw_info.battMemData.amnesia_shared ? get_string(MSG_ON) : get_string(MSG_OFF));
+	        snprintf(buffer, sizeof(buffer), "%s", hw_info.battMemData.amnesia_shared ? get_string(MSG_YES) : get_string(MSG_NO));
 		    draw_label_value(HARDWARE_PANEL_X + 18, y,
-		                     "Unix amnes.", buffer, 110);
+		                     get_string(MSG_SHARED_AMNESIA), buffer, 110);
 		    y += 8;
 
-	        snprintf(buffer, sizeof(buffer), "%s", hw_info.battMemData.long_timeout ? "LONG" : "SHORT");
+	        snprintf(buffer, sizeof(buffer), "%s", hw_info.battMemData.long_timeout ? get_string(MSG_LONG) : get_string(MSG_SHORT));
 		    draw_label_value(HARDWARE_PANEL_X + 18, y,
-		                     "Timeout", buffer, 110);
+		                     get_string(MSG_TIMEOUT), buffer, 110);
 		    y += 8;
 
 	        snprintf(buffer, sizeof(buffer), "%s", hw_info.battMemData.scan_luns ? get_string(MSG_ON) : get_string(MSG_OFF));
 		    draw_label_value(HARDWARE_PANEL_X + 18, y,
-		                     "Scan LUNs", buffer, 110);
+		                     get_string(MSG_SCAN_LUN), buffer, 110);
 		    y += 8;
 
 	        snprintf(buffer, sizeof(buffer), "%s", hw_info.battMemData.sync_transfer ? get_string(MSG_ON) : get_string(MSG_OFF));
 		    draw_label_value(HARDWARE_PANEL_X + 18, y,
-		                     "Sync", buffer, 110);
+		                     get_string(MSG_SYC_TRANS), buffer, 110);
 		    y += 8;
 
 	        snprintf(buffer, sizeof(buffer), "%s", hw_info.battMemData.fast_sync_ransfer ? get_string(MSG_ON) : get_string(MSG_OFF));
 		    draw_label_value(HARDWARE_PANEL_X + 18, y,
-		                     "Fast Sync", buffer, 110);
+		                     get_string(MSG_FAST_SYNC), buffer, 110);
 		    y += 8;
 
 	        snprintf(buffer, sizeof(buffer), "%s", hw_info.battMemData.tagged_queuing ? get_string(MSG_ON) : get_string(MSG_OFF));
 		    draw_label_value(HARDWARE_PANEL_X + 18, y,
-		                     "Queing", buffer, 110);
+		                     get_string(MSG_QUEING), buffer, 110);
 		    y += 8;
 
 	        snprintf(buffer, sizeof(buffer), "%d", hw_info.battMemData.scsi_id);
 		    draw_label_value(HARDWARE_PANEL_X + 18, y,
-		                     "SCSI_ID", buffer, 110);
+		                     get_string(MSG_SCSI_HOST_ID), buffer, 110);
 		    y += 8;
 
 		    if (hw_info.sdmac_rev) {
-		        snprintf(buffer, sizeof(buffer), "$%02X", hw_info.sdmac_rev);
+		        snprintf(buffer, sizeof(buffer), "%s REV %02X", (hw_info.is_A4000T? get_string(MSG_NCR_53C710) : get_string(MSG_SDMAC)), hw_info.sdmac_rev);
 		    } else {
 		        strncpy(buffer, get_string(MSG_NA), sizeof(buffer) - 1);
 		    }
