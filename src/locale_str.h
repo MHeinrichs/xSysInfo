@@ -256,6 +256,8 @@ typedef enum {
     MSG_SHORT,
     MSG_NCR_53C710,
     MSG_SDMAC,
+    MSG_MSM6242B,
+    MSG_RP5C01A,
     MSG_COUNT  /* Total number of strings */
 } LocaleStringID;
 

@@ -259,7 +259,10 @@ static const char *default_strings[MSG_COUNT] = {
     /*MSG_LONG*/            "LONG",
     /*MSG_SHORT*/           "SHORT",
     /*MSG_NCR_53C710*/      "NCR 53C710",
-    /*MSG_SDMAC*/           "SDMAC"
+    /*MSG_SDMAC*/           "SDMAC",
+    /*MSG_MSM6242B*/        "OKI MSM6242B",
+    /*MSG_RP5C01A*/         "RICOH RP5C01A"
+
 };
 
 /* Get string by ID - uses catalog if available, falls back to English */
