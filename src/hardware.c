@@ -354,32 +354,66 @@ void detect_chipset(void)
  */
 void detect_clock(void)
 {
-    ULONG clock_num;
+    unsigned char val;
+    /*
+    The clock registers are shifted: (reg*4)+3, so clockregister F becomes 3F
+    Clock must be at dc0000 (Only A1000 has the clock somewhere else, A2000BSW?!?)
 
-    /* Get clock info from identify.library */
-    get_hardware_string(IDHW_RTC, id_buffer, sizeof(id_buffer));
-    snprintf(hw_info.clock_string, sizeof(hw_info.clock_string), "%s", id_buffer);
+    Assumption: a trashed clock is untrashed by kickstart-initialization
+    According to commodore the working procedure is:
+    Read register F: MSM6242B is '0100' and RP5C01A '0000'
+    If '0100' is read, MSM6242B should be there
+    Because '0000' is not trustworthy do the second check:
+    Read register D: MSM6242B is '0000' and RP5C01A '1001' (Timer Enabled,no alarm, Mode 01)
+    If not 1001, write 1001! (This causes an MSM6242B to skip 30 secs)
+    Now read the 12/24 register (Reg A): 
+    0001 should appear on RP5C01A
+    */
 
-    clock_num = IdHardwareNum(IDHW_RTC, NULL);
-
-    switch (clock_num) {
-        case IDRTC_NONE:
-            hw_info.clock_type = CLOCK_NONE;
-            strncpy(hw_info.clock_string, get_string(MSG_CLOCK_NOT_FOUND),
+    val = *((volatile unsigned char *)(RTC_BASE+RTC_REG_F));
+    val &= RTC_MASK;
+    if(val == 0b0100){
+        hw_info.clock_type = CLOCK_MSM6242;
+        strncpy(hw_info.clock_string, get_string(MSG_MSM6242B),
                     sizeof(hw_info.clock_string) - 1);
-            break;
-        case IDRTC_RICOH: /* RP5C01A */
-            hw_info.clock_type = CLOCK_RP5C01;
-            break;
-        case IDRTC_OKI: /* MSM6242B */
-            hw_info.clock_type = CLOCK_MSM6242;
-            break;
-        default:
-            hw_info.clock_type = CLOCK_UNKNOWN;
-            strncpy(hw_info.clock_string, get_string(MSG_CLOCK_FOUND),
-                    sizeof(hw_info.clock_string) - 1);
-            break;
+        return;
     }
+    if (val > 0){ //when val is not 0 we have no RTC!
+        hw_info.clock_type = CLOCK_NONE;
+        strncpy(hw_info.clock_string, get_string(MSG_CLOCK_NOT_FOUND),
+                sizeof(hw_info.clock_string) - 1);
+        return;
+    }
+    val = *((volatile unsigned char *)(RTC_BASE+RTC_REG_D));
+    val &= RTC_MASK;
+    if(val != 0b1001){ //status not OK?
+        //set correct status and try again
+        *((volatile unsigned char *)(RTC_BASE+RTC_REG_D)) = 0b1001;        
+        val = *((volatile unsigned char *)(RTC_BASE+RTC_REG_D));
+        val &= RTC_MASK;
+    }
+    if(val == 0b1001){ //status OK?
+        //write something to Reg c. it should be read as 0!
+        *((volatile unsigned char *)(RTC_BASE+RTC_REG_C)) = 5;        
+        val = *((volatile unsigned char *)(RTC_BASE+RTC_REG_C));
+        val &= RTC_MASK;
+        if(val == 0){ // comming closer: now read register A, which should be '0001!
+            val = *((volatile unsigned char *)(RTC_BASE+RTC_REG_A));
+            val &= RTC_MASK;
+            if(val ==1 ){ // bingo! RP5C01A
+                hw_info.clock_type = CLOCK_RP5C01;
+                strncpy(hw_info.clock_string, get_string(MSG_RP5C01A),
+                    sizeof(hw_info.clock_string) - 1);
+                return;
+            }
+        }
+    }
+    
+    // if we drop here, we found no clock
+    hw_info.clock_type = CLOCK_NONE;
+    strncpy(hw_info.clock_string, get_string(MSG_CLOCK_NOT_FOUND),
+            sizeof(hw_info.clock_string) - 1);
+    return;
 }
 
 /*
@@ -394,6 +428,7 @@ void detect_batt_mem(void)
         && openBattMem() //batt mem ressource is open
         ){
         hw_info.battMemData.valid_data = readBattMem(&hw_info.battMemData);
+        hw_info.battMemData.valid_data = TRUE;
     }
 }
 
@@ -412,6 +447,11 @@ void detect_ramsey(void){
         hw_info.ramsey_rev = 0;
     }
 */
+    if(hw_info.gary_type != FAT_GARY){ // no fat gary -> no ramsey!
+        hw_info.ramsey_rev = 0;
+        return;
+    }
+
     hw_info.ramsey_rev = (ULONG)*((volatile unsigned char *)(RAMSEY_VER));
     if(hw_info.ramsey_rev == 0xFF){ // unlikely!
         hw_info.ramsey_rev = 0; 
@@ -484,7 +524,9 @@ void detect_sdmac(void)
 
                 if (rvalue == wvalue) {
                     if ((wvalue != 0x00000000) && (wvalue != 0xffffffff))
-                        return; /* Detection failed */
+                        sdmac_version = 0; /* Detection failed */
+                    else
+                        sdmac_version = 2;
                 } else if (((rvalue ^ wvalue) & 0x00ffffff) == 0) {
                     /* SDMAC-02: only upper byte differs */
                     sdmac_version = 2;
@@ -492,6 +534,8 @@ void detect_sdmac(void)
                     /* SDMAC-04: bit 2 is always 0 */
                     if (wvalue & (1 << 2))
                         sdmac_version = 4;
+                    else
+                        sdmac_version = 2;
                 } 
                 hw_info.sdmac_rev = sdmac_version;
             }
@@ -506,15 +550,8 @@ void detect_sdmac(void)
 void detect_gary(void){
     
     ULONG gary_num;
-    UWORD testVal1, testVal2, garyRev,i ;  
-    unsigned char val, tmp;  
-    /* Gary (A3000/A4000 I/O controller) */
-    gary_num = IdHardwareNum(IDHW_GARY, NULL);
-    if (gary_num != 0 && gary_num != IDGRY_NONE) {
-        hw_info.gary_rev = gary_num;
-    } else {
-        hw_info.gary_rev = 0;
-    }
+    UWORD testVal1, testVal2, i ;  
+    unsigned char val, tmp,tmp2;  
 
     /*tricky part for manual detection:
         A1000 mirrors the chipregisters. 
@@ -529,15 +566,23 @@ void detect_gary(void){
     hw_info.gary_type = GARY_UNKNOWN;
     //test for mirroring (A1000/ A2000BSW)
     testVal1 = *((volatile UWORD *)(CUSTOM_DMACONR));
+    testVal2 = *((volatile UWORD *)(CUSTOM_POT1DAT)); //avoid bus stickyness (A3000)
     testVal2 = *((volatile UWORD *)(CUSTOM_DMACONR_MIRR));
-
-    //now mask the upper 6 bits, they may change
-    testVal1 &= 0x03FF;
-    testVal2 &= 0x03FF;
-
     if(testVal1==testVal2){
-        hw_info.gary_type = GARY_A1000;
-        return;
+        //do another test to be save
+        testVal1 = *((volatile UWORD *)(CUSTOM_POT0DAT));
+        testVal2 = *((volatile UWORD *)(CUSTOM_DMACONR)); //avoid bus stickyness (A3000)
+        testVal2 = *((volatile UWORD *)(CUSTOM_POT0DAT_MIRR));
+        if(testVal1==testVal2){
+            // and a third one ;)
+            testVal1 = *((volatile UWORD *)(CUSTOM_POT1DAT));
+            testVal2 = *((volatile UWORD *)(CUSTOM_DMACONR)); //avoid bus stickyness (A3000)
+            testVal2 = *((volatile UWORD *)(CUSTOM_POT1DAT_MIRR));
+            if(testVal1==testVal2){
+                hw_info.gary_type = GARY_A1000;
+                return;
+            }
+        }
     }
 
     /*
@@ -548,12 +593,16 @@ void detect_gary(void){
     val =  *((volatile unsigned char *)(FAT_GARY_POWER)); //save old value
     //write a FF    
     *((volatile unsigned char *)FAT_GARY_POWER) = 0x80; //set bit 7
-    //read back
+    //read something from the bus to clear sticky bus
+    testVal1 = *((volatile UWORD *)(CUSTOM_POT0DAT));
+    //read back POWER register
     tmp = *((volatile unsigned char *)(FAT_GARY_POWER));
     tmp &= 0x80; //mask bus rubbish
     if(tmp == 0x80){
         //write a zero to MSB
         *((volatile unsigned char *)FAT_GARY_POWER) = 0;
+        //read something from the bus to clear sticky bus
+        testVal1 = *((volatile UWORD *)(CUSTOM_POT0DAT));
         //read back
         tmp = *((volatile unsigned char *)(FAT_GARY_POWER));
         tmp &= 0x80; //mask bus rubbish
@@ -572,22 +621,21 @@ void detect_gary(void){
     now we read the GAYLE_ID: Write a zero to the ID-register and read it back 8 times!
     */
 
-    garyRev = 0;
+    val = 0;
     //test for mirroring (A500)
-    testVal1 = *((volatile UWORD *)(CUSTOM_DMACONR));
-    *((volatile UWORD *)(GAYLE_ID)) = 0;
+    tmp2 = *((volatile unsigned char *)(CUSTOM_BLTDDAT));
+    *((volatile unsigned char *)(GAYLE_ID)) = 0;
     for(i=0; i<8; i++){
-        testVal2 = *((volatile UWORD *)(GAYLE_ID));
-        if(i == 0 && testVal2 == testVal1){ //a500 gary!
+        tmp = *((volatile unsigned char *)(GAYLE_ID));
+        if(i == 0 && tmp == tmp2){ //a500 gary!
             hw_info.gary_type = GARY_A500;
             return; 
         }
         //mask
-        testVal2 &= 0x8000>>i;
-        garyRev = garyRev|(testVal2>>i);
+        tmp &= 0x80>>i;
+        val = val|(tmp>>i);
     }
-    garyRev = garyRev >> 8;
-    if(garyRev!=0xFF){
+    if(tmp!=0xFF && tmp !=0){
         hw_info.gary_type = GAYLE;
         hw_info.gary_rev = (ULONG)val;
         return;
@@ -606,9 +654,9 @@ void detect_system_chips(void)
     
 
 
+    detect_gary();
     detect_ramsey();
     detect_sdmac();
-    detect_gary();
 
 
 

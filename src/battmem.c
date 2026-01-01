@@ -30,7 +30,7 @@ BOOL openBattMem(void){ //returns false, if not available
 
 	/* Open dos.library. */
 
-	if (DOSBase = (struct DosLibrary *) OpenLibrary ("dos.library", 36)) { //check for right version!
+	if (DOSBase = (struct DosLibrary *) OpenLibrary ("dos.library", 37)) { //check for right version!
 		CloseLibrary ((struct Library *) DOSBase); // Availability check over we can close this now!
 
         /* Open battmem.resource. */

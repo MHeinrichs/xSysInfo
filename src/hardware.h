@@ -20,9 +20,20 @@
 #define RAMSEY_SIZE 0x8
 #define RAMSEY_SKIP_MODE 0x10
 #define RAMSEY_REFESH_MODE 0x20
-#define CUSTOM_DMACONR  0xDFF002
-#define CUSTOM_DMACONR_MIRR  0xDC0002
-#define GAYLE_ID 0xDE1002
+#define RTC_BASE   0xDC0000 
+#define RTC_REG_A    0x2B
+#define RTC_REG_C   0x33
+#define RTC_REG_D   0x37
+#define RTC_REG_F   0x3F
+#define RTC_MASK   0xF //only the lower 4 bit matter!
+#define CUSTOM_BLTDDAT   0xDFF000     
+#define CUSTOM_DMACONR   0xDFF002
+#define CUSTOM_DMACONR_MIRR   0xD8F002
+#define CUSTOM_POT0DAT   0xDFF012
+#define CUSTOM_POT0DAT_MIRR  0xD8F012
+#define CUSTOM_POT1DAT   0xDFF014
+#define CUSTOM_POT1DAT_MIRR  0xD8F014
+#define GAYLE_ID 0xDE1000
 #define FAT_GARY_POWER 0xDE0002
 #define SDMAC_ISTR      ((volatile uint8_t *)0xDD001F)
 #define SDMAC_WTC       ((volatile uint32_t *)0xDD0024)
