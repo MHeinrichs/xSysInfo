@@ -258,6 +258,15 @@ typedef enum {
     MSG_SDMAC,
     MSG_MSM6242B,
     MSG_RP5C01A,
+    MSG_SOUND_SYSTEM,
+    MSG_PAULA_UNKNOWN,
+    MSG_PAULA_ORIG,
+    MSG_PAULA_SAGA,
+    MSG_DENISE_OCS,
+    MSG_DENISE_ECS,
+    MSG_DENISE_LISA,
+    MSG_DENISE_SAGA,
+    MSG_DENISE_UNKNOWN,
     MSG_COUNT  /* Total number of strings */
 } LocaleStringID;
 

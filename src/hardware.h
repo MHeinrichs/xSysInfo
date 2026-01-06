@@ -28,17 +28,21 @@
 #define RTC_MASK   0xF //only the lower 4 bit matter!
 #define CUSTOM_BLTDDAT   0xDFF000     
 #define CUSTOM_DMACONR   0xDFF002
-#define CUSTOM_DMACONR_MIRR   0xD8F002
-#define CUSTOM_POT0DAT   0xDFF012
-#define CUSTOM_POT0DAT_MIRR  0xD8F012
-#define CUSTOM_POT1DAT   0xDFF014
-#define CUSTOM_POT1DAT_MIRR  0xD8F014
+#define CUSTOM_DMACONR_MIRR   0xDEF002
+#define CUSTOM_JOY0DAT   0xDFF00A
+#define CUSTOM_JOY0DAT_MIRR  0xDEF00A
+#define CUSTOM_JOY1DAT   0xDFF00C
+#define CUSTOM_JOY1DAT_MIRR  0xDEF00C
+#define CUSTOM_PAULA_ID  0xDFF016
+#define CUSTOM_DENISE_ID  0xDFF07C
+#define CUSTOM_VPOSR    0xDFF004      
+#define CUSTOM_AGNUS_ID CUSTOM_VPOSR
 #define GAYLE_ID 0xDE1000
 #define FAT_GARY_POWER 0xDE0002
 #define SDMAC_ISTR      ((volatile uint8_t *)0xDD001F)
 #define SDMAC_WTC       ((volatile uint32_t *)0xDD0024)
 #define SDMAC_WTC_ALT   ((volatile uint32_t *)0xDD0028)
-#define NCR_CTEST8_REG 0x00dd0061
+#define NCR_CTEST8_REG 0x00DD0061
 
 /* ISTR bits */
 #define SDMAC_ISTR_FIFOE  0x01
@@ -107,6 +111,14 @@ typedef enum {
     DENISE_MONICA
 } DeniseType;
 
+/* Denise/Lisa types */
+typedef enum {
+    PAULA_UNKNOWN,
+    PAULA_ORIG,
+    PAULA_SAGA
+} PaulaType;
+
+
 /* Clock chip types */
 typedef enum {
     CLOCK_NONE,
@@ -160,11 +172,16 @@ typedef struct {
 
     /* Chipset */
     AgnusType agnus_type;
+    UWORD agnus_rev;
     ULONG max_chip_ram;     /* In bytes */
     char agnus_string[32];
 
     DeniseType denise_type;
+    UWORD denise_rev;
     char denise_string[32];
+
+    PaulaType paula_type;
+    UWORD paula_rev;
 
     /* Clock */
     ClockType clock_type;

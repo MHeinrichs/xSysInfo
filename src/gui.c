@@ -1223,10 +1223,54 @@ static void draw_hardware_panel(void)
 	    y += 8;
 	
 	    /* Display */
-	    draw_label_value(HARDWARE_PANEL_X + 4, y,
-	                     get_string(MSG_DISPLAY), hw_info.denise_string, 80);
+	
+        switch(hw_info.denise_type){
+            case DENISE_OCS:
+                snprintf(buffer, sizeof(buffer), "%s",
+	                  get_string(MSG_DENISE_OCS));
+                break;
+            case DENISE_ECS:
+                snprintf(buffer, sizeof(buffer), "%s",
+	                  get_string(MSG_DENISE_ECS));
+                break;
+            case DENISE_LISA:
+                snprintf(buffer, sizeof(buffer), "%s",
+	                  get_string(MSG_DENISE_LISA));
+                break;
+            case DENISE_ISABEL:
+                snprintf(buffer, sizeof(buffer), "%s",
+	                  get_string(MSG_DENISE_SAGA));
+                break;
+            case DENISE_UNKNOWN:
+            default:
+                snprintf(buffer, sizeof(buffer), "%s %02X",
+	                  get_string(MSG_DENISE_UNKNOWN), hw_info.denise_rev);
+                break;
+        }
+    
+        draw_label_value(HARDWARE_PANEL_X + 4, y,
+	                     get_string(MSG_DISPLAY), buffer, 80);
 	    y += 8;
 	
+	    /* Sound */
+        switch(hw_info.paula_type){
+            case PAULA_ORIG:
+                snprintf(buffer, sizeof(buffer), "%s",
+	                  get_string(MSG_PAULA_ORIG));
+                break;
+            case PAULA_SAGA:
+                snprintf(buffer, sizeof(buffer), "%s (ID: %02X)",
+	                  get_string(MSG_PAULA_SAGA),hw_info.paula_rev);
+                break;
+            case PAULA_UNKNOWN:
+                snprintf(buffer, sizeof(buffer), "%s (ID: %02X)",
+	                  get_string(MSG_PAULA_UNKNOWN),hw_info.paula_rev);
+                break;
+        }
+       	draw_label_value(HARDWARE_PANEL_X + 4, y,
+            get_string(MSG_SOUND_SYSTEM), buffer, 80);
+	    y += 8;
+
 	    /* CPU/MHz */
 	    if (hw_info.cpu_revision[0] != '\0' &&
 	        strcmp(hw_info.cpu_revision, "N/A") != 0) {

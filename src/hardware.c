@@ -53,6 +53,7 @@ static void get_hardware_string(ULONG type, char *buffer, size_t size)
  */
 BOOL detect_hardware(void)
 {
+
     memset(&hw_info, 0, sizeof(HardwareInfo));
 
     debug("  hw: Detecting CPU...\n");
@@ -63,10 +64,10 @@ BOOL detect_hardware(void)
     detect_mmu();
     debug("  hw: Detecting chipset...\n");
     detect_chipset();
-    debug("  hw: Detecting clock...\n");
-    detect_clock();
     debug("  hw: Detecting system chips...\n");
     detect_system_chips();
+    debug("  hw: Detecting clock...\n");
+    detect_clock();
     debug("  hw: Detecting batt mem ressources...\n");
     detect_batt_mem();
     debug("  hw: Detecting frequencies...\n");
@@ -76,39 +77,24 @@ BOOL detect_hardware(void)
     debug("  hw: Generating comment...\n");
     generate_comment();
 
-    /* Get Kickstart info from identify.library */
-    /* Get ROM version string and parse it (format: "Vxx.yy" or "xx.yy") */
-    {
-        STRPTR rom_ver = IdHardware(IDHW_ROMVER, NULL);
-        if (rom_ver) {
-            const char *p = (const char *)rom_ver;
-            /* Skip 'V' prefix if present */
-            if (*p == 'V' || *p == 'v') p++;
-            /* Parse version.revision */
-            hw_info.kickstart_version = 0;
-            hw_info.kickstart_revision = 0;
-            while (*p >= '0' && *p <= '9') {
-                hw_info.kickstart_version = hw_info.kickstart_version * 10 + (*p - '0');
-                p++;
-            }
-            if (*p == '.') {
-                p++;
-                while (*p >= '0' && *p <= '9') {
-                    hw_info.kickstart_revision = hw_info.kickstart_revision * 10 + (*p - '0');
-                    p++;
-                }
-            }
-        }
-        /* Fallback to exec version if identify didn't provide ROM version */
-        if (hw_info.kickstart_version == 0) {
-            hw_info.kickstart_version = SysBase->LibNode.lib_Version;
-            hw_info.kickstart_revision = SysBase->LibNode.lib_Revision;
-        }
+    /* Get Kickstart info */
+    UWORD kick_version = *((volatile UWORD *)0xF8000C);
+    UWORD kick_revision = *((volatile UWORD *)0xF8000E);
+    hw_info.kickstart_version = kick_version;
+    hw_info.kickstart_revision = kick_revision;
+
+    /* Fallback to exec version if above didn't provide ROM version */
+    if (hw_info.kickstart_version == 0) {
+        hw_info.kickstart_version = SysBase->LibNode.lib_Version;
+        hw_info.kickstart_revision = SysBase->LibNode.lib_Revision;
     }
 
-    /* Get ROM size from identify.library */
-    hw_info.kickstart_size = IdHardwareNum(IDHW_ROMSIZE, NULL);
-    if (hw_info.kickstart_size == 0) {
+    /* Get ROM size*/
+    UWORD kick_size = *((volatile UWORD *)0xF80000);
+    if(kick_size == 0x1111){
+        hw_info.kickstart_size = 256;
+    }
+    else{
         /* Fallback: default to 512K */
         hw_info.kickstart_size = 512;
     }
@@ -278,7 +264,8 @@ void detect_mmu(void)
  */
 void detect_chipset(void)
 {
-    ULONG chipset, agnus_mode, denise_num;
+    ULONG chipset, agnus_mode;
+    UWORD tmp, i;
 
     /* Get Agnus/Alice info */
     get_hardware_string(IDHW_AGNUS, id_buffer, sizeof(id_buffer));
@@ -317,35 +304,52 @@ void detect_chipset(void)
         }
     }
 
-    /* Get Denise/Lisa info */
-    get_hardware_string(IDHW_DENISE, id_buffer, sizeof(id_buffer));
-    snprintf(hw_info.denise_string, sizeof(hw_info.denise_string), "%s", id_buffer);
-
-    denise_num = IdHardwareNum(IDHW_DENISE, NULL);
-
-    switch (denise_num) {
-        case IDDN_NONE:
-            hw_info.denise_type = DENISE_UNKNOWN;
+    /*Get Paula revision*/
+    hw_info.paula_rev = *((volatile UWORD *)(CUSTOM_PAULA_ID));
+    hw_info.paula_rev &= 0x00FE; //mask irelevant bits
+    switch(hw_info.paula_rev){
+        case 0:
+            hw_info.paula_type = PAULA_ORIG;
             break;
-        case IDDN_8362: /* OCS Denise */
-        case IDDN_8369: /* Prototype */
-            hw_info.denise_type = DENISE_OCS;
-            break;
-        case IDDN_8373: /* ECS Denise */
-            hw_info.denise_type = DENISE_ECS;
-            break;
-        case IDDN_4203: /* Lisa */
-            hw_info.denise_type = DENISE_LISA;
-            break;
-        case IDDN_ISABEL: /* SAGA/Vampire */
-            hw_info.denise_type = DENISE_ISABEL;
-            break;
-        case IDDN_MONICA: /* AAA prototype */
-            hw_info.denise_type = DENISE_MONICA;
+        case 2:
+            hw_info.paula_type = PAULA_SAGA;
             break;
         default:
-            hw_info.denise_type = DENISE_UNKNOWN;
+            hw_info.paula_type = PAULA_UNKNOWN;
             break;
+    }
+
+    /* Get Denise/Lisa info */
+    hw_info.denise_rev = *((volatile UWORD *)(CUSTOM_DENISE_ID));
+    hw_info.denise_rev &= 0xFF;
+    for(i=0; i<32;++i){
+        tmp = *((volatile UWORD *)(CUSTOM_DENISE_ID)); //OCS Denise puts gibberish on the bus
+        tmp &= 0xFF;
+        if(tmp != hw_info.denise_rev){
+            hw_info.denise_rev = 0;
+            break;
+        }
+    }
+
+    if(hw_info.paula_type == PAULA_SAGA)
+        hw_info.denise_type = DENISE_ISABEL;  
+    else if(hw_info.denise_rev == 0){
+        hw_info.denise_type = DENISE_OCS;
+    }
+    else if(hw_info.denise_rev == 0xFC){
+        hw_info.denise_type = DENISE_ECS;
+    }
+    else if(hw_info.denise_rev == 0xF8){
+        hw_info.denise_type = DENISE_LISA;
+    }
+    else if(hw_info.denise_rev == 0xF0){
+        hw_info.denise_type = IDDN_MONICA;
+    }
+    else if(hw_info.denise_rev == 0xF1){
+        hw_info.denise_type = IDDN_MONICA;
+    }
+    else{
+        hw_info.denise_type = DENISE_UNKNOWN;
     }
 }
 
@@ -369,46 +373,46 @@ void detect_clock(void)
     Now read the 12/24 register (Reg A): 
     0001 should appear on RP5C01A
     */
-
-    val = *((volatile unsigned char *)(RTC_BASE+RTC_REG_F));
-    val &= RTC_MASK;
-    if(val == 0b0100){
-        hw_info.clock_type = CLOCK_MSM6242;
-        strncpy(hw_info.clock_string, get_string(MSG_MSM6242B),
+    if(hw_info.gary_type != GARY_A1000){ //this does not work in an stock A1000!
+        val = *((volatile unsigned char *)(RTC_BASE+RTC_REG_F));
+        val &= RTC_MASK;
+        if(val == 0b0100){
+            hw_info.clock_type = CLOCK_MSM6242;
+            strncpy(hw_info.clock_string, get_string(MSG_MSM6242B),
+                        sizeof(hw_info.clock_string) - 1);
+            return;
+        }
+        if (val > 0){ //when val is not 0 we have no RTC!
+            hw_info.clock_type = CLOCK_NONE;
+            strncpy(hw_info.clock_string, get_string(MSG_CLOCK_NOT_FOUND),
                     sizeof(hw_info.clock_string) - 1);
-        return;
-    }
-    if (val > 0){ //when val is not 0 we have no RTC!
-        hw_info.clock_type = CLOCK_NONE;
-        strncpy(hw_info.clock_string, get_string(MSG_CLOCK_NOT_FOUND),
-                sizeof(hw_info.clock_string) - 1);
-        return;
-    }
-    val = *((volatile unsigned char *)(RTC_BASE+RTC_REG_D));
-    val &= RTC_MASK;
-    if(val != 0b1001){ //status not OK?
-        //set correct status and try again
-        *((volatile unsigned char *)(RTC_BASE+RTC_REG_D)) = 0b1001;        
+            return;
+        }
         val = *((volatile unsigned char *)(RTC_BASE+RTC_REG_D));
         val &= RTC_MASK;
-    }
-    if(val == 0b1001){ //status OK?
-        //write something to Reg c. it should be read as 0!
-        *((volatile unsigned char *)(RTC_BASE+RTC_REG_C)) = 5;        
-        val = *((volatile unsigned char *)(RTC_BASE+RTC_REG_C));
-        val &= RTC_MASK;
-        if(val == 0){ // comming closer: now read register A, which should be '0001!
-            val = *((volatile unsigned char *)(RTC_BASE+RTC_REG_A));
+        if(val != 0b1001){ //status not OK?
+            //set correct status and try again
+            *((volatile unsigned char *)(RTC_BASE+RTC_REG_D)) = 0b1001;        
+            val = *((volatile unsigned char *)(RTC_BASE+RTC_REG_D));
             val &= RTC_MASK;
-            if(val ==1 ){ // bingo! RP5C01A
-                hw_info.clock_type = CLOCK_RP5C01;
-                strncpy(hw_info.clock_string, get_string(MSG_RP5C01A),
-                    sizeof(hw_info.clock_string) - 1);
-                return;
+        }
+        if(val == 0b1001){ //status OK?
+            //write something to Reg c. it should be read as 0!
+            *((volatile unsigned char *)(RTC_BASE+RTC_REG_C)) = 5;        
+            val = *((volatile unsigned char *)(RTC_BASE+RTC_REG_C));
+            val &= RTC_MASK;
+            if(val == 0){ // comming closer: now read register A, which should be '0001!
+                val = *((volatile unsigned char *)(RTC_BASE+RTC_REG_A));
+                val &= RTC_MASK;
+                if(val ==1 ){ // bingo! RP5C01A
+                    hw_info.clock_type = CLOCK_RP5C01;
+                    strncpy(hw_info.clock_string, get_string(MSG_RP5C01A),
+                        sizeof(hw_info.clock_string) - 1);
+                    return;
+                }
             }
         }
-    }
-    
+    }   
     // if we drop here, we found no clock
     hw_info.clock_type = CLOCK_NONE;
     strncpy(hw_info.clock_string, get_string(MSG_CLOCK_NOT_FOUND),
@@ -423,6 +427,7 @@ void detect_clock(void)
 void detect_batt_mem(void)
 {        
     hw_info.battMemData.valid_data = FALSE;
+    
     if( hw_info.clock_type == CLOCK_RP5C01 //clock with NV-ram
         && hw_info.ramsey_rev > 0 //we have a ramsey (and might be a A3000
         && openBattMem() //batt mem ressource is open
@@ -430,6 +435,7 @@ void detect_batt_mem(void)
         hw_info.battMemData.valid_data = readBattMem(&hw_info.battMemData);
         hw_info.battMemData.valid_data = TRUE;
     }
+    
 }
 
 /*
@@ -549,7 +555,6 @@ void detect_sdmac(void)
  */
 void detect_gary(void){
     
-    ULONG gary_num;
     UWORD testVal1, testVal2, i ;  
     unsigned char val, tmp,tmp2;  
 
@@ -565,23 +570,17 @@ void detect_gary(void){
     */
     hw_info.gary_type = GARY_UNKNOWN;
     //test for mirroring (A1000/ A2000BSW)
-    testVal1 = *((volatile UWORD *)(CUSTOM_DMACONR));
-    testVal2 = *((volatile UWORD *)(CUSTOM_POT1DAT)); //avoid bus stickyness (A3000)
-    testVal2 = *((volatile UWORD *)(CUSTOM_DMACONR_MIRR));
-    if(testVal1==testVal2){
+    testVal1 = *((volatile UWORD *)(CUSTOM_JOY0DAT));
+    testVal2 = *((volatile UWORD *)(CUSTOM_JOY1DAT)); //avoid bus stickyness (A3000)
+    testVal2 = *((volatile UWORD *)(CUSTOM_JOY0DAT_MIRR));
+    if(testVal1 == testVal2){
         //do another test to be save
-        testVal1 = *((volatile UWORD *)(CUSTOM_POT0DAT));
-        testVal2 = *((volatile UWORD *)(CUSTOM_DMACONR)); //avoid bus stickyness (A3000)
-        testVal2 = *((volatile UWORD *)(CUSTOM_POT0DAT_MIRR));
-        if(testVal1==testVal2){
-            // and a third one ;)
-            testVal1 = *((volatile UWORD *)(CUSTOM_POT1DAT));
-            testVal2 = *((volatile UWORD *)(CUSTOM_DMACONR)); //avoid bus stickyness (A3000)
-            testVal2 = *((volatile UWORD *)(CUSTOM_POT1DAT_MIRR));
-            if(testVal1==testVal2){
-                hw_info.gary_type = GARY_A1000;
-                return;
-            }
+        testVal1 = *((volatile UWORD *)(CUSTOM_JOY1DAT));
+        testVal2 = *((volatile UWORD *)(CUSTOM_JOY0DAT)); //avoid bus stickyness (A3000)
+        testVal2 = *((volatile UWORD *)(CUSTOM_JOY1DAT_MIRR));
+        if(testVal1 == testVal2){
+            hw_info.gary_type = GARY_A1000;
+            return;
         }
     }
 
@@ -594,7 +593,7 @@ void detect_gary(void){
     //write a FF    
     *((volatile unsigned char *)FAT_GARY_POWER) = 0x80; //set bit 7
     //read something from the bus to clear sticky bus
-    testVal1 = *((volatile UWORD *)(CUSTOM_POT0DAT));
+    testVal1 = *((volatile UWORD *)(CUSTOM_JOY0DAT));
     //read back POWER register
     tmp = *((volatile unsigned char *)(FAT_GARY_POWER));
     tmp &= 0x80; //mask bus rubbish
@@ -602,7 +601,7 @@ void detect_gary(void){
         //write a zero to MSB
         *((volatile unsigned char *)FAT_GARY_POWER) = 0;
         //read something from the bus to clear sticky bus
-        testVal1 = *((volatile UWORD *)(CUSTOM_POT0DAT));
+        testVal1 = *((volatile UWORD *)(CUSTOM_JOY0DAT));
         //read back
         tmp = *((volatile unsigned char *)(FAT_GARY_POWER));
         tmp &= 0x80; //mask bus rubbish
@@ -689,41 +688,19 @@ void detect_system_chips(void)
         return;
     }
 
-    if (hw_info.gary_rev != 0) {
-        /* A500/A2000 have Gary but no Ramsey - these have Zorro II slots */
-        hw_info.has_zorro_slots = TRUE;
+    if (hw_info.gary_type == GAYLE) {
+        /* A600 A1200 have a Gayle chip with ID*/
+        hw_info.has_pcmcia = TRUE;
         snprintf(hw_info.card_slot_string, sizeof(hw_info.card_slot_string),
-                 "%s", get_string(MSG_ZORRO_II));
+                "%s", get_string(MSG_SLOT_PCMCIA));
         return;
     }
 
-    /* Fall back to system type detection for edge cases */
-    {
-        ULONG system_num = IdHardwareNum(IDHW_SYSTEM, NULL);
-
-        switch (system_num) {
-            case IDSYS_AMIGA600:
-            case IDSYS_AMIGA1200:
-                hw_info.has_pcmcia = TRUE;
-                snprintf(hw_info.card_slot_string, sizeof(hw_info.card_slot_string),
-                         "%s", get_string(MSG_SLOT_PCMCIA));
-                break;
-            case IDSYS_AMIGA500:
-            case IDSYS_AMIGA2000:
-                hw_info.has_zorro_slots = TRUE;
-                snprintf(hw_info.card_slot_string, sizeof(hw_info.card_slot_string),
-                         "%s", get_string(MSG_ZORRO_II));
-                break;
-            case IDSYS_AMIGA3000:
-            case IDSYS_AMIGA4000:
-                hw_info.has_zorro_slots = TRUE;
-                snprintf(hw_info.card_slot_string, sizeof(hw_info.card_slot_string),
-                         "%s", get_string(MSG_ZORRO_III));
-                break;
-            default:
-                break;
-        }
-    }
+    /* A500/A1000/A2000/CDTV*/
+    hw_info.has_zorro_slots = TRUE;
+    snprintf(hw_info.card_slot_string, sizeof(hw_info.card_slot_string),
+             "%s", get_string(MSG_ZORRO_II));
+    return;
 }
 
 /*
