@@ -261,7 +261,16 @@ static const char *default_strings[MSG_COUNT] = {
     /*MSG_NCR_53C710*/      "NCR 53C710",
     /*MSG_SDMAC*/           "SDMAC",
     /*MSG_MSM6242B*/        "OKI MSM6242B",
-    /*MSG_RP5C01A*/         "RICOH RP5C01A"
+    /*MSG_RP5C01A*/         "RICOH RP5C01A",
+    /*MSG_SOUND_SYSTEM*/    "Sound",
+    /*MSG_PAULA_UNKNOWN*/   "Unknown Paula",
+    /*MSG_PAULA_ORIG*/      "Paula 8364",
+    /*MSG_PAULA_SAGA*/      "SAGA Paula",
+    /*MSG_DENISE_OCS*/      "Denise 8362-OCS",
+    /*MSG_DENISE_ECS*/      "Denise 8373-ECS",
+    /*MSG_DENISE_LISA*/     "Lisa 4203",
+    /*MSG_DENISE_SAGA*/     "SAGA",
+    /*MSG_DENISE_UNKNOWN*/  "Unknown Denise",
 
 };
 
