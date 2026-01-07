@@ -264,45 +264,7 @@ void detect_mmu(void)
  */
 void detect_chipset(void)
 {
-    ULONG chipset, agnus_mode;
     UWORD tmp, i;
-
-    /* Get Agnus/Alice info */
-    get_hardware_string(IDHW_AGNUS, id_buffer, sizeof(id_buffer));
-    snprintf(hw_info.agnus_string, sizeof(hw_info.agnus_string), "%s", id_buffer);
-
-    chipset = IdHardwareNum(IDHW_CHIPSET, NULL);
-    agnus_mode = IdHardwareNum(IDHW_AGNUSMODE, NULL);
-
-    /* Determine Agnus type and max chip RAM */
-    hw_info.max_chip_ram = 512 * 1024;  /* Default 512K */
-
-    if (chipset == IDCS_AGA || chipset == IDCS_AAA || chipset == IDCS_SAGA) {
-        /* AGA/Alice */
-        hw_info.max_chip_ram = 2 * 1024 * 1024;
-        if (agnus_mode == IDAM_PAL) {
-            hw_info.agnus_type = AGNUS_ALICE_PAL;
-        } else {
-            hw_info.agnus_type = AGNUS_ALICE_NTSC;
-        }
-    } else if (chipset == IDCS_ECS || chipset == IDCS_NECS) {
-        /* ECS */
-        hw_info.max_chip_ram = 2 * 1024 * 1024; /* Can address up to 2MB, though usually 1MB */
-        if (agnus_mode == IDAM_PAL) {
-            hw_info.agnus_type = AGNUS_ECS_PAL;
-        } else {
-            hw_info.agnus_type = AGNUS_ECS_NTSC;
-        }
-    } else {
-        /* OCS or Unknown */
-        if (agnus_mode == IDAM_PAL) {
-            hw_info.agnus_type = AGNUS_OCS_PAL;
-        } else if (agnus_mode == IDAM_NTSC) {
-            hw_info.agnus_type = AGNUS_OCS_NTSC;
-        } else {
-            hw_info.agnus_type = AGNUS_UNKNOWN;
-        }
-    }
 
     /*Get Paula revision*/
     hw_info.paula_rev = *((volatile UWORD *)(CUSTOM_PAULA_ID));
@@ -325,7 +287,7 @@ void detect_chipset(void)
     for(i=0; i<32;++i){
         tmp = *((volatile UWORD *)(CUSTOM_DENISE_ID)); //OCS Denise puts gibberish on the bus
         tmp &= 0xFF;
-        if(tmp != hw_info.denise_rev){
+        if(tmp != hw_info.denise_rev || hw_info.denise_rev == 0xFF){
             hw_info.denise_rev = 0;
             break;
         }
@@ -351,6 +313,67 @@ void detect_chipset(void)
     else{
         hw_info.denise_type = DENISE_UNKNOWN;
     }
+
+
+    if(hw_info.paula_type == PAULA_SAGA){
+        hw_info.agnus_type = AGNUS_SAGA;
+        hw_info.max_chip_ram = 2048 * 1024;  /* 2MB */
+    }
+    else{
+        /* Get Agnus info */
+        hw_info.agnus_rev = *((volatile UWORD *)(CUSTOM_AGNUS_ID)); //this is actually the VPOS-capability, from which you can derive the Agnus
+        hw_info.agnus_rev &= 0X7F00; //mask Bit 14-8
+        hw_info.agnus_rev = (hw_info.agnus_rev>>8); //shift to lower byte
+
+        //get possible mirrored version (A1000)
+        tmp = *((volatile UWORD *)(CUSTOM_AGNUS_ID_MIRR));
+        tmp &= 0X7F00; //mask Bit 14-8
+        tmp = (tmp>>8); //shift to lower byte
+
+        switch(hw_info.agnus_rev){
+            case 0x0: //OCS PAL
+                if(hw_info.agnus_rev == tmp)
+                    hw_info.agnus_type = AGNUS_OCS_PAL;
+                else
+                    hw_info.agnus_type = AGNUS_OCS_FAT_PAL;
+                hw_info.max_chip_ram = 512 * 1024;  /* 512K */
+                break;
+            case 0x10: //OCS NTSC
+                if(hw_info.agnus_rev == tmp)
+                    hw_info.agnus_type = AGNUS_OCS_NTSC;
+                else
+                    hw_info.agnus_type = AGNUS_OCS_FAT_NTSC;
+                hw_info.max_chip_ram = 512 * 1024;  /* 512K */
+                break;
+            case 0x20: //ECS PAL
+                hw_info.agnus_type = AGNUS_ECS_PAL;
+                hw_info.max_chip_ram = 2048 * 1024;  /* 2MB */
+                break;
+            case 0x30: //ECS NTSC
+                hw_info.agnus_type = AGNUS_ECS_NTSC;
+                hw_info.max_chip_ram = 2048 * 1024;  /* 2MB */
+                break;
+            case 0x21: //ALICE PAL
+            case 0x22: //ALICE PAL
+            case 0x23: //ALICE PAL
+            case 0x24: //ALICE PAL
+                hw_info.agnus_type = AGNUS_ALICE_PAL;
+                hw_info.max_chip_ram = 2048 * 1024;  /* 2MB */
+                break;
+            case 0x31: //ALICE NTSC
+            case 0x32: //ALICE NTSC
+            case 0x33: //ALICE NTSC
+            case 0x34: //ALICE NTSC
+                hw_info.agnus_type = AGNUS_ALICE_NTSC;
+                hw_info.max_chip_ram = 2048 * 1024;  /* 2MB */
+                break;
+            default: 
+                hw_info.agnus_type = AGNUS_UNKNOWN;
+                hw_info.max_chip_ram = 512 * 1024;  /* 512K */
+                break;
+        }
+    }
+
 }
 
 /*

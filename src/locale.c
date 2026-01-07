@@ -266,11 +266,21 @@ static const char *default_strings[MSG_COUNT] = {
     /*MSG_PAULA_UNKNOWN*/   "Unknown Paula",
     /*MSG_PAULA_ORIG*/      "Paula 8364",
     /*MSG_PAULA_SAGA*/      "SAGA Paula",
-    /*MSG_DENISE_OCS*/      "Denise 8362-OCS",
-    /*MSG_DENISE_ECS*/      "Denise 8373-ECS",
+    /*MSG_DENISE_OCS*/      "Denise 8362 (OCS)",
+    /*MSG_DENISE_ECS*/      "Denise 8373 (ECS)",
     /*MSG_DENISE_LISA*/     "Lisa 4203",
     /*MSG_DENISE_SAGA*/     "SAGA",
     /*MSG_DENISE_UNKNOWN*/  "Unknown Denise",
+    /*MSG_AGNUS_ALICE_PAL*/	"Alice 8373",
+    /*MSG_AGNUS_ALICE_NTSC*/	"Alice 8373",
+    /*MSG_AGNUS_ECS_PAL*/	"FatAgnus 8372 (ECS)",
+    /*MSG_AGNUS_ECS_NTSC*/	"FatAgnus 8372 (ECS)",
+    /*MSG_AGNUS_OCS_FAT_PAL*/	"FatAgnus 8371 (OCS)",
+    /*MSG_AGNUS_OCS_FAT_NTSC*/	"FatAgnus 8370 (OCS)",
+    /*MSG_AGNUS_OCS_PAL*/	"Agnus 8367 (OCS)",
+    /*MSG_AGNUS_OCS_NTSC*/	"Agnus 8361 (OCS)",
+    /*MSG_AGNUS_SAGA*/	"Agnus SAGA",
+    /*MSG_AGNUS_UNKNOWN*/	"Unknown Agnus",
 
 };
 

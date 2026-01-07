@@ -28,15 +28,16 @@
 #define RTC_MASK   0xF //only the lower 4 bit matter!
 #define CUSTOM_BLTDDAT   0xDFF000     
 #define CUSTOM_DMACONR   0xDFF002
-#define CUSTOM_DMACONR_MIRR   0xDEF002
+#define CUSTOM_DMACONR_MIRR   0xDCF002
 #define CUSTOM_JOY0DAT   0xDFF00A
-#define CUSTOM_JOY0DAT_MIRR  0xDEF00A
+#define CUSTOM_JOY0DAT_MIRR  0xDCF00A
 #define CUSTOM_JOY1DAT   0xDFF00C
-#define CUSTOM_JOY1DAT_MIRR  0xDEF00C
+#define CUSTOM_JOY1DAT_MIRR  0xDCF00C
 #define CUSTOM_PAULA_ID  0xDFF016
 #define CUSTOM_DENISE_ID  0xDFF07C
 #define CUSTOM_VPOSR    0xDFF004      
 #define CUSTOM_AGNUS_ID CUSTOM_VPOSR
+#define CUSTOM_AGNUS_ID_MIRR 0xDCF004
 #define GAYLE_ID 0xDE1000
 #define FAT_GARY_POWER 0xDE0002
 #define SDMAC_ISTR      ((volatile uint8_t *)0xDD001F)
@@ -89,16 +90,13 @@ typedef enum {
     AGNUS_UNKNOWN,
     AGNUS_OCS_NTSC,
     AGNUS_OCS_PAL,
+    AGNUS_OCS_FAT_NTSC,
+    AGNUS_OCS_FAT_PAL,
     AGNUS_ECS_NTSC,
     AGNUS_ECS_PAL,
-    AGNUS_ECS_NTSC_1MB,
-    AGNUS_ECS_PAL_1MB,
-    AGNUS_ECS_NTSC_2MB,
-    AGNUS_ECS_PAL_2MB,
     AGNUS_ALICE_NTSC,
     AGNUS_ALICE_PAL,
-    AGNUS_ALICE_NTSC_2MB,
-    AGNUS_ALICE_PAL_2MB
+    AGNUS_SAGA
 } AgnusType;
 
 /* Denise/Lisa types */
@@ -174,11 +172,9 @@ typedef struct {
     AgnusType agnus_type;
     UWORD agnus_rev;
     ULONG max_chip_ram;     /* In bytes */
-    char agnus_string[32];
 
     DeniseType denise_type;
     UWORD denise_rev;
-    char denise_string[32];
 
     PaulaType paula_type;
     UWORD paula_rev;

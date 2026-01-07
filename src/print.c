@@ -86,11 +86,83 @@ void export_hardware(BPTR fh)
 
     WRITE_LINE(fh, "=== INTERNAL HARDWARE MODES ===");
     WRITE_LINE(fh, "");
-
     write_formatted(fh, "%-16s %s", "Clock:", hw_info.clock_string);
-    write_formatted(fh, "%-16s %s", "DMA/Gfx:", hw_info.agnus_string);
+
+    /* DMA/Gfx */
+    switch (hw_info.agnus_type)
+    {
+    case AGNUS_OCS_NTSC:
+        snprintf(buffer, sizeof(buffer), "%s",
+                 get_string(MSG_AGNUS_OCS_NTSC));
+        break;
+    case AGNUS_OCS_PAL:
+        snprintf(buffer, sizeof(buffer), "%s",
+                 get_string(MSG_AGNUS_OCS_PAL));
+        break;
+    case AGNUS_OCS_FAT_NTSC:
+        snprintf(buffer, sizeof(buffer), "%s",
+                 get_string(MSG_AGNUS_OCS_FAT_NTSC));
+        break;
+    case AGNUS_OCS_FAT_PAL:
+        snprintf(buffer, sizeof(buffer), "%s",
+                 get_string(MSG_AGNUS_OCS_FAT_PAL));
+        break;
+    case AGNUS_ECS_NTSC:
+        snprintf(buffer, sizeof(buffer), "%s",
+                 get_string(MSG_AGNUS_ECS_NTSC));
+        break;
+    case AGNUS_ECS_PAL:
+        snprintf(buffer, sizeof(buffer), "%s",
+                 get_string(MSG_AGNUS_ECS_PAL));
+        break;
+    case AGNUS_ALICE_NTSC:
+        snprintf(buffer, sizeof(buffer), "%s",
+                 get_string(MSG_AGNUS_ALICE_NTSC));
+        break;
+    case AGNUS_ALICE_PAL:
+        snprintf(buffer, sizeof(buffer), "%s",
+                 get_string(MSG_AGNUS_ALICE_PAL));
+        break;
+    case AGNUS_SAGA:
+        snprintf(buffer, sizeof(buffer), "%s",
+                 get_string(MSG_AGNUS_SAGA));
+        break;
+    case AGNUS_UNKNOWN:
+    default:
+        snprintf(buffer, sizeof(buffer), "%s %04X",
+                 get_string(MSG_AGNUS_UNKNOWN), hw_info.agnus_rev);
+        break;
+    }
+    write_formatted(fh, "%-16s %s", "DMA/Gfx:", buffer);
+
     write_formatted(fh, "%-16s %s", "Mode:", hw_info.mode_string);
-    write_formatted(fh, "%-16s %s", "Display:", hw_info.denise_string);
+
+    /* Display */
+    switch (hw_info.denise_type)
+    {
+    case DENISE_OCS:
+        snprintf(buffer, sizeof(buffer), "%s",
+                 get_string(MSG_DENISE_OCS));
+        break;
+    case DENISE_ECS:
+        snprintf(buffer, sizeof(buffer), "%s",
+                 get_string(MSG_DENISE_ECS));
+        break;
+    case DENISE_LISA:
+        snprintf(buffer, sizeof(buffer), "%s",
+                 get_string(MSG_DENISE_LISA));
+        break;
+    case DENISE_ISABEL:
+        snprintf(buffer, sizeof(buffer), "%s",
+                 get_string(MSG_DENISE_SAGA));
+        break;
+    case DENISE_UNKNOWN:
+    default:
+        snprintf(buffer, sizeof(buffer), "%s %02X",
+                 get_string(MSG_DENISE_UNKNOWN), hw_info.denise_rev);
+        break;
+    }
+    write_formatted(fh, "%-16s %s", "Display:", buffer);
 
     if (hw_info.cpu_revision[0] != '\0' &&
         strcmp(hw_info.cpu_revision, "N/A") != 0) {

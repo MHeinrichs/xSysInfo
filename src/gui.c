@@ -1213,8 +1213,51 @@ static void draw_hardware_panel(void)
 	    y += 8;
 	
 	    /* DMA/Gfx */
+        switch(hw_info.agnus_type){
+            case AGNUS_OCS_NTSC:
+                snprintf(buffer, sizeof(buffer), "%s",
+	                  get_string(MSG_AGNUS_OCS_NTSC));
+                break;
+            case AGNUS_OCS_PAL:
+                snprintf(buffer, sizeof(buffer), "%s",
+	                  get_string(MSG_AGNUS_OCS_PAL));
+                break;
+            case AGNUS_OCS_FAT_NTSC:
+                snprintf(buffer, sizeof(buffer), "%s",
+	                  get_string(MSG_AGNUS_OCS_FAT_NTSC));
+                break;
+            case AGNUS_OCS_FAT_PAL:
+                snprintf(buffer, sizeof(buffer), "%s",
+	                  get_string(MSG_AGNUS_OCS_FAT_PAL));
+                break;
+            case AGNUS_ECS_NTSC:
+                snprintf(buffer, sizeof(buffer), "%s",
+	                  get_string(MSG_AGNUS_ECS_NTSC));
+                break;
+            case AGNUS_ECS_PAL:
+                snprintf(buffer, sizeof(buffer), "%s",
+	                  get_string(MSG_AGNUS_ECS_PAL));
+                break;
+            case AGNUS_ALICE_NTSC:
+                snprintf(buffer, sizeof(buffer), "%s Rev: %X",
+	                  get_string(MSG_AGNUS_ALICE_NTSC), (hw_info.agnus_rev&0xF));
+                break;
+            case AGNUS_ALICE_PAL:
+                snprintf(buffer, sizeof(buffer), "%s Rev: %X",
+	                  get_string(MSG_AGNUS_ALICE_PAL), (hw_info.agnus_rev&0xF));
+                break;
+            case AGNUS_SAGA:
+                snprintf(buffer, sizeof(buffer), "%s",
+	                  get_string(MSG_AGNUS_SAGA));
+                break;
+            case AGNUS_UNKNOWN:
+            default:
+                snprintf(buffer, sizeof(buffer), "%s %2X",
+	                  get_string(MSG_AGNUS_UNKNOWN), hw_info.agnus_rev);
+                break;
+        }
 	    draw_label_value(HARDWARE_PANEL_X + 4, y,
-	                     get_string(MSG_DMA_GFX), hw_info.agnus_string, 80);
+	                     get_string(MSG_DMA_GFX), buffer, 80);
 	    y += 8;
 	
 	    /* Mode */
