@@ -78,8 +78,8 @@ BOOL detect_hardware(void)
     generate_comment();
 
     /* Get Kickstart info */
-    UWORD kick_version = *((volatile UWORD *)0xF8000C);
-    UWORD kick_revision = *((volatile UWORD *)0xF8000E);
+    UWORD kick_version = *((volatile UWORD *)KICK_VERSION);
+    UWORD kick_revision = *((volatile UWORD *)KICK_REVISION);
     hw_info.kickstart_version = kick_version;
     hw_info.kickstart_revision = kick_revision;
 
@@ -108,50 +108,104 @@ BOOL detect_hardware(void)
  */
 void detect_cpu(void)
 {
-    ULONG cpu_num;
-
-    /* Get CPU string from identify.library */
-    get_hardware_string(IDHW_CPU, id_buffer, sizeof(id_buffer));
-    snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), "%s", id_buffer);
-
-    /* Get numeric CPU type */
-    cpu_num = IdHardwareNum(IDHW_CPU, NULL);
-
-    switch (cpu_num) {
-        case IDCPU_68000:
-            hw_info.cpu_type = CPU_68000;
-            break;
-        case IDCPU_68010:
-            hw_info.cpu_type = CPU_68010;
-            break;
-        case IDCPU_68020:
-            hw_info.cpu_type = CPU_68020;
-            break;
-        /* IDCPU_68EC020 not defined in identify.h V45 */
-        case IDCPU_68030:
-            hw_info.cpu_type = CPU_68030;
-            break;
-        case IDCPU_68EC030:
-            hw_info.cpu_type = CPU_68EC030;
-            break;
-        case IDCPU_68040:
-            hw_info.cpu_type = CPU_68040;
-            break;
-        case IDCPU_68LC040:
-            hw_info.cpu_type = CPU_68LC040;
-            break;
-        case IDCPU_68060:
-            hw_info.cpu_type = CPU_68060;
-            break;
-        /* IDCPU_68EC060 not defined in identify.h V45 */
-        case IDCPU_68LC060:
-            hw_info.cpu_type = CPU_68LC060;
-            break;
-        default:
-            hw_info.cpu_type = CPU_UNKNOWN;
-            break;
+    /*
+    first determine kickstart:
+    Kick <=1.3 does only know 68000-68020
+    Kick <=3.1 does not know >=68060
+    */
+   UWORD attnFlags = SysBase->AttnFlags;
+    if((attnFlags & (UWORD)AFF_68010) == 0){ //not even a 68010?
+        snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), "68000");
+        hw_info.cpu_type = CPU_68000;
+        return;
     }
 
+    if((attnFlags & (UWORD)AFF_68020) == 0){ //not even a 68020?
+        snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), "68010");
+        hw_info.cpu_type = CPU_68010;
+        return;
+    }
+
+    // we detect now 68030 and 68040 manually , because Kick 1.3 does not know about a 68030+
+    ULONG oldBits, newBits;
+    oldBits = CacheControl(CACRF_IBE, CACRF_IBE); // can instruction burst be anabled?
+    newBits = CacheControl(0, 0);
+    if ((newBits & CACRF_IBE) == 0)
+    {
+        // no >68030
+        if (hw_info.kickstart_version == *((volatile UWORD *)KICK_VERSION_MIRR))
+        { // do we have 24bit mirroring?
+            snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), "68EC020");
+            hw_info.cpu_type = CPU_68EC020;
+        }
+        else
+        {
+            snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), "68020");
+            hw_info.cpu_type = CPU_68020;
+        }
+        CacheControl(oldBits & CACRF_IBE, CACRF_IBE); // reset to old state
+        return;
+    }
+    // now we have at least a 68030
+    // the CACRF_FreezeI is a 68020/030-only flag!
+    oldBits = CacheControl(CACRF_FreezeI, CACRF_FreezeI); // can instruction cache be frezed?
+    newBits = CacheControl(0, 0);
+    if ((newBits & CACRF_FreezeI) == CACRF_FreezeI)
+    {
+        CacheControl(oldBits & CACRF_FreezeI, CACRF_FreezeI); // reset to old state
+        hw_info.cpu_type = CPU_68030;
+        snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), "68030");
+        return;
+    }
+    snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), "68040");
+    hw_info.cpu_type = CPU_68040; // preliminary! further 68060 - test
+
+    //ULONG cpu_num;
+
+
+
+    // /* Get CPU string from identify.library */
+    // get_hardware_string(IDHW_CPU, id_buffer, sizeof(id_buffer));
+    // snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), "%s", id_buffer);
+
+    // /* Get numeric CPU type */
+    //cpu_num = IdHardwareNum(IDHW_CPU, NULL);
+
+    // switch (cpu_num) {
+    //     case IDCPU_68000:
+    //         hw_info.cpu_type = CPU_68000;
+    //         break;
+    //     case IDCPU_68010:
+    //         hw_info.cpu_type = CPU_68010;
+    //         break;
+    //     case IDCPU_68020:
+    //         hw_info.cpu_type = CPU_68020;
+    //         break;
+    //     /* IDCPU_68EC020 not defined in identify.h V45 */
+    //     case IDCPU_68030:
+    //         hw_info.cpu_type = CPU_68030;
+    //         break;
+    //     case IDCPU_68EC030:
+    //         hw_info.cpu_type = CPU_68EC030;
+    //         break;
+    //     case IDCPU_68040:
+    //         hw_info.cpu_type = CPU_68040;
+    //         break;
+    //     case IDCPU_68LC040:
+    //         hw_info.cpu_type = CPU_68LC040;
+    //         break;
+    //     case IDCPU_68060:
+    //         hw_info.cpu_type = CPU_68060;
+    //         break;
+    //     /* IDCPU_68EC060 not defined in identify.h V45 */
+    //     case IDCPU_68LC060:
+    //         hw_info.cpu_type = CPU_68LC060;
+    //         break;
+    //     default:
+    //         hw_info.cpu_type = CPU_UNKNOWN;
+    //         break;
+    // }
+    
     /* Get CPU frequency from identify.library */
     hw_info.cpu_mhz = measure_cpu_frequency();
 
@@ -657,7 +711,7 @@ void detect_gary(void){
         tmp &= 0x80>>i;
         val = val|(tmp>>i);
     }
-    if(tmp!=0xFF && tmp !=0){
+    if(val!=0xFF && val !=0){
         hw_info.gary_type = GAYLE;
         hw_info.gary_rev = (ULONG)val;
         return;
