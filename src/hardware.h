@@ -11,6 +11,9 @@
 #include "xsysinfo.h"
 #include "battmem.h"
 
+#define KICK_VERSION    0xF8000C
+#define KICK_VERSION_MIRR    0x1F8000C
+#define KICK_REVISION    0xF8000E
 #define RAMSEY_VER     0x00DE0043 // Ramsey version register
 #define RAMSEY_CTRL    0x00DE0003 // Ramsey control register
 #define SDMAC_REVISION 0x00DD0020 // Read   Revision of ReSDMAC
