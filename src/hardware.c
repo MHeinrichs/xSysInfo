@@ -76,29 +76,8 @@ BOOL detect_hardware(void)
     refresh_cache_status();
     debug("  hw: Generating comment...\n");
     generate_comment();
-
-    /* Get Kickstart info */
-    UWORD kick_version = *((volatile UWORD *)KICK_VERSION);
-    UWORD kick_revision = *((volatile UWORD *)KICK_REVISION);
-    hw_info.kickstart_version = kick_version;
-    hw_info.kickstart_revision = kick_revision;
-
-    /* Fallback to exec version if above didn't provide ROM version */
-    if (hw_info.kickstart_version == 0) {
-        hw_info.kickstart_version = SysBase->LibNode.lib_Version;
-        hw_info.kickstart_revision = SysBase->LibNode.lib_Revision;
-    }
-
-    /* Get ROM size*/
-    UWORD kick_size = *((volatile UWORD *)0xF80000);
-    if (kick_size == 0x1111) {
-        hw_info.kickstart_size = 256;
-    }
-    else {
-        /* Fallback: default to 512K */
-        hw_info.kickstart_size = 512;
-    }
-
+    debug("  hw: Detecting kickstart...\n");
+    detect_kickstart();
     debug("  hw: Hardware detection complete.\n");
     return TRUE;
 }
@@ -462,9 +441,10 @@ void detect_batt_mem(void)
 
     if ( hw_info.clock_type == CLOCK_RP5C01 //clock with NV-ram
         && hw_info.ramsey_rev > 0 //we have a ramsey (and might be a A3000
-        && openBattMem() //batt mem ressource is open
         ) {
-        hw_info.battMemData.valid_data = readBattMem(&hw_info.battMemData);
+        if (openBattMem()) { //open batt mem ressource)
+            hw_info.battMemData.valid_data = readBattMem(&hw_info.battMemData);
+        }
     }
 
 }
@@ -842,5 +822,35 @@ ULONG measure_cpu_frequency(void)
             return 5000;  /* Common 060 speed */
         default:
             return 709;
+    }
+}
+
+/*
+ * Reads the version and revision from kickstart rom.
+ * Determines the size if kickstart.
+ * Remember: on 256k-ROMs the ROM is mirrored at 0xF80000!
+*/
+void detect_kickstart(void)
+{
+    /* Get Kickstart info */
+    UWORD kick_version = *((volatile UWORD *)(KICK_VERSION));
+    UWORD kick_revision = *((volatile UWORD *)(KICK_REVISION));
+    hw_info.kickstart_version = kick_version;
+    hw_info.kickstart_revision = kick_revision;
+
+    /* Fallback to exec version if above didn't provide ROM version */
+    if (hw_info.kickstart_version == 0) {
+        hw_info.kickstart_version = SysBase->LibNode.lib_Version;
+        hw_info.kickstart_revision = SysBase->LibNode.lib_Revision;
+    }
+
+    /* Get ROM size*/
+    UWORD kick_size = *((volatile UWORD *)(KICK_SIZE));
+    if (kick_size == 0x1111) {
+        hw_info.kickstart_size = 256;
+    }
+    else {
+        /* Fallback: default to 512K */
+        hw_info.kickstart_size = 512;
     }
 }
