@@ -11,6 +11,7 @@
 #include "xsysinfo.h"
 #include "battmem.h"
 
+#define KICK_SIZE    0xF80000
 #define KICK_VERSION    0xF8000C
 #define KICK_VERSION_MIRR    0x1F8000C
 #define KICK_REVISION    0xF8000E
@@ -250,6 +251,7 @@ void detect_sdmac(void);
 void detect_system_chips(void);
 void detect_frequencies(void);
 void generate_comment(void);
+void detect_kickstart(void);
 
 /* CPU MHz measurement */
 ULONG measure_cpu_frequency(void);
