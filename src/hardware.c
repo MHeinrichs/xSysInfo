@@ -33,22 +33,7 @@ HardwareInfo hw_info;
 /* External library bases */
 extern struct ExecBase *SysBase;
 extern struct GfxBase *GfxBase;
-extern struct Library *IdentifyBase;
-
-/* String buffer for identify.library results */
-static char id_buffer[256];
-
-/* Helper to safely get string from identify.library */
-static void get_hardware_string(ULONG type, char *buffer, size_t size)
-{
-    STRPTR result = IdHardware(type, NULL);
-    if (result) {
-        strncpy(buffer, (const char *)result, size - 1);
-        buffer[size - 1] = '\0';
-    } else {
-        buffer[0] = '\0';
-    }
-}
+//extern struct Library *IdentifyBase;
 
 /*
  * Main hardware detection function
@@ -278,8 +263,8 @@ void detect_mmu(void)
     hw_info.mmu_type = MMU_NONE;
     hw_info.mmu_enabled = FALSE;
     strncpy(hw_info.mmu_string, get_string(MSG_NA), sizeof(hw_info.mmu_string) - 1);
-
-	if (mmuLib = (struct Library *)OpenLibrary ("mmu.library", 0)) { //check for mmu.lib
+    mmuLib = (struct Library *) OpenLibrary ((CONST_STRPTR)"mmu.library", 0);
+	if (mmuLib) { //check for mmu.lib
         CloseLibrary((struct Library *) mmuLib);
         hw_info.mmu_enabled = TRUE;
         //we have an mmu!
@@ -313,8 +298,9 @@ void detect_mmu(void)
     }
 
     /* Get VBR */
-    get_hardware_string(IDHW_VBR, id_buffer, sizeof(id_buffer));
-    hw_info.vbr = IdHardwareNum(IDHW_VBR, NULL);
+    if(hw_info.cpu_type != CPU_68000 && hw_info.cpu_type != CPU_UNKNOWN){
+        hw_info.vbr = GetVBR();
+    }
 }
 
 /*

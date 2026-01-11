@@ -24,6 +24,7 @@
 
 ULONG GetCPUReg(void);
 ULONG GetCPU060(void);
+ULONG GetVBR(void);
 
 #endif /* CPU_H */
 
