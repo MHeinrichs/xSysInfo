@@ -24,7 +24,8 @@
 #include "hardware.h"
 #include "locale_str.h"
 #include "debug.h"
-#include "cpu.h"
+#include "cpu.h" //for cpu-type/rev
+#include "benchmark.h" //for frequencies
 
 /* Global hardware info */
 HardwareInfo hw_info;
@@ -118,52 +119,74 @@ void detect_cpu(void)
     if((attnFlags & (UWORD)AFF_68010) == 0){ //not even a 68010?
         snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), "68000");
         hw_info.cpu_type = CPU_68000;
-        return;
     }
 
-    if((attnFlags & (UWORD)AFF_68020) == 0){ //not even a 68020?
+    else if((attnFlags & (UWORD)AFF_68020) == 0){ //not even a 68020?
         snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), "68010");
         hw_info.cpu_type = CPU_68010;
-        return;
     }
 
-    // we detect now 68030 and 68040 manually , because Kick 1.3 does not know about a 68030+
-    ULONG oldBits, newBits;
-    oldBits = CacheControl(CACRF_IBE, CACRF_IBE); // can instruction burst be anabled?
-    newBits = CacheControl(0, 0);
-    if ((newBits & CACRF_IBE) == 0)
-    {
-        // no >68030
-        if (hw_info.kickstart_version == *((volatile UWORD *)KICK_VERSION_MIRR))
-        { // do we have 24bit mirroring?
-            snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), "68EC020");
-            hw_info.cpu_type = CPU_68EC020;
+    else {// we detect now 68030 and 68040 manually , because Kick 1.3 does not know about a 68030+
+        ULONG oldBits, newBits;
+
+        // now we have at least a 68020/030
+        // the CACRF_FreezeI is a 68020/030-only flag!
+        oldBits = CacheControl(CACRF_FreezeI, CACRF_FreezeI); // can instruction cache be frezed?
+        newBits = CacheControl(0, 0);
+        CacheControl(oldBits & CACRF_FreezeI, CACRF_FreezeI); // reset to old state
+        if ((newBits & CACRF_FreezeI) == CACRF_FreezeI)
+        {
+            oldBits = CacheControl(CACRF_IBE, CACRF_IBE); // can instruction burst be enabled?
+            newBits = CacheControl(0, 0);
+            CacheControl(oldBits & CACRF_IBE, CACRF_IBE); // reset to old state
+            if ((newBits & CACRF_IBE) == 0)
+            {
+                // no 68030
+                if (hw_info.kickstart_version == *((volatile UWORD *)KICK_VERSION_MIRR))
+                { // do we have 24bit mirroring?
+                    snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), "68EC020");
+                    hw_info.cpu_type = CPU_68EC020;
+                }
+                else
+                {
+                    snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), "68020");
+                    hw_info.cpu_type = CPU_68020;
+                }
+            }
+            else
+            {
+                hw_info.cpu_type = CPU_68030;
+                snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), "68030");
+            }
         }
         else
         {
-            snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), "68020");
-            hw_info.cpu_type = CPU_68020;
+            // now it's 68040/060 and it's derivatives
+            ULONG cpuBits = GetCPU060(); // same bits as CPUType
+            if (cpuBits == ASM_CPU_68040)
+            {
+                snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), "68040");
+                hw_info.cpu_type = CPU_68040;
+            }
+            else if (cpuBits == ASM_CPU_68060)
+            {
+                snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), "68060");
+                hw_info.cpu_type = CPU_68060;
+            }
+            else if (cpuBits == ASM_CPU_68LC060)
+            {
+                snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), "68LC060");
+                hw_info.cpu_type = CPU_68LC060;
+            }
+            else
+            {
+                snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), get_string(MSG_UNKNOWN));
+                hw_info.cpu_type = CPU_UNKNOWN;
+            }
         }
-        CacheControl(oldBits & CACRF_IBE, CACRF_IBE); // reset to old state
-        return;
     }
-    // now we have at least a 68030
-    // the CACRF_FreezeI is a 68020/030-only flag!
-    oldBits = CacheControl(CACRF_FreezeI, CACRF_FreezeI); // can instruction cache be frezed?
-    newBits = CacheControl(0, 0);
-    if ((newBits & CACRF_FreezeI) == CACRF_FreezeI)
-    {
-        CacheControl(oldBits & CACRF_FreezeI, CACRF_FreezeI); // reset to old state
-        hw_info.cpu_type = CPU_68030;
-        snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), "68030");
-        return;
-    }
-    snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), "68060");
-    hw_info.cpu_type = CPU_68060; // preliminary! further 68060 - test
-
-   
-    /* Get CPU frequency from identify.library */
-    hw_info.cpu_mhz = measure_cpu_frequency();
+    /* Get CPU frequency */
+    hw_info.cpu_mhz = get_mhz_cpu(hw_info.cpu_type);
 
     /* Get CPU revision from identify.library (returns string) */
     if( hw_info.cpu_type == CPU_68060 ||
@@ -175,7 +198,7 @@ void detect_cpu(void)
     }
     else{
         hw_info.cpu_rev = -1;    
-        snprintf(hw_info.cpu_revision, sizeof(hw_info.cpu_revision), "N/A");
+        snprintf(hw_info.cpu_revision, sizeof(hw_info.cpu_revision), get_string(MSG_NA));
     }
 }
 
@@ -191,41 +214,52 @@ UWORD detect_cpu_rev(void){
  */
 void detect_fpu(void)
 {
-    ULONG fpu_num;
     ULONG fpu_clock;
+    UWORD attnFlags = SysBase->AttnFlags;
 
-    /* Get FPU string from identify.library */
-    get_hardware_string(IDHW_FPU, id_buffer, sizeof(id_buffer));
-    snprintf(hw_info.fpu_string, sizeof(hw_info.fpu_string), "%s", id_buffer);
+    //default values    
+    hw_info.fpu_type = FPU_UNKNOWN;
+    hw_info.fpu_mhz = 0;
 
-    /* Get numeric FPU type */
-    fpu_num = IdHardwareNum(IDHW_FPU, NULL);
-
-    switch (fpu_num) {
-        case IDFPU_NONE:
-            hw_info.fpu_type = FPU_NONE;
-            strncpy(hw_info.fpu_string, get_string(MSG_NONE),
+    //is there any fpu?
+    if((attnFlags & ((UWORD)AFF_68881|(UWORD)AFF_FPU40)) == 0){ //No FPU
+        strncpy(hw_info.fpu_string, get_string(MSG_NONE),
                     sizeof(hw_info.fpu_string) - 1);
-            break;
-        case IDFPU_68881:
-            hw_info.fpu_type = FPU_68881;
-            break;
-        case IDFPU_68882:
-            hw_info.fpu_type = FPU_68882;
-            break;
-        case IDFPU_68040:
-            hw_info.fpu_type = FPU_68040;
-            break;
-        case IDFPU_68060:
-            hw_info.fpu_type = FPU_68060;
-            break;
-        default:
-            hw_info.fpu_type = FPU_UNKNOWN;
-            break;
+        hw_info.fpu_type = FPU_NONE;
+        if(hw_info.cpu_type == CPU_68040){
+            hw_info.cpu_type = CPU_68LC040; //low cost cpu
+        }
+        snprintf(hw_info.fpu_string, sizeof(hw_info.fpu_string), get_string(MSG_NA));
+        return;
+    }
+    
+    //kick 1.3 does not know any better fpu than 68881!
+    if((attnFlags & (UWORD)AFF_68881) > 0){ //68881
+        if((attnFlags & (UWORD)AFF_68882) > 0){ //68881
+            hw_info.fpu_type = FPU_68882; 
+            snprintf(hw_info.fpu_string, sizeof(hw_info.fpu_string), "68882");           
+        }
+        else{
+            hw_info.fpu_type = FPU_68881;            
+            snprintf(hw_info.fpu_string, sizeof(hw_info.fpu_string), "68881");           
+        }
     }
 
+    //is it 040-ish?!
+    if((attnFlags & (UWORD)AFF_FPU40) > 0){
+        if(hw_info.cpu_type == CPU_68040){
+            hw_info.fpu_type = FPU_68040; 
+        snprintf(hw_info.fpu_string, sizeof(hw_info.fpu_string), "68040");           
+        }
+        else if(hw_info.cpu_type == CPU_68060){
+            hw_info.fpu_type = FPU_68060;
+        snprintf(hw_info.fpu_string, sizeof(hw_info.fpu_string), "68060");           
+        }
+    }
+
+
     /* Get FPU clock from identify.library */
-    fpu_clock = IdHardwareNum(IDHW_FPUCLOCK, NULL);
+    fpu_clock = get_mhz_fpu(hw_info.fpu_type);
     if (fpu_clock > 0 && fpu_clock < 1000) {
         hw_info.fpu_mhz = fpu_clock * 100;
     } else {
@@ -238,45 +272,43 @@ void detect_fpu(void)
  */
 void detect_mmu(void)
 {
-    ULONG mmu_num;
+    struct Library *mmuLib;
 
-    /* Get MMU string from identify.library */
-    get_hardware_string(IDHW_MMU, id_buffer, sizeof(id_buffer));
-    snprintf(hw_info.mmu_string, sizeof(hw_info.mmu_string), "%s", id_buffer);
-
-    /* Get numeric MMU type */
-    mmu_num = IdHardwareNum(IDHW_MMU, NULL);
-
-    switch (mmu_num) {
-        case IDMMU_NONE:
-            hw_info.mmu_type = MMU_NONE;
-            strncpy(hw_info.mmu_string, get_string(MSG_NA),
-                    sizeof(hw_info.mmu_string) - 1);
-            break;
-        case IDMMU_68851:
-            hw_info.mmu_type = MMU_68851;
-            break;
-        case IDMMU_68030:
-            hw_info.mmu_type = MMU_68030;
-            break;
-        case IDMMU_68040:
-            hw_info.mmu_type = MMU_68040;
-            break;
-        case IDMMU_68060:
-            hw_info.mmu_type = MMU_68060;
-            break;
-        default:
-            hw_info.mmu_type = MMU_UNKNOWN;
-            break;
-    }
-
-    /* Check if MMU is in use (mmu.library loaded) */
+    //default
+    hw_info.mmu_type = MMU_NONE;
     hw_info.mmu_enabled = FALSE;
-    if (hw_info.mmu_type != MMU_NONE) {
-        struct Library *mmulib = OpenLibrary((CONST_STRPTR)"mmu.library", 0);
-        if (mmulib) {
-            hw_info.mmu_enabled = TRUE;
-            CloseLibrary(mmulib);
+    strncpy(hw_info.mmu_string, get_string(MSG_NA), sizeof(hw_info.mmu_string) - 1);
+
+	if (mmuLib = (struct Library *)OpenLibrary ("mmu.library", 0)) { //check for mmu.lib
+        CloseLibrary((struct Library *) mmuLib);
+        hw_info.mmu_enabled = TRUE;
+        //we have an mmu!
+        switch(hw_info.cpu_type){
+            case CPU_68EC020:
+            case CPU_68020:
+                snprintf(hw_info.mmu_string, sizeof(hw_info.mmu_string), "68851");
+                hw_info.mmu_type = MMU_68851;
+                break;
+            case CPU_68EC030:
+            case CPU_68030:
+                snprintf(hw_info.mmu_string, sizeof(hw_info.mmu_string), "68030");
+                hw_info.mmu_type = MMU_68030;
+                break;
+            case CPU_68LC040:
+            case CPU_68040:
+                snprintf(hw_info.mmu_string, sizeof(hw_info.mmu_string), "68040");
+                hw_info.mmu_type = MMU_68040;
+                break;
+            case CPU_68LC060:
+            case CPU_68EC060:
+            case CPU_68060:
+                snprintf(hw_info.mmu_string, sizeof(hw_info.mmu_string), "68060");
+                hw_info.mmu_type = MMU_68060;
+                break;
+            default:
+                strncpy(hw_info.mmu_string, get_string(MSG_UNKNOWN), sizeof(hw_info.mmu_string) - 1);
+                hw_info.mmu_type = MMU_UNKNOWN;
+            break;
         }
     }
 

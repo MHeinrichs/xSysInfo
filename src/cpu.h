@@ -9,7 +9,21 @@
 #ifndef CPU_H
 #define CPU_H
 
+#define ASM_CPU_68000 1
+#define ASM_CPU_68010 2
+#define ASM_CPU_68020 3
+#define ASM_CPU_68EC020 4
+#define ASM_CPU_68030 5
+#define ASM_CPU_68EC030 6
+#define ASM_CPU_68040 7
+#define ASM_CPU_68LC040 8
+#define ASM_CPU_68060 9
+#define ASM_CPU_68EC060 10
+#define ASM_CPU_68LC060 11
+#define ASM_CPU_UNKNOWN  12
+
 ULONG GetCPUReg(void);
+ULONG GetCPU060(void);
 
 #endif /* CPU_H */
 

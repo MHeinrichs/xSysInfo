@@ -116,6 +116,71 @@ void cleanup_timer(void)
 }
 
 /*
+ * Returns the CPU-frequencies in MHz scaled by 100
+*/
+ULONG get_mhz_cpu(CPUType type){
+    ULONG mhz = 0;
+    switch (type){
+        case CPU_68000:
+            mhz = 1;
+            break;
+        case CPU_68010:
+            mhz = 2;
+            break;
+        case CPU_68EC020:
+        case CPU_68020:
+            mhz = 3;
+            break;
+        case CPU_68030:
+        case CPU_68EC030:
+            mhz = 4;
+            break;
+        case CPU_68040:
+        case CPU_68LC040:
+            mhz = 5;
+            break;
+        case CPU_68EC060:
+        case CPU_68LC060:
+        case CPU_68060:
+            mhz = 6;
+            break;
+        case CPU_UNKNOWN:
+        default:
+            mhz = 7;
+            break;
+    }
+    return mhz *100;
+}
+
+/*
+ * Returns the FPU-frequencies in MHz 
+*/
+ULONG get_mhz_fpu(FPUType type){
+    ULONG mhz = 0;
+    switch (type){
+        case FPU_NONE:
+            mhz = 0;
+            break;
+        case FPU_68881:
+            mhz = 1;
+            break;
+        case FPU_68882:
+            mhz = 2;
+            break;
+        case FPU_68040:
+            mhz = 3;
+            break;
+        case FPU_68060:
+            mhz = 4;
+            break;
+        case FPU_UNKNOWN:
+        default:
+            mhz = 5;
+            break;
+    }
+    return mhz;
+}
+/*
  * Get current timer ticks (microseconds)
  */
 uint64_t get_timer_ticks(void)
