@@ -26,7 +26,7 @@ CFLAGS = -O2 -m68000 -mtune=68020-60 -Wa,-m68881 -msoft-float -noixemul -Wall -W
          -I$(IDENTIFY_INC) \
          -DXSYSINFO_DATE="\"$(ADATE)\"" -DXSYSINFO_VERSION="\"$(FULL_VERSION)\"" \
          -DPROG_VERSION=$(PROG_VERSION) -DPROG_REVISION=$(PROG_REVISION)
-
+ASMFLAGS = -Fhunk -esc -sc -m68060 -I $(NDK_INC)
 LDFLAGS = -noixemul
 LIBS = -lamiga -lgcc
 
@@ -47,7 +47,11 @@ SRCS = src/main.c \
        src/print.c \
        src/locale.c
 
+ASM_SRCS = src/cpu.S
+
 OBJS = $(SRCS:.c=.o)
+
+ASM_OBJS = $(ASM_SRCS:.S=.hunk)
 
 TARGET = xSysInfo
 
@@ -115,9 +119,9 @@ lha: $(TARGET) TinySetPatch catalogs
 	@rm -rf $(LHA_DIR)
 	@echo "Created $(LHA_NAME)"
 
-$(TARGET): $(OBJS)
+$(TARGET): $(OBJS) $(ASM_OBJS)
 	@echo "  LINK  $@"
-	@$(CC) $(LDFLAGS) -o $@ $(OBJS) $(LIBS)
+	@$(CC) $(LDFLAGS) -o $@ $(OBJS) $(ASM_OBJS) $(LIBS)
 	@echo "  STRIP $@"
 	@$(STRIP) $@
 	@wc -c < "$@" | awk '{printf "$@ successfully compiled (%s bytes)\n", $$1}'
@@ -126,9 +130,13 @@ src/%.o: src/%.c src/xsysinfo.h
 	@echo "  CC    $@"
 	@$(CC) $(CFLAGS) -c -o $@ $<
 
+src/%.hunk: src/%.S
+	@echo "  ASM   $@"
+	@$(VASM) $(ASMFLAGS) -o $@ $<
+
 clean:
 	@echo "  CLEAN"
-	@rm -f $(OBJS) $(TARGET) TinySetPatch
+	@rm -f $(OBJS) $(ASM_OBJS) $(TARGET) TinySetPatch
 	@rm -rf $(CATALOG_DIR)
 	@rm -f xsysinfo-*.lha
 	@$(MAKE) -s -C 3rdparty/flexcat clean
