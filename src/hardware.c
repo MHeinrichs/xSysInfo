@@ -24,6 +24,7 @@
 #include "hardware.h"
 #include "locale_str.h"
 #include "debug.h"
+#include "cpu.h"
 
 /* Global hardware info */
 HardwareInfo hw_info;
