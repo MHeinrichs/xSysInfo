@@ -296,7 +296,6 @@ static BOOL open_libraries(void)
     IdentifyBase = OpenLibrary((CONST_STRPTR)"identify.library", MIN_IDENTIFY_VERSION);
     if (!IdentifyBase) {
         Printf((CONST_STRPTR)"%s\n", (LONG)get_string(MSG_ERR_NO_IDENTIFY));
-        return FALSE;
     }
 
     app->IdentifyBase = IdentifyBase;

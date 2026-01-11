@@ -35,7 +35,7 @@ BOOL openBattMem(void) //returns false, if not available
             CloseLibrary ((struct Library *) DOSBase); // Availability check over we can close this now!
 
             /* Open battmem.resource. */
-            BattMemBase = (struct Library *) OpenResource((CONST_STRPTR)BATTMEMNAME);
+            BattMemBase = (struct Library *) OpenResource ((CONST_STRPTR)BATTMEMNAME);
 
 
         }

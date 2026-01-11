@@ -1,5 +1,7 @@
-    INCDIR  "include:"
-    INCLUDE "lvo/exec_lib.i"
+;copyright by Matthias Heinrichs, Henryk Richter (68060-detection) and Christian Euler (VBR-detection)
+	INCDIR  "include:"
+	INCLUDE "lvo/exec_lib.i"
+
 BusErrorVector			EQU $8
 IllegalInstructionVector	EQU $10
 Line1111Vector			EQU $2C
@@ -29,6 +31,19 @@ ASM_CPU_UNKNOWN  EQU 12
     MACHINE 68060
 	XDEF	_GetCPUReg
 	XDEF	_GetCPU060;
+	XDEF	_GetVBR
+
+_GetVBR:
+	movem.l	a5/a6,-(sp)
+	lea.l	_readvbr,a5
+	move.l	$4.w,a6
+	jsr	_LVOSupervisor(a6)
+	movem.l	(sp)+,a5/a6
+	rts
+
+_readvbr:
+	movec	VBR,d0
+	rte
 
 _GetCPUReg:
 	movem.l	a5/a6,-(sp)
