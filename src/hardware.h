@@ -143,6 +143,7 @@ typedef enum{
 typedef struct {
     /* CPU */
     CPUType cpu_type;
+    UWORD cpu_rev;
     char cpu_revision[16];
     ULONG cpu_mhz;          /* CPU MHz * 100 */
     char cpu_string[32];
@@ -252,6 +253,8 @@ void detect_system_chips(void);
 void detect_frequencies(void);
 void generate_comment(void);
 void detect_kickstart(void);
+UWORD detect_cpu_rev(void);
+ULONG GetCPUReg(void);
 
 /* CPU MHz measurement */
 ULONG measure_cpu_frequency(void);

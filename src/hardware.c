@@ -76,8 +76,29 @@ BOOL detect_hardware(void)
     refresh_cache_status();
     debug("  hw: Generating comment...\n");
     generate_comment();
-    debug("  hw: Detecting kickstart...\n");
-    detect_kickstart();
+
+    /* Get Kickstart info */
+    UWORD kick_version = *((volatile UWORD *)KICK_VERSION);
+    UWORD kick_revision = *((volatile UWORD *)KICK_REVISION);
+    hw_info.kickstart_version = kick_version;
+    hw_info.kickstart_revision = kick_revision;
+
+    /* Fallback to exec version if above didn't provide ROM version */
+    if (hw_info.kickstart_version == 0) {
+        hw_info.kickstart_version = SysBase->LibNode.lib_Version;
+        hw_info.kickstart_revision = SysBase->LibNode.lib_Revision;
+    }
+
+    /* Get ROM size*/
+    UWORD kick_size = *((volatile UWORD *)0xF80000);
+    if(kick_size == 0x1111){
+        hw_info.kickstart_size = 256;
+    }
+    else{
+        /* Fallback: default to 512K */
+        hw_info.kickstart_size = 512;
+    }
+
     debug("  hw: Hardware detection complete.\n");
     return TRUE;
 }
@@ -136,61 +157,32 @@ void detect_cpu(void)
         snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), "68030");
         return;
     }
-    snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), "68040");
-    hw_info.cpu_type = CPU_68040; // preliminary! further 68060 - test
+    snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), "68060");
+    hw_info.cpu_type = CPU_68060; // preliminary! further 68060 - test
 
-    //ULONG cpu_num;
-
-
-
-    // /* Get CPU string from identify.library */
-    // get_hardware_string(IDHW_CPU, id_buffer, sizeof(id_buffer));
-    // snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), "%s", id_buffer);
-
-    // /* Get numeric CPU type */
-    //cpu_num = IdHardwareNum(IDHW_CPU, NULL);
-
-    // switch (cpu_num) {
-    //     case IDCPU_68000:
-    //         hw_info.cpu_type = CPU_68000;
-    //         break;
-    //     case IDCPU_68010:
-    //         hw_info.cpu_type = CPU_68010;
-    //         break;
-    //     case IDCPU_68020:
-    //         hw_info.cpu_type = CPU_68020;
-    //         break;
-    //     /* IDCPU_68EC020 not defined in identify.h V45 */
-    //     case IDCPU_68030:
-    //         hw_info.cpu_type = CPU_68030;
-    //         break;
-    //     case IDCPU_68EC030:
-    //         hw_info.cpu_type = CPU_68EC030;
-    //         break;
-    //     case IDCPU_68040:
-    //         hw_info.cpu_type = CPU_68040;
-    //         break;
-    //     case IDCPU_68LC040:
-    //         hw_info.cpu_type = CPU_68LC040;
-    //         break;
-    //     case IDCPU_68060:
-    //         hw_info.cpu_type = CPU_68060;
-    //         break;
-    //     /* IDCPU_68EC060 not defined in identify.h V45 */
-    //     case IDCPU_68LC060:
-    //         hw_info.cpu_type = CPU_68LC060;
-    //         break;
-    //     default:
-    //         hw_info.cpu_type = CPU_UNKNOWN;
-    //         break;
-    // }
-    
+   
     /* Get CPU frequency from identify.library */
     hw_info.cpu_mhz = measure_cpu_frequency();
 
     /* Get CPU revision from identify.library (returns string) */
-    get_hardware_string(IDHW_CPUREV, hw_info.cpu_revision,
-                        sizeof(hw_info.cpu_revision));
+    if( hw_info.cpu_type == CPU_68060 ||
+        hw_info.cpu_type == CPU_68LC060 ||
+        hw_info.cpu_type == CPU_68EC060
+    ){
+        hw_info.cpu_rev = detect_cpu_rev();    
+        snprintf(hw_info.cpu_revision, sizeof(hw_info.cpu_revision), "Rev. %d", hw_info.cpu_rev);
+    }
+    else{
+        hw_info.cpu_rev = -1;    
+        snprintf(hw_info.cpu_revision, sizeof(hw_info.cpu_revision), "N/A");
+    }
+}
+
+UWORD detect_cpu_rev(void){
+    ULONG cpuReg = GetCPUReg();
+    cpuReg = cpuReg>>8;
+    cpuReg &= 0xFF;
+    return (UWORD) cpuReg;
 }
 
 /*
@@ -485,11 +477,11 @@ void detect_batt_mem(void)
     hw_info.battMemData.valid_data = FALSE;
     
     if( hw_info.clock_type == CLOCK_RP5C01 //clock with NV-ram
-        && hw_info.ramsey_rev > 0 //we have a ramsey (and might be a A3000        
+        && hw_info.ramsey_rev > 0 //we have a ramsey (and might be a A3000
+        && openBattMem() //batt mem ressource is open
         ){
-        if(openBattMem()){ //open batt mem ressource)
-            hw_info.battMemData.valid_data = readBattMem(&hw_info.battMemData);
-        }
+        hw_info.battMemData.valid_data = readBattMem(&hw_info.battMemData);
+        hw_info.battMemData.valid_data = TRUE;
     }
     
 }
@@ -867,34 +859,5 @@ ULONG measure_cpu_frequency(void)
             return 5000;  /* Common 060 speed */
         default:
             return 709;
-    }
-}
-
-/*
- * Reads the version and revision from kickstart rom.
- * Determines the size if kickstart.
- * Remember: on 256k-ROMs the ROM is mirrored at 0xF80000!
-*/
-void detect_kickstart(void){
-    /* Get Kickstart info */
-    UWORD kick_version = *((volatile UWORD *)(KICK_VERSION));
-    UWORD kick_revision = *((volatile UWORD *)(KICK_REVISION));
-    hw_info.kickstart_version = kick_version;
-    hw_info.kickstart_revision = kick_revision;
-
-    /* Fallback to exec version if above didn't provide ROM version */
-    if (hw_info.kickstart_version == 0) {
-        hw_info.kickstart_version = SysBase->LibNode.lib_Version;
-        hw_info.kickstart_revision = SysBase->LibNode.lib_Revision;
-    }
-
-    /* Get ROM size*/
-    UWORD kick_size = *((volatile UWORD *)(KICK_SIZE));
-    if(kick_size == 0x1111){
-        hw_info.kickstart_size = 256;
-    }
-    else{
-        /* Fallback: default to 512K */
-        hw_info.kickstart_size = 512;
     }
 }
