@@ -49,6 +49,8 @@ BOOL detect_hardware(void)
     detect_fpu();
     debug("  hw: Detecting MMU...\n");
     detect_mmu();
+    debug("  hw: Reading VBR...\n");
+    read_vbr();
     debug("  hw: Detecting chipset...\n");
     detect_chipset();
     debug("  hw: Detecting system chips...\n");
@@ -258,48 +260,98 @@ void detect_fpu(void)
 void detect_mmu(void)
 {
     struct Library *mmuLib;
+    ULONG mmuResult =0;
+    ULONG cpuType=0;
 
     //default
-    hw_info.mmu_type = MMU_NONE;
     hw_info.mmu_enabled = FALSE;
-    strncpy(hw_info.mmu_string, get_string(MSG_NA), sizeof(hw_info.mmu_string) - 1);
-    mmuLib = (struct Library *) OpenLibrary ((CONST_STRPTR)"mmu.library", 0);
-	if (mmuLib) { //check for mmu.lib
-        CloseLibrary((struct Library *) mmuLib);
-        hw_info.mmu_enabled = TRUE;
-        //we have an mmu!
-        switch(hw_info.cpu_type){
-            case CPU_68EC020:
-            case CPU_68020:
-                snprintf(hw_info.mmu_string, sizeof(hw_info.mmu_string), "68851");
-                hw_info.mmu_type = MMU_68851;
-                break;
-            case CPU_68EC030:
-            case CPU_68030:
-                snprintf(hw_info.mmu_string, sizeof(hw_info.mmu_string), "68030");
-                hw_info.mmu_type = MMU_68030;
-                break;
-            case CPU_68LC040:
-            case CPU_68040:
-                snprintf(hw_info.mmu_string, sizeof(hw_info.mmu_string), "68040");
-                hw_info.mmu_type = MMU_68040;
-                break;
-            case CPU_68LC060:
-            case CPU_68EC060:
-            case CPU_68060:
-                snprintf(hw_info.mmu_string, sizeof(hw_info.mmu_string), "68060");
-                hw_info.mmu_type = MMU_68060;
-                break;
-            default:
-                strncpy(hw_info.mmu_string, get_string(MSG_UNKNOWN), sizeof(hw_info.mmu_string) - 1);
-                hw_info.mmu_type = MMU_UNKNOWN;
-            break;
-        }
+
+    //GetMMU has to determine if we have a 68020, 030, 040 or 060-MMU (different opcodes)
+    switch (hw_info.cpu_type)
+    {
+    case CPU_68EC020:
+    case CPU_68020:
+        cpuType = ASM_CPU_68020;
+        break;
+    case CPU_68EC030:
+    case CPU_68030:
+        cpuType = ASM_CPU_68030;
+        break;
+    case CPU_68LC040:
+    case CPU_68040:
+        cpuType = ASM_CPU_68040;
+        break;
+    case CPU_68LC060:
+    case CPU_68EC060:
+    case CPU_68060:
+        cpuType = ASM_CPU_68060;
+        break;
+    default:
+        cpuType = 0;
+        break;
     }
 
+    if(cpuType>=ASM_CPU_68030){ //no 68851 support!
+        mmuResult = GetMMU(cpuType);
+    }
+
+    if (mmuResult > 0)
+    {
+        // we have an mmu!
+        switch (hw_info.cpu_type)
+        {
+        case CPU_68EC020:
+        case CPU_68020:
+            snprintf(hw_info.mmu_string, sizeof(hw_info.mmu_string), "68851");
+            hw_info.mmu_type = MMU_68851;
+            break;
+        case CPU_68EC030:
+        case CPU_68030:
+            snprintf(hw_info.mmu_string, sizeof(hw_info.mmu_string), "68030");
+            hw_info.mmu_type = MMU_68030;
+            break;
+        case CPU_68LC040:
+        case CPU_68040:
+            snprintf(hw_info.mmu_string, sizeof(hw_info.mmu_string), "68040");
+            hw_info.mmu_type = MMU_68040;
+            break;
+        case CPU_68LC060:
+        case CPU_68EC060:
+        case CPU_68060:
+            snprintf(hw_info.mmu_string, sizeof(hw_info.mmu_string), "68060");
+            hw_info.mmu_type = MMU_68060;
+            break;
+        default:
+            strncpy(hw_info.mmu_string, get_string(MSG_UNKNOWN), sizeof(hw_info.mmu_string) - 1);
+            hw_info.mmu_type = MMU_UNKNOWN;
+            break;
+        }
+        mmuLib = (struct Library *)OpenLibrary((CONST_STRPTR) "mmu.library", 0);
+        if (mmuLib)
+        { // check for mmu.lib
+
+            CloseLibrary((struct Library *)mmuLib);
+            hw_info.mmu_enabled = TRUE;
+        }
+    }
+    else
+    {
+        hw_info.mmu_type = MMU_NONE;
+        strncpy(hw_info.mmu_string, get_string(MSG_NA), sizeof(hw_info.mmu_string) - 1);
+    }
+}
+
+/*
+ * Read VBR
+ */
+void read_vbr(void)
+{   
     /* Get VBR */
     if(hw_info.cpu_type != CPU_68000 && hw_info.cpu_type != CPU_UNKNOWN){
         hw_info.vbr = GetVBR();
+    }
+    else{
+        hw_info.vbr = 0;
     }
 }
 

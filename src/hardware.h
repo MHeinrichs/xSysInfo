@@ -243,6 +243,7 @@ void refresh_cache_status(void);
 void detect_cpu(void);
 void detect_fpu(void);
 void detect_mmu(void);
+void read_vbr(void);
 void detect_chipset(void);
 void detect_clock(void);
 void detect_batt_mem(void);
