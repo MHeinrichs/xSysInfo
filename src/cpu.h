@@ -25,5 +25,6 @@
 ULONG GetCPUReg(void);
 ULONG GetCPU060(void);
 ULONG GetVBR(void);
+ULONG GetMMU( ULONG cpuType __asm("d0"));
 
 #endif /* CPU_H */
