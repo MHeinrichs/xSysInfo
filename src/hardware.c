@@ -256,7 +256,7 @@ void detect_fpu(void)
     /* Get FPU clock from identify.library */
     fpu_clock = get_mhz_fpu(hw_info.fpu_type);
     //if (fpu_clock > 0 && fpu_clock < 1000) {
-        hw_info.fpu_mhz = fpu_clock * 100;
+        hw_info.fpu_mhz = fpu_clock ;
     //} else {
     //    hw_info.fpu_mhz = 0;
     //}
