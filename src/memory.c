@@ -34,38 +34,49 @@ extern AppContext *app;
 const char *get_memory_type_string(UWORD attrs, APTR addr)
 {
     static char buffer[64];
+    static char buffer2[64];
     ULONG address = (ULONG)addr;
 
     buffer[0] = '\0';
+    buffer2[0] = '\0';
 
+    //strcat crashes on a 68000/010?!?!
     /* Check for specific memory regions */
     if (attrs & MEMF_CHIP) {
-        strcat(buffer, "CHIP RAM");
+        strncpy(buffer, "CHIP RAM", sizeof(buffer) - 1);
     } else if (address >= 0xC00000 && address < 0xD80000) {
         /* Ranger/Slow RAM area */
-        strcat(buffer, "SLOW RAM");
+        strncpy(buffer, "SLOW RAM", sizeof(buffer) - 1);
     } else if (attrs & MEMF_FAST) {
         if (address < 0x01000000) {
-            strcat(buffer, "FAST RAM (24bit)");
+            strncpy(buffer, "FAST RAM (24bit)", sizeof(buffer) - 1);
         } else {
-            strcat(buffer, "FAST RAM (32bit)");
+            strncpy(buffer, "FAST RAM (32bit)", sizeof(buffer) - 1);
         }
     } else {
-        strcat(buffer, "RAM");
+        strncpy(buffer, "RAM", sizeof(buffer) - 1);
     }
 
     if (attrs & MEMF_LOCAL) {
-        strcat(buffer, ", LOCAL");
+        snprintf(buffer2, sizeof(buffer2), "%s %s",
+	                 buffer, ", LOCAL");
+        strncpy(buffer, buffer2, sizeof(buffer) - 1);
     }
 
     if (attrs & MEMF_PUBLIC) {
-        strcat(buffer, ", PUBLIC");
+        snprintf(buffer2, sizeof(buffer2), "%s %s",
+	                 buffer, ", PUBLIC");
+        strncpy(buffer, buffer2, sizeof(buffer) - 1);
     }
     if (attrs & MEMF_KICK) {
-        strcat(buffer, ", KICK");
+        snprintf(buffer2, sizeof(buffer2), "%s %s",
+	                 buffer, ", KICK");
+        strncpy(buffer, buffer2, sizeof(buffer) - 1);
     }
     if (attrs & MEMF_24BITDMA) {
-        strcat(buffer, ", 24BitDMA");
+        snprintf(buffer2, sizeof(buffer2), "%s %s",
+	                 buffer, ", 24BitDMA");
+        strncpy(buffer, buffer2, sizeof(buffer) - 1);
     }
 
     return buffer;
