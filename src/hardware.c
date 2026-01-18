@@ -223,9 +223,11 @@ void detect_fpu(void)
         hw_info.fpu_type = FPU_NONE;
         if(hw_info.cpu_type == CPU_68040){
             hw_info.cpu_type = CPU_68LC040; //fpu-less cpu
+            snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), "68LC040");
         }
         if(hw_info.cpu_type == CPU_68060){
             hw_info.cpu_type = CPU_68LC060; //fpu-less cpu
+            snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), "68LC060");
         }
         snprintf(hw_info.fpu_string, sizeof(hw_info.fpu_string), get_string(MSG_NA));
         return;
@@ -254,7 +256,6 @@ void detect_fpu(void)
         snprintf(hw_info.fpu_string, sizeof(hw_info.fpu_string), "68060");           
         }
     }
-
 
     /* Get FPU clock */
     hw_info.fpu_mhz = get_mhz_fpu();
@@ -295,7 +296,7 @@ void detect_mmu(void)
                 break;
             case MUTYPE_68040:
                 hw_info.mmu_type = MMU_68040;
-                strncpy(hw_info.mmu_string, "68034", sizeof(hw_info.mmu_string) - 1);
+                strncpy(hw_info.mmu_string, "68040", sizeof(hw_info.mmu_string) - 1);
                 hw_info.mmu_enabled = TRUE;
                 break;
             case MUTYPE_68060:
@@ -311,6 +312,7 @@ void detect_mmu(void)
                     snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), "68EC030");
                     break;
                 case CPU_68040:
+                case CPU_68LC040:
                     hw_info.cpu_type = CPU_68EC040;
                     snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), "68EC040");
                     break;
@@ -330,8 +332,9 @@ void detect_mmu(void)
             }
             CloseLibrary((struct Library *)MMUBase);
         }
+        CloseLibrary((struct Library *)DOSBase);
     }
-    CloseLibrary((struct Library *)DOSBase);
+    
 
     if (fallBack) //mmu.library or dos.library didn't open
     {
@@ -399,6 +402,28 @@ void detect_mmu(void)
                 break;
             }
         }
+        else
+        {
+            switch (hw_info.cpu_type) // correct cpu-type to ec for relevant cpus
+            {
+            case CPU_68030:
+                hw_info.cpu_type = CPU_68EC030;
+                snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), "68EC030");
+                break;
+            case CPU_68040:
+            case CPU_68LC040:
+                hw_info.cpu_type = CPU_68EC040;
+                snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), "68EC040");
+                break;
+            case CPU_68LC060:
+            case CPU_68060:
+                hw_info.cpu_type = CPU_68EC060;
+                snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), "68EC060");
+                break;
+            default:
+                break;
+            }
+        }
     }
 }
 
@@ -422,6 +447,7 @@ void read_vbr(void)
 void detect_chipset(void)
 {
     UWORD tmp, i;
+    debug("    chipset: Detecting Paula...\n");
 
     /*Get Paula revision*/
     hw_info.paula_rev = *((volatile UWORD *)(CUSTOM_PAULA_ID));
@@ -438,6 +464,7 @@ void detect_chipset(void)
             break;
     }
 
+    debug("    chipset: Detecting Denise/Lisa...\n");
     /* Get Denise/Lisa info */
     hw_info.denise_rev = *((volatile UWORD *)(CUSTOM_DENISE_ID));
     hw_info.denise_rev &= 0xFF;
@@ -472,6 +499,7 @@ void detect_chipset(void)
     }
 
 
+    debug("    chipset: Detecting Agnus/Alice...\n");
     if(hw_info.paula_type == PAULA_SAGA){
         hw_info.agnus_type = AGNUS_SAGA;
         hw_info.max_chip_ram = 2048 * 1024;  /* 2MB */
@@ -482,13 +510,13 @@ void detect_chipset(void)
         hw_info.agnus_rev &= 0X7F00; //mask Bit 14-8
         hw_info.agnus_rev = (hw_info.agnus_rev>>8); //shift to lower byte
 
-        //get possible mirrored version (A1000)
-        tmp = *((volatile UWORD *)(CUSTOM_AGNUS_ID_MIRR));
-        tmp &= 0X7F00; //mask Bit 14-8
-        tmp = (tmp>>8); //shift to lower byte
 
         switch(hw_info.agnus_rev){
             case 0x0: //OCS PAL
+                //get possible mirrored version (A1000)
+                tmp = *((volatile UWORD *)(CUSTOM_AGNUS_ID_MIRR));
+                tmp &= 0X7F00; //mask Bit 14-8
+                tmp = (tmp>>8); //shift to lower byte
                 if(hw_info.agnus_rev == tmp)
                     hw_info.agnus_type = AGNUS_OCS_PAL;
                 else
@@ -496,6 +524,10 @@ void detect_chipset(void)
                 hw_info.max_chip_ram = 512 * 1024;  /* 512K */
                 break;
             case 0x10: //OCS NTSC
+                //get possible mirrored version (A1000)
+                tmp = *((volatile UWORD *)(CUSTOM_AGNUS_ID_MIRR));
+                tmp &= 0X7F00; //mask Bit 14-8
+                tmp = (tmp>>8); //shift to lower byte
                 if(hw_info.agnus_rev == tmp)
                     hw_info.agnus_type = AGNUS_OCS_NTSC;
                 else
@@ -530,7 +562,6 @@ void detect_chipset(void)
                 break;
         }
     }
-
 }
 
 /*
@@ -624,15 +655,7 @@ void detect_batt_mem(void)
 void detect_ramsey(void){
 
     /* Ramsey (A3000/A4000 RAM controller) */
-/*  
-    ULONG ramsey_num;
-    ramsey_num = IdHardwareNum(IDHW_RAMSEY, NULL);
-    if (ramsey_num != 0 && ramsey_num != IDRSY_NONE) {
-        hw_info.ramsey_rev = ramsey_num;
-    } else {
-        hw_info.ramsey_rev = 0;
-    }
-*/
+
     if(hw_info.gary_type != FAT_GARY){ // no fat gary -> no ramsey!
         hw_info.ramsey_rev = 0;
         return;
@@ -671,7 +694,7 @@ void detect_sdmac(void)
     hw_info.is_A4000T = FALSE;
     if(hw_info.ramsey_rev>0){ //you need ramsey to access sdmac!    
         sdmac_rev = *((volatile unsigned char *)(SDMAC_REVISION)); //this works only on resdmac
-        if (sdmac_rev != 0 && sdmac_rev != 0xFF) {
+        if (sdmac_rev != 0 && sdmac_rev <= 0xF0) { //realistic values!
             hw_info.sdmac_rev = sdmac_rev;
         } 
         if(hw_info.sdmac_rev == 0){
@@ -690,9 +713,9 @@ void detect_sdmac(void)
                 return;
             if ((istr & SDMAC_ISTR_FIFOE) && (istr & SDMAC_ISTR_FIFOF))
                 return;
-
+            sdmac_version = 2; //default version
             /* Probe WTC registers to distinguish SDMAC-02 from SDMAC-04 */
-            for (pass = 0; pass < 6; pass++) {
+            for (pass = 0; pass < 6 && sdmac_version > 0; pass++) {
                 switch (pass) {
                     case 0: wvalue = 0x00000000; break;
                     case 1: wvalue = 0xffffffff; break;
@@ -703,28 +726,32 @@ void detect_sdmac(void)
                 }
 
                 ovalue = *SDMAC_WTC_ALT;
+                *((volatile unsigned char *)RAMSEY_VER) = 0;/* Push write to bus */
                 *SDMAC_WTC_ALT = wvalue;
                 *((volatile unsigned char *)RAMSEY_VER) = 0;/* Push write to bus */
                 rvalue = *SDMAC_WTC;
+                *((volatile unsigned char *)RAMSEY_VER) = 0;/* Push write to bus */
                 *SDMAC_WTC_ALT = ovalue;
+                *((volatile unsigned char *)RAMSEY_VER) = 0;/* Push write to bus */
 
                 if (rvalue == wvalue) {
-                    if ((wvalue != 0x00000000) && (wvalue != 0xffffffff))
+                    if ((wvalue != 0x00000000) && (wvalue != 0xffffffff)){
                         sdmac_version = 0; /* Detection failed */
-                    else
-                        sdmac_version = 2;
+                    }
                 } else if (((rvalue ^ wvalue) & 0x00ffffff) == 0) {
                     /* SDMAC-02: only upper byte differs */
-                    sdmac_version = 2;
+                    hw_info.sdmac_rev = 2;
+                    return;
                 } else if ((rvalue & (1 << 2)) == 0) {
                     /* SDMAC-04: bit 2 is always 0 */
-                    if (wvalue & (1 << 2))
+                    if ((wvalue & (1 << 2)) > 0)
                         sdmac_version = 4;
-                    else
-                        sdmac_version = 2;
                 } 
-                hw_info.sdmac_rev = sdmac_version;
+                else{
+                    sdmac_version = 0; /* Detection failed */
+                }
             }
+            hw_info.sdmac_rev = sdmac_version;
         }
     }
 }
@@ -739,35 +766,24 @@ void detect_gary(void){
     unsigned char val, val2, tmp,tmp2;  
 
     /*tricky part for manual detection:
-        A1000 mirrors the chipregisters. 
-        A save register to read is DMACONR. If this register is mirrored A1000 is there.
-        If this register is not mirrored, proceed:
-        A600/A1200 have an undocumented revision register at DE1000, but the 8-bit code is
-        "morsed" only via the highest byte
-        If this is "FF", a A500/2000 or FatGary is present:
         FatGary has a PowerUp-Detect-register at DE0002. However, it is read/writeable.
         If the value changes with the writes, it's a FatGary
+
+        A1000 mirrors the chipregisters. 
+        A save register to read is DMACONR. If this register is mirrored A1000 is there.
+
+        A600/A1200 have an undocumented revision register at DE1000, but the 8-bit code is
+        "morsed" only via the highest byte
+
+        If this is "FF" or unstable, a A500/2000 is present.
     */
     hw_info.gary_type = GARY_UNKNOWN;
-    //test for mirroring (A1000/ A2000BSW)
-    testVal1 = *((volatile UWORD *)(CUSTOM_JOY0DAT));
-    testVal2 = *((volatile UWORD *)(CUSTOM_JOY1DAT)); //avoid bus stickyness (A3000)
-    testVal2 = *((volatile UWORD *)(CUSTOM_JOY0DAT_MIRR));
-    if(testVal1 == testVal2){
-        //do another test to be save
-        testVal1 = *((volatile UWORD *)(CUSTOM_JOY1DAT));
-        testVal2 = *((volatile UWORD *)(CUSTOM_JOY0DAT)); //avoid bus stickyness (A3000)
-        testVal2 = *((volatile UWORD *)(CUSTOM_JOY1DAT_MIRR));
-        if(testVal1 == testVal2){
-            hw_info.gary_type = GARY_A1000;
-            return;
-        }
-    }
-
+    
     /*
-    We are in A500..A4000 range!
     A3000(T/+), A4000(T)
-    Next we have to check the Power-Up-Register (A3000/4000).
+    We have to do this first, because a A3000 with a 67040 crashes on the A1000-tests due to mmu-restrictions
+    Test, if we have the Power-Up-Register (A3000/4000).
+    This writes a 0x80 and a zero to DMACONR on a A1000, which should be save
     */
     val =  *((volatile unsigned char *)(FAT_GARY_POWER)); //save old value
     //write a FF    
@@ -791,8 +807,25 @@ void detect_gary(void){
             *((volatile unsigned char *)FAT_GARY_POWER) = val;
             return;
         }
-
     }
+
+
+    //test for mirroring (A1000/ A2000BSW)
+    testVal1 = *((volatile UWORD *)(CUSTOM_JOY0DAT));
+    testVal2 = *((volatile UWORD *)(CUSTOM_JOY1DAT)); //avoid bus stickyness (A3000)
+    testVal2 = *((volatile UWORD *)(CUSTOM_JOY0DAT_MIRR));
+    if(testVal1 == testVal2){
+        //do another test to be save
+        testVal1 = *((volatile UWORD *)(CUSTOM_JOY1DAT));
+        testVal2 = *((volatile UWORD *)(CUSTOM_JOY0DAT)); //avoid bus stickyness (A3000)
+        testVal2 = *((volatile UWORD *)(CUSTOM_JOY1DAT_MIRR));
+        if(testVal1 == testVal2){
+            hw_info.gary_type = GARY_A1000;
+            return;
+        }
+    }
+    
+
 
     /*
     Leftovers:
@@ -844,12 +877,16 @@ void detect_system_chips(void)
     
 
 
+    debug("    systemchips: Detecting Gary...\n");
     detect_gary();
+    debug("    systemchips: Detecting Ramsey...\n");
     detect_ramsey();
+    debug("    systemchips: Detecting SDMAC...\n");
     detect_sdmac();
 
 
 
+    debug("    systemchips: Detecting bus system...\n");
     /* Check for expansion slots */
     /* Check for Zorro slots */
     hw_info.has_zorro_slots = FALSE;
