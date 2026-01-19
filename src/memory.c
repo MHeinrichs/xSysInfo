@@ -58,24 +58,24 @@ const char *get_memory_type_string(UWORD attrs, APTR addr)
     }
 
     if (attrs & MEMF_LOCAL) {
-        snprintf(buffer2, sizeof(buffer2), "%s %s",
-	                 buffer, ", LOCAL");
+        snprintf(buffer2, sizeof(buffer2), "%s, %s",
+	                 buffer, "LOCAL");
         strncpy(buffer, buffer2, sizeof(buffer) - 1);
     }
 
     if (attrs & MEMF_PUBLIC) {
-        snprintf(buffer2, sizeof(buffer2), "%s %s",
-	                 buffer, ", PUBLIC");
+        snprintf(buffer2, sizeof(buffer2), "%s, %s",
+	                 buffer, "PUBLIC");
         strncpy(buffer, buffer2, sizeof(buffer) - 1);
     }
     if (attrs & MEMF_KICK) {
-        snprintf(buffer2, sizeof(buffer2), "%s %s",
-	                 buffer, ", KICK");
+        snprintf(buffer2, sizeof(buffer2), "%s, %s",
+	                 buffer, "KICK");
         strncpy(buffer, buffer2, sizeof(buffer) - 1);
     }
     if (attrs & MEMF_24BITDMA) {
-        snprintf(buffer2, sizeof(buffer2), "%s %s",
-	                 buffer, ", 24BitDMA");
+        snprintf(buffer2, sizeof(buffer2), "%s, %s",
+	                 buffer, "24BitDMA");
         strncpy(buffer, buffer2, sizeof(buffer) - 1);
     }
 
