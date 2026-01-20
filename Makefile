@@ -25,7 +25,7 @@ CFLAGS = -O2 -m68000 -mtune=68020-60 -Wa,-m68881 -msoft-float -noixemul -Wall -W
          -I$(MMU_INC) \
          -DXSYSINFO_DATE="\"$(ADATE)\"" -DXSYSINFO_VERSION="\"$(FULL_VERSION)\"" \
          -DPROG_VERSION=$(PROG_VERSION) -DPROG_REVISION=$(PROG_REVISION) \
-		 # -mcrt=nix13	 		 
+		 #-mcrt=nix13	 		 
 ASMFLAGS = -Fhunk -esc -sc -m68020up -I $(NDK_INC)
 LDFLAGS = -noixemul
 LIBS = -lamiga -lgcc
