@@ -47,8 +47,14 @@ int Dhry_Initialize(void)
 
   memset (Ptr_Glob, 0, sizeof (Rec_Type));
   memset (Next_Ptr_Glob, 0, sizeof (Rec_Type));
-  memset (Arr_1_Glob, 0, sizeof (Arr_1_Glob));
-  memset (Arr_2_Glob, 0, sizeof (Arr_2_Glob));
+  
+  //memset does only clear the first line
+  for(int i=0; i<50; ++i){
+    Arr_1_Glob[i]=0;
+    for(int j=0; j<50;++j){
+      Arr_2_Glob[i][j]=0;  
+    }
+  }
 
   Ptr_Glob->Ptr_Comp                    = Next_Ptr_Glob;
   Ptr_Glob->Discr                       = Ident_1;

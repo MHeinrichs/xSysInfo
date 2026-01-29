@@ -1320,7 +1320,7 @@ static void draw_hardware_panel(void)
 	        strcmp(hw_info.cpu_revision, "N/A") != 0) {
 	        char mhz_buf[16];
             if(hw_info.cpu_mhz>0)
-	            format_scaled(mhz_buf, sizeof(mhz_buf), hw_info.cpu_mhz, TRUE);
+	            format_scaled(mhz_buf, sizeof(mhz_buf), hw_info.cpu_mhz, FALSE);
             else
                 mhz_buf[0] = 0;
 	        snprintf(buffer, sizeof(buffer), "%s (%s) %s",
@@ -1329,7 +1329,7 @@ static void draw_hardware_panel(void)
 	    } else {
 	        char mhz_buf[16];
             if(hw_info.cpu_mhz>0)
-	            format_scaled(mhz_buf, sizeof(mhz_buf), hw_info.cpu_mhz, TRUE);
+	            format_scaled(mhz_buf, sizeof(mhz_buf), hw_info.cpu_mhz, FALSE);
             else
                 mhz_buf[0] = 0;
 	        snprintf(buffer, sizeof(buffer), "%s %s",
@@ -1342,7 +1342,7 @@ static void draw_hardware_panel(void)
 	    /* FPU */
 	    if (hw_info.fpu_type != FPU_NONE && hw_info.fpu_mhz > 0) {
 	        char mhz_buf[16];
-	        format_scaled(mhz_buf, sizeof(mhz_buf), hw_info.fpu_mhz, TRUE);
+	        format_scaled(mhz_buf, sizeof(mhz_buf), hw_info.fpu_mhz, FALSE);
 	        snprintf(buffer, sizeof(buffer), "%s %s",
 	                 hw_info.fpu_string, mhz_buf);
 	        draw_label_value(HARDWARE_PANEL_X + 4, y,
