@@ -18,6 +18,7 @@
 #include "xsysinfo.h"
 #include "software.h"
 #include "hardware.h"
+#include "locale_str.h"
 
 /* Global software lists */
 SoftwareList libraries_list;
@@ -257,20 +258,150 @@ void enumerate_resources(void)
 }
 
 void enumerate_mmu_entries(void){
+    struct MinList *list;
+    struct MappingNode *mn;
+    SoftwareEntry *entry;
+    char buffer[128];
     memset(&mmu_list, 0, sizeof(mmu_list));
 
     Forbid();
 
     //is mmu.library loaded?
-    if(mmuLoaded && hw_info->mmu_enabled){
+    if(mmuLoaded && hw_info.mmu_enabled){
         //no else: iff mmu.library is in the libraries lsit, it can load!
         if (DOSBase=(struct DosLibrary *)OpenLibrary("dos.library",37L)) {
             if (MMUBase=(struct MMUBase *)OpenLibrary("mmu.library",40L)) {
 
-                SoftwareEntry *entry = &mmu_list.entries[mmu_list.count];
-                snprintf(entry->name, sizeof(entry->name), "MMU page size: %dk bytes.",GetPageSize(NULL)/1024);    
+                entry = &mmu_list.entries[mmu_list.count];
+                snprintf(entry->name, sizeof(entry->name), "%s: %dkB.",get_string(MSG_MMU_SIZE),GetPageSize(NULL)/1024);    
                 mmu_list.count++;
+                entry = &mmu_list.entries[mmu_list.count];
+                snprintf(entry->name, sizeof(entry->name), "%s",get_string(MSG_MMU_ADDRESS_HINT));    
+                mmu_list.count++;
+                /* Get the mapping of the default context */
+                list=GetMapping(NULL);
+                for (mn = (struct MappingNode *)(list->mlh_Head); mn->map_succ; mn = mn->map_succ)
+                {
+                    memset(buffer, 0, sizeof(buffer));
+                    snprintf(buffer, sizeof(buffer), "%08lx-%08lx", mn->map_Lower, mn->map_Higher);
+                    if (mn->map_Properties & MAPP_WINDOW)
+                    {
+                        snprintf(buffer, sizeof(buffer), "%s Window %08lx",buffer, ((ULONG)mn->map_un.map_UserData));
+                        /* All other flags do not care then */
+                    }
+                    else{
+                        if (mn->map_Properties & MAPP_WRITEPROTECTED){
+                            snprintf(buffer, sizeof(buffer), "%s WP", buffer);
+                        }
 
+                        if (mn->map_Properties & MAPP_USED){
+                            snprintf(buffer, sizeof(buffer), "%s U", buffer);
+                        }
+
+                        if (mn->map_Properties & MAPP_MODIFIED){
+                            snprintf(buffer, sizeof(buffer), "%s M", buffer);
+                        }
+
+                        if (mn->map_Properties & MAPP_GLOBAL){
+                            snprintf(buffer, sizeof(buffer), "%s G", buffer);
+                        }
+
+                        if (mn->map_Properties & MAPP_TRANSLATED){
+                            snprintf(buffer, sizeof(buffer), "%s TT", buffer);
+                        }
+
+                        if (mn->map_Properties & MAPP_ROM){
+                            snprintf(buffer, sizeof(buffer), "%s ROM", buffer);
+                        }
+
+                        if (mn->map_Properties & MAPP_USERPAGE0){
+                            snprintf(buffer, sizeof(buffer), "%s UP0", buffer);
+                        }
+
+                        if (mn->map_Properties & MAPP_USERPAGE1){
+                            snprintf(buffer, sizeof(buffer), "%s UP1", buffer);
+                        }
+
+                        if (mn->map_Properties & MAPP_CACHEINHIBIT){
+                            snprintf(buffer, sizeof(buffer), "%s CI", buffer);
+                        }
+
+                        if (mn->map_Properties & MAPP_IMPRECISE){
+                            snprintf(buffer, sizeof(buffer), "%s IM", buffer);
+                        }
+
+                        if (mn->map_Properties & MAPP_NONSERIALIZED){
+                            snprintf(buffer, sizeof(buffer), "%s NS", buffer);
+                        }
+
+                        if (mn->map_Properties & MAPP_COPYBACK){
+                            snprintf(buffer, sizeof(buffer), "%s CB", buffer);
+                        }
+
+                        if (mn->map_Properties & MAPP_SUPERVISORONLY){
+                            snprintf(buffer, sizeof(buffer), "%s SO", buffer);
+                        }
+
+                        if (mn->map_Properties & MAPP_BLANK){
+                            snprintf(buffer, sizeof(buffer), "%s BL", buffer);
+                        }
+
+                        if (mn->map_Properties & MAPP_SHARED){
+                            snprintf(buffer, sizeof(buffer), "%s SH", buffer);
+                        }
+
+                        if (mn->map_Properties & MAPP_SINGLEPAGE){
+                            snprintf(buffer, sizeof(buffer), "%s SNG", buffer);
+                        }
+
+                        if (mn->map_Properties & MAPP_REPAIRABLE){
+                            snprintf(buffer, sizeof(buffer), "%s RP", buffer);
+                        }
+
+                        if (mn->map_Properties & MAPP_IO){
+                            snprintf(buffer, sizeof(buffer), "%s IO", buffer);
+                        }
+
+                        if (mn->map_Properties & MAPP_USER0){
+                            snprintf(buffer, sizeof(buffer), "%s U0", buffer);
+                        }
+
+                        if (mn->map_Properties & MAPP_USER1){
+                            snprintf(buffer, sizeof(buffer), "%s U1", buffer);
+                        }
+
+                        if (mn->map_Properties & MAPP_USER2){
+                            snprintf(buffer, sizeof(buffer), "%s U2", buffer);
+                        }
+
+                        if (mn->map_Properties & MAPP_USER3){
+                            snprintf(buffer, sizeof(buffer), "%s U3", buffer);
+                        }
+
+                        if (mn->map_Properties & MAPP_INVALID){
+                            snprintf(buffer, sizeof(buffer), "%s INV %08lx", buffer,((ULONG)mn->map_un.map_UserData));
+                        }
+
+                        if (mn->map_Properties & MAPP_SWAPPED){
+                            snprintf(buffer, sizeof(buffer), "%s SW %08lx", buffer,((ULONG)mn->map_un.map_UserData));
+                        }
+
+                        if (mn->map_Properties & MAPP_REMAPPED){
+                            snprintf(buffer, sizeof(buffer), "%s MAP %08lx", buffer, ((ULONG)(mn->map_un.map_Delta + mn->map_Lower)));
+                        }
+
+                        if (mn->map_Properties & MAPP_BUNDLED){
+                            snprintf(buffer, sizeof(buffer), "%s BN %08lx", buffer, ((ULONG)mn->map_un.map_Page));
+                        }
+
+                        if (mn->map_Properties & MAPP_INDIRECT){
+                            snprintf(buffer, sizeof(buffer), "%s IND %08lx", buffer, ((ULONG)mn->map_un.map_Descriptor));
+                        }
+                    }
+                    entry = &mmu_list.entries[mmu_list.count];
+                    snprintf(entry->name, sizeof(entry->name), buffer);
+                    mmu_list.count++;
+                }
                 CloseLibrary((struct Library *)MMUBase);
             }
             CloseLibrary((struct Library *)DOSBase);
@@ -281,14 +412,7 @@ void enumerate_mmu_entries(void){
         strncpy(entry->name, "mmu.library not loaded", sizeof(entry->name) - 1);
         mmu_list.count++;
     }
-
-
-
-
     Permit();
-
-    sort_software_list(&mmu_list);
-
 }
 
 /*
