@@ -1095,15 +1095,19 @@ static void draw_speed_panel(void)
 
     /* Draw "You" entry first */
     y = SPEED_PANEL_Y + 22;
-    if (bench_results.benchmarks_valid) {
-        snprintf(buffer, sizeof(buffer), "%s %lu", get_string(MSG_DHRYSTONES),
-             (unsigned long)bench_results.dhrystones);
-    } else {
-        snprintf(buffer, sizeof(buffer), "%s N/A", get_string(MSG_DHRYSTONES));
-    }
     SetAPen(rp, COLOR_TEXT);
     SetBPen(rp, COLOR_PANEL_BG);
     Move(rp, SPEED_PANEL_X + 4, y);
+    snprintf(buffer, sizeof(buffer), "%s", get_string(MSG_DHRYSTONES));
+    Text(rp, (CONST_STRPTR)buffer, strlen(buffer));
+
+    if (bench_results.benchmarks_valid) {
+        snprintf(buffer, sizeof(buffer), "%lu", (unsigned long)bench_results.dhrystones);
+    } else {
+        snprintf(buffer, sizeof(buffer), "%s",get_string(MSG_NA));
+    }
+    SetAPen(rp, COLOR_HIGHLIGHT);
+    Move(rp, SPEED_PANEL_X + 90, y);
     Text(rp, (CONST_STRPTR)buffer, strlen(buffer));
 
     SetAPen(rp, COLOR_HIGHLIGHT);
@@ -1139,32 +1143,41 @@ static void draw_speed_panel(void)
 
     /* MIPS and MFLOPS */
     //y = SPEED_PANEL_Y + SPEED_PANEL_H - 18;
-    if (bench_results.benchmarks_valid) {
-        char scaled[16];
-        format_scaled(scaled, sizeof(scaled), bench_results.mips, FALSE);
-        snprintf(buffer, sizeof(buffer), "%s %s",
-                 get_string(MSG_MIPS), scaled);
-    } else {
-        snprintf(buffer, sizeof(buffer), "%s %s",
-                 get_string(MSG_MIPS), get_string(MSG_NA));
-    }
+    snprintf(buffer, sizeof(buffer), "%s ", get_string(MSG_MIPS));
     SetAPen(rp, COLOR_TEXT);
     TightText(rp, SPEED_PANEL_X + 4, y, (CONST_STRPTR)buffer, -1, 4);
 
+    if (bench_results.benchmarks_valid) {
+        char scaled[16];
+        format_scaled(scaled, sizeof(scaled), bench_results.mips, FALSE);
+        snprintf(buffer, sizeof(buffer), "%s", scaled);
+    } else {
+        snprintf(buffer, sizeof(buffer), "%s",get_string(MSG_NA));
+    }
+    SetAPen(rp, COLOR_HIGHLIGHT);
+    Move(rp, SPEED_PANEL_X + 40, y);
+    Text(rp, (CONST_STRPTR)buffer, strlen(buffer));
+    SetAPen(rp, COLOR_TEXT);
+    snprintf(buffer, sizeof(buffer), "%s ",
+                 get_string(MSG_MFLOPS));
+    TightText(rp, SPEED_PANEL_X + 84, y, (CONST_STRPTR)buffer, -1, 4);
     if (hw_info.fpu_type != FPU_NONE && bench_results.benchmarks_valid) {
         char scaled[16];
         format_scaled(scaled, sizeof(scaled), bench_results.mflops, FALSE);
-        snprintf(buffer, sizeof(buffer), "%s %s",
-                 get_string(MSG_MFLOPS), scaled);
+        snprintf(buffer, sizeof(buffer), "%s", scaled);
     } else {
-        snprintf(buffer, sizeof(buffer), "%s %s",
-                 get_string(MSG_MFLOPS), get_string(MSG_NA));
+        snprintf(buffer, sizeof(buffer), "%s", get_string(MSG_NA));
     }
-    TightText(rp, SPEED_PANEL_X + 84, y, (CONST_STRPTR)buffer, -1, 4);
+    SetAPen(rp, COLOR_HIGHLIGHT);
+    TightText(rp, SPEED_PANEL_X + 134, y, (CONST_STRPTR)buffer, -1, 4);
 
     /* Memory speeds header */
     y += 8;
-    TightText(rp, SPEED_PANEL_X + 4, y, (CONST_STRPTR)get_string(MSG_MEM_SPEED_HEADER), -1, 4);
+
+    SetAPen(rp, COLOR_TEXT);
+    snprintf(buffer, sizeof(buffer), "%s %s", get_string(MSG_MEM_SPEED_HEADER),
+        get_string(MSG_MEM_SPEED_UNIT));
+    TightText(rp, SPEED_PANEL_X + 4, y, (CONST_STRPTR)buffer, -1, 4);
 
     /* Memory speed values */
     y += 8;
@@ -1192,13 +1205,13 @@ static void draw_speed_panel(void)
             snprintf(rom_str, sizeof(rom_str), "%s", get_string(MSG_NA));
         }
 
-        snprintf(buffer, sizeof(buffer), "%-5s %-5s %-5s %s",
-                 chip_str, fast_str, rom_str, get_string(MSG_MEM_SPEED_UNIT));
+        snprintf(buffer, sizeof(buffer), "%-6s %-6s %-6s",
+                 chip_str, fast_str, rom_str);
     } else {
-        snprintf(buffer, sizeof(buffer), "%-5s %-5s %-5s %s",
-                 get_string(MSG_NA), get_string(MSG_NA), get_string(MSG_NA),
-                 get_string(MSG_MEM_SPEED_UNIT));
+        snprintf(buffer, sizeof(buffer), "%-6s %-6s %-6s",
+                 get_string(MSG_NA), get_string(MSG_NA), get_string(MSG_NA));
     }
+    SetAPen(rp, COLOR_HIGHLIGHT);
     TightText(rp, SPEED_PANEL_X + 4, y, (CONST_STRPTR)buffer, -1, 4);
 }
 
@@ -1337,19 +1350,23 @@ static void draw_hardware_panel(void)
 	    if (hw_info.cpu_revision[0] != '\0' &&
 	        strcmp(hw_info.cpu_revision, "N/A") != 0) {
 	        char mhz_buf[16];
-            if(hw_info.cpu_mhz>0)
+            if(hw_info.cpu_mhz>0){
 	            format_scaled(mhz_buf, sizeof(mhz_buf), hw_info.cpu_mhz, FALSE);
-            else
+            }
+            else{
                 mhz_buf[0] = 0;
+            }
 	        snprintf(buffer, sizeof(buffer), "%s (%s) %s",
 	                 hw_info.cpu_string, hw_info.cpu_revision,
 	                 mhz_buf);
 	    } else {
 	        char mhz_buf[16];
-            if(hw_info.cpu_mhz>0)
+            if(hw_info.cpu_mhz>0){
 	            format_scaled(mhz_buf, sizeof(mhz_buf), hw_info.cpu_mhz, FALSE);
-            else
+            }
+            else{
                 mhz_buf[0] = 0;
+            }
 	        snprintf(buffer, sizeof(buffer), "%s %s",
 	                 hw_info.cpu_string, mhz_buf);
 	    }
