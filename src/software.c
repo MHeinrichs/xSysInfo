@@ -275,18 +275,15 @@ void enumerate_mmu_entries(void){
                 entry = &mmu_list.entries[mmu_list.count];
                 snprintf(entry->name, sizeof(entry->name), "%s: %dkB.",get_string(MSG_MMU_SIZE),GetPageSize(NULL)/1024);    
                 mmu_list.count++;
-                entry = &mmu_list.entries[mmu_list.count];
-                snprintf(entry->name, sizeof(entry->name), "%s",get_string(MSG_MMU_ADDRESS_HINT));    
-                mmu_list.count++;
                 /* Get the mapping of the default context */
                 list=GetMapping(NULL);
-                for (mn = (struct MappingNode *)(list->mlh_Head); mn->map_succ; mn = mn->map_succ)
+                for (mn = (struct MappingNode *)(list->mlh_Head); mn->map_succ && mmu_list.count<256; mn = mn->map_succ)
                 {
                     memset(buffer, 0, sizeof(buffer));
-                    snprintf(buffer, sizeof(buffer), "%08lx-%08lx", mn->map_Lower, mn->map_Higher);
+                    snprintf(buffer, sizeof(buffer), "%08lX-%08lX", mn->map_Lower, mn->map_Higher);
                     if (mn->map_Properties & MAPP_WINDOW)
                     {
-                        snprintf(buffer, sizeof(buffer), "%s Window %08lx",buffer, ((ULONG)mn->map_un.map_UserData));
+                        snprintf(buffer, sizeof(buffer), "%s Window:%08lX",buffer, ((ULONG)mn->map_un.map_UserData));
                         /* All other flags do not care then */
                     }
                     else{
@@ -379,29 +376,57 @@ void enumerate_mmu_entries(void){
                         }
 
                         if (mn->map_Properties & MAPP_INVALID){
-                            snprintf(buffer, sizeof(buffer), "%s INV %08lx", buffer,((ULONG)mn->map_un.map_UserData));
+                            snprintf(buffer, sizeof(buffer), "%s INV:%08lX", buffer,((ULONG)mn->map_un.map_UserData));
                         }
 
                         if (mn->map_Properties & MAPP_SWAPPED){
-                            snprintf(buffer, sizeof(buffer), "%s SW %08lx", buffer,((ULONG)mn->map_un.map_UserData));
+                            snprintf(buffer, sizeof(buffer), "%s SW:%08lX", buffer,((ULONG)mn->map_un.map_UserData));
                         }
 
                         if (mn->map_Properties & MAPP_REMAPPED){
-                            snprintf(buffer, sizeof(buffer), "%s MAP %08lx", buffer, ((ULONG)(mn->map_un.map_Delta + mn->map_Lower)));
+                            snprintf(buffer, sizeof(buffer), "%s MAP:%08lX", buffer, ((ULONG)(mn->map_un.map_Delta + mn->map_Lower)));
                         }
 
                         if (mn->map_Properties & MAPP_BUNDLED){
-                            snprintf(buffer, sizeof(buffer), "%s BN %08lx", buffer, ((ULONG)mn->map_un.map_Page));
+                            snprintf(buffer, sizeof(buffer), "%s BN:%08lX", buffer, ((ULONG)mn->map_un.map_Page));
                         }
 
                         if (mn->map_Properties & MAPP_INDIRECT){
-                            snprintf(buffer, sizeof(buffer), "%s IND %08lx", buffer, ((ULONG)mn->map_un.map_Descriptor));
+                            snprintf(buffer, sizeof(buffer), "%s IND:%08lX", buffer, ((ULONG)mn->map_un.map_Descriptor));
                         }
                     }
                     entry = &mmu_list.entries[mmu_list.count];
                     snprintf(entry->name, sizeof(entry->name), buffer);
                     mmu_list.count++;
                 }
+                //final infos
+                if(mmu_list.count< (256-8)){
+                    entry = &mmu_list.entries[mmu_list.count];
+                    snprintf(entry->name, sizeof(entry->name), "%s",get_string(MSG_MMU_ADDRESS_HINT));    
+                    mmu_list.count++;
+                    entry = &mmu_list.entries[mmu_list.count];
+                    snprintf(entry->name, sizeof(entry->name), "%s",get_string(MSG_MMU_FLAGS1_HINT));    
+                    mmu_list.count++;
+                    entry = &mmu_list.entries[mmu_list.count];
+                    snprintf(entry->name, sizeof(entry->name), "%s",get_string(MSG_MMU_FLAGS2_HINT));    
+                    mmu_list.count++;
+                    entry = &mmu_list.entries[mmu_list.count];
+                    snprintf(entry->name, sizeof(entry->name), "%s",get_string(MSG_MMU_FLAGS3_HINT));    
+                    mmu_list.count++;
+                    entry = &mmu_list.entries[mmu_list.count];
+                    snprintf(entry->name, sizeof(entry->name), "%s",get_string(MSG_MMU_FLAGS4_HINT));    
+                    mmu_list.count++;
+                    entry = &mmu_list.entries[mmu_list.count];
+                    snprintf(entry->name, sizeof(entry->name), "%s",get_string(MSG_MMU_FLAGS5_HINT));    
+                    mmu_list.count++;
+                    entry = &mmu_list.entries[mmu_list.count];
+                    snprintf(entry->name, sizeof(entry->name), "%s",get_string(MSG_MMU_FLAGS6_HINT));    
+                    mmu_list.count++;
+                    entry = &mmu_list.entries[mmu_list.count];
+                    snprintf(entry->name, sizeof(entry->name), "%s",get_string(MSG_MMU_FLAGS7_HINT));    
+                    mmu_list.count++;
+                }
+
                 CloseLibrary((struct Library *)MMUBase);
             }
             CloseLibrary((struct Library *)DOSBase);
