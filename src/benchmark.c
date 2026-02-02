@@ -40,7 +40,7 @@ const ReferenceSystem reference_systems[NUM_REFERENCE_SYSTEMS] = {
     /* A3000: 68030 / 68882 @ 25 MHz */
     {"A3000", "68030",  25,   8300,  475,  285},
     /* A4000: 68040 @ 25 MHz, internal FPU */
-    {"A4000", "68040",  25,  20530, 1168,  578},
+    {"A4000", "68040",  25,  32809, 1867,  504},
 };
 
 void format_reference_label(char *buffer, size_t buffer_size, const ReferenceSystem *ref)
@@ -214,6 +214,7 @@ ULONG get_mhz_cpu()
         case CPU_68060:
         case CPU_68EC060:
         case CPU_68LC060:
+        case CPU_68080:
             tmp *= 1085;
             count *=100;
             break;
@@ -246,6 +247,8 @@ ULONG get_mhz_cpu()
         case CPU_68EC060:
         case CPU_68LC060:
             mhz = 5000; /* Common 060 speed */
+        case CPU_68080:
+            mhz = 8000; /* Common 080 speed */
         default:
             mhz = 709;
         }
@@ -283,6 +286,7 @@ ULONG get_mhz_fpu()
         return 0;
     case CPU_68040:
     case CPU_68060:
+    case CPU_68080:
         // cpu-frequency available?
         if (hw_info.cpu_mhz == 0)
         {
