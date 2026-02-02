@@ -1071,32 +1071,6 @@ void refresh_cache_status(void)
 }
 
 /*
- * Generate a comment based on system configuration
- */
-void generate_comment(void)
-{
-    const char *comment;
-
-    if (hw_info.cpu_type >= CPU_68060 && hw_info.cpu_mhz >= 5000) {
-        comment = get_string(MSG_COMMENT_BLAZING);
-    } else if (hw_info.cpu_type >= CPU_68060 && hw_info.cpu_mhz >= 2500) {
-        comment = get_string(MSG_COMMENT_VERY_FAST);
-    } else if (hw_info.cpu_type >= CPU_68040 && hw_info.cpu_mhz >= 2500) {
-        comment = get_string(MSG_COMMENT_VERY_FAST);
-    } else if (hw_info.cpu_type >= CPU_68030 && hw_info.cpu_mhz >= 2500) {
-        comment = get_string(MSG_COMMENT_FAST);
-    } else if (hw_info.cpu_type >= CPU_68020 && hw_info.cpu_mhz >= 1400) {
-        comment = get_string(MSG_COMMENT_GOOD);
-    } else if (hw_info.cpu_type <= CPU_68010) {
-        comment = get_string(MSG_COMMENT_CLASSIC);
-    } else {
-        comment = get_string(MSG_COMMENT_DEFAULT);
-    }
-
-    strncpy(hw_info.comment, comment, sizeof(hw_info.comment) - 1);
-}
-
-/*
  * Get CPU frequency from identify.library (scaled by 100)
  * Falls back to estimates based on CPU type if not available
  */
