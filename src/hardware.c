@@ -1047,7 +1047,7 @@ void refresh_cache_status(void)
     hw_info.has_dburst = (hw_info.cpu_type >= CPU_68030);
     hw_info.has_copyback = (hw_info.cpu_type >= CPU_68040 &&
                             hw_info.cpu_type != CPU_68LC040);
-    hw_info.has_super_Scalar = (hw_info.cpu_type >= CPU_68060);
+    hw_info.has_super_scalar = (hw_info.cpu_type >= CPU_68060);
 
     /* Get current cache state */
     cacr_bits = CacheControl(0, 0);
