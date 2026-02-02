@@ -1047,6 +1047,7 @@ void refresh_cache_status(void)
     hw_info.has_dburst = (hw_info.cpu_type >= CPU_68030);
     hw_info.has_copyback = (hw_info.cpu_type >= CPU_68040 &&
                             hw_info.cpu_type != CPU_68LC040);
+    hw_info.has_super_Scalar = (hw_info.cpu_type >= CPU_68060);
 
     /* Get current cache state */
     cacr_bits = CacheControl(0, 0);
@@ -1056,6 +1057,7 @@ void refresh_cache_status(void)
     hw_info.iburst_enabled = (cacr_bits & CACRF_IBE) ? TRUE : FALSE;
     hw_info.dburst_enabled = (cacr_bits & CACRF_DBE) ? TRUE : FALSE;
     hw_info.copyback_enabled = (cacr_bits & CACRF_CopyBack) ? TRUE : FALSE;
+    hw_info.super_scalar_enabled = get_super_scalar_mode() ? TRUE : FALSE;
 }
 
 /*
