@@ -193,34 +193,33 @@ void detect_cpu(void)
         }
         else
         {
-            //check for Apollo Vampire cores
-            if((attnFlags & (UWORD)AFF_68080) != 0){
+            // check for Apollo Vampire cores
+            //  now it's 68040/060/080 and it's derivatives
+            ULONG cpuBits = GetCPU060(); // same bits as CPUType
+            if (cpuBits == ASM_CPU_68040)
+            {
+                snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), "68040");
+                hw_info.cpu_type = CPU_68040;
+            }
+            else if (cpuBits == ASM_CPU_68060)
+            {
+                snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), "68060");
+                hw_info.cpu_type = CPU_68060;
+            }
+            else if (cpuBits == ASM_CPU_68LC060)
+            {
+                snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), "68LC060");
+                hw_info.cpu_type = CPU_68LC060;
+            }
+            else if (cpuBits == ASM_CPU_68080)
+            {
                 snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), "68080");
                 hw_info.cpu_type = CPU_68080;
             }
-            else{
-                // now it's 68040/060 and it's derivatives
-                ULONG cpuBits = GetCPU060(); // same bits as CPUType
-                if (cpuBits == ASM_CPU_68040)
-                {
-                    snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), "68040");
-                    hw_info.cpu_type = CPU_68040;
-                }
-                else if (cpuBits == ASM_CPU_68060)
-                {
-                    snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), "68060");
-                    hw_info.cpu_type = CPU_68060;
-                }
-                else if (cpuBits == ASM_CPU_68LC060)
-                {
-                    snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), "68LC060");
-                    hw_info.cpu_type = CPU_68LC060;
-                }
-                else
-                {
-                    snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), get_string(MSG_UNKNOWN));
-                    hw_info.cpu_type = CPU_UNKNOWN;
-                }
+            else
+            {
+                snprintf(hw_info.cpu_string, sizeof(hw_info.cpu_string), get_string(MSG_UNKNOWN));
+                hw_info.cpu_type = CPU_UNKNOWN;
             }
         }
     }
@@ -228,9 +227,12 @@ void detect_cpu(void)
     /* Get CPU revision from identify.library (returns string) */
     if( hw_info.cpu_type == CPU_68060 ||
         hw_info.cpu_type == CPU_68LC060 ||
-        hw_info.cpu_type == CPU_68EC060
+        hw_info.cpu_type == CPU_68EC060 ||
+        hw_info.cpu_type == CPU_68080 
     ){
-        hw_info.cpu_rev = detect_cpu_rev();    
+        hw_info.cpu_rev = detect_cpu_rev();   
+        hw_info.has_super_scalar = TRUE;
+        hw_info.super_scalar_enabled  = get_super_scalar_mode();
         snprintf(hw_info.cpu_revision, sizeof(hw_info.cpu_revision), "Rev. %d", hw_info.cpu_rev);
     }
     else{
@@ -244,6 +246,19 @@ UWORD detect_cpu_rev(void){
     cpuReg = cpuReg>>8;
     cpuReg &= 0xFF;
     return (UWORD) cpuReg;
+}
+
+BOOL get_super_scalar_mode(void){
+    ULONG cpuReg = GetCPUReg();
+    cpuReg &=1L; //lowest bit ist Super scalar bit
+    return cpuReg>0;
+}
+
+BOOL set_super_scalar_mode(BOOL value){
+    ULONG cpuReg = value? 1L:0L;
+    cpuReg = SetCPUReg(cpuReg);
+    cpuReg &=1L; //lowest bit ist Super scalar bit
+    return cpuReg>0;
 }
 
 /*
