@@ -351,9 +351,9 @@ void detect_mmu(void)
     strncpy(hw_info.mmu_string, get_string(MSG_NA), sizeof(hw_info.mmu_string) - 1);
 
     // first: try mmu.lib
-    if (DOSBase = (struct DosLibrary *)OpenLibrary("dos.library", 37L))
+    if (DOSBase = (struct DosLibrary *)OpenLibrary((CONST_STRPTR)"dos.library", 37L))
     {
-        if (MMUBase = (struct MMUBase *)OpenLibrary("mmu.library", 40L))
+        if (MMUBase = (struct Library *)OpenLibrary((CONST_STRPTR)"mmu.library", 40L))
         { // check for mmu.lib
             fallBack = FALSE;
             switch (GetMMUType())

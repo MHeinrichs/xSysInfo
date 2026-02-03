@@ -178,7 +178,7 @@ ULONG get_mhz_cpu()
             //see if we run in fastram or chipram (huge difference in speed calc!)
             test = __builtin_return_address(0); // this gets the return address, which tells me if we are running in fast ram
             // see if it is fast mem!
-            if (test >= 0x200000 && test < 0xC00000)
+            if ((long unsigned int)test >= 0x200000 && (long unsigned int)test < 0xC00000)
             {
                 // real fastmem!
                 tmp *= 204;
@@ -515,7 +515,7 @@ ULONG run_mflops_benchmark(void)
     ULONG E_Freq;
     ULONG elapsed = 0;
     ULONG iterations = 50000;
-    ULONG multiplier,i ;
+    ULONG multiplier;
 
     /* Check if FPU is available */
     if (hw_info.fpu_type == FPU_NONE) {

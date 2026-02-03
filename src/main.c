@@ -299,7 +299,7 @@ static BOOL open_libraries(void)
     }
 
     /* Open identify.library */
-    if (DOSBase = (struct DosLibrary *)OpenLibrary("dos.library", 37L)) // kick >2.0?
+    if (DOSBase = (struct DosLibrary *)OpenLibrary((CONST_STRPTR)"dos.library", 37L)) // kick >2.0?
     {
         IdentifyBase = OpenLibrary((CONST_STRPTR) "identify.library", MIN_IDENTIFY_VERSION);
         CloseLibrary((struct Library *)DOSBase);
