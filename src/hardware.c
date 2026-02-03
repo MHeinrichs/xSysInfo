@@ -242,14 +242,19 @@ void detect_cpu(void)
 }
 
 UWORD detect_cpu_rev(void){
-    ULONG cpuReg = GetCPUReg();
-    cpuReg = cpuReg>>8;
-    cpuReg &= 0xFF;
-    return (UWORD) cpuReg;
+    if(hw_info.cpu_type>=CPU_68060 && hw_info.cpu_type<=CPU_68080){
+        ULONG cpuReg = GetCPUReg();
+        cpuReg = cpuReg>>8;
+        cpuReg &= 0xFF;
+        return (UWORD) cpuReg;
+    }
+    else{
+        return 0L;
+    }
 }
 
 BOOL get_super_scalar_mode(void){
-    if(hw_info.cpu_type>=CPU_68060){
+    if(hw_info.cpu_type>=CPU_68060 && hw_info.cpu_type<=CPU_68080){
         ULONG cpuReg = GetCPUReg();
         cpuReg &=1L; //lowest bit ist Super scalar bit
         return cpuReg>0;
@@ -260,7 +265,7 @@ BOOL get_super_scalar_mode(void){
 }
 
 BOOL set_super_scalar_mode(BOOL value){
-    if(hw_info.cpu_type>=CPU_68060){
+    if(hw_info.cpu_type>=CPU_68060 && hw_info.cpu_type<=CPU_68080){
         ULONG cpuReg = value? 1L:0L;
         cpuReg = SetCPUReg(cpuReg);
         cpuReg &=1L; //lowest bit ist Super scalar bit
@@ -1051,13 +1056,12 @@ void refresh_cache_status(void)
     ULONG cacr_bits;
 
     /* Determine available cache features based on CPU type */
-    hw_info.has_icache = (hw_info.cpu_type >= CPU_68020);
-    hw_info.has_dcache = (hw_info.cpu_type >= CPU_68030);
-    hw_info.has_iburst = (hw_info.cpu_type >= CPU_68030);
-    hw_info.has_dburst = (hw_info.cpu_type >= CPU_68030);
-    hw_info.has_copyback = (hw_info.cpu_type >= CPU_68040 &&
-                            hw_info.cpu_type != CPU_68LC040);
-    hw_info.has_super_scalar = (hw_info.cpu_type >= CPU_68060);
+    hw_info.has_icache          = (hw_info.cpu_type >= CPU_68020);
+    hw_info.has_dcache          = (hw_info.cpu_type >= CPU_68030);
+    hw_info.has_iburst          = (hw_info.cpu_type >= CPU_68030);
+    hw_info.has_dburst          = (hw_info.cpu_type >= CPU_68030);
+    hw_info.has_copyback        = (hw_info.cpu_type >= CPU_68040  && hw_info.cpu_type <=CPU_68080);
+    hw_info.has_super_scalar    = (hw_info.cpu_type >= CPU_68060 && hw_info.cpu_type <=CPU_68080);
 
     /* Get current cache state */
     cacr_bits = CacheControl(0, 0);
