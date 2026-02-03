@@ -30,6 +30,7 @@ ASM_CPU_68LC060 EQU 12
 ASM_CPU_68080 EQU 13
 ASM_CPU_EMU EQU 14
 ASM_CPU_UNKNOWN  EQU 15
+
 ASM_FPU_NONE EQU 0
 ASM_FPU_68881 EQU 1
 ASM_FPU_68882 EQU 2
@@ -147,7 +148,7 @@ _GetCPU060:
 _read060fpu
 
 	ori.w #$0700,sr                 ;disable interrupts
-	movem.l	 d1-d5/a2-a3,-(sp)
+	movem.l	 d1-d2/a0-a1,-(sp)
 	lea -$f0(a7),a7					;reserve f0-bytes room for termporary
 	                                ;exception vectors
 	                                	                                
@@ -163,7 +164,6 @@ _read060fpu
 	lea nmi060(pc),a1
 	move.l a1,$7c(a7)               ;NMI disable
 	movec.l a7,vbr                  ;VBR temporary on stack
-	movec.l cacr,d2
 	lea continue060(pc),a1            ;jump address in case of fault
 	
 	;the code below avoids a crash on xx060
@@ -172,35 +172,36 @@ _read060fpu
 
 	;test for 040/60
 	movec	CACR,d1					; this will crash on 68000/010 -> crashvector
-	move.l	d1,d0					; copy
-	or.l	#CACRF_EnableI,d0		; 020/30 only flag
-	movec	d0,CACR					; this will crash on 68000/010 -> crashvector
-	movec	CACR,d0
+	move.l	d1,d2					; copy
+	or.l	#CACRF_EnableI,d2		; 020/30 only flag
+	movec	d2,CACR					; this will crash on 68000/010 -> crashvector
+	movec	CACR,d2
 	movec	d1,CACR					; restore old cache state
-	btst	#CACRB_EnableI,d0		; this flag is ignored on 68040/60
+	btst	#CACRB_EnableI,d2		; this flag is ignored on 68040/60
 	bne.s	no_040_60
 
 	
-	movec	PCR,d0				; this will crash 040 -> .illegal
-	swap	d0					; get upper 16 Bit
-	cmp.w	#$430,d0			; ID for full 060 (EC/LC have 0x431)
-	bne.s	no_060_FPU			; nope, no need for FP disable
+	movec	PCR,d1				; this will crash 040 -> .illegal
+	swap	d1					; get upper 16 Bit
+	cmp.w	#$430,d1			; ID for full 060 (EC/LC have 0x431)
+	bne.s	no_060	        		; nope
 	moveq	#ASM_CPU_68060,d0
 	bra.s	continue060			;we have a 68060 with FPU
-no_060_FPU:
-	moveq	#ASM_CPU_68LC060,d0
-	cmp.w	#$440,d0			; ID for 68080 (Appolo core)
-	bne.s	continue060			; nope, no need for FP disable
-	moveq	#ASM_CPU_68080,d0
-	bra.s	continue060			;we have a 68LC/EC060 without FPU
+no_060:
+	cmp.w	#$440,d1			; ID for 68080 (Appolo core)
+	bne.s	lc_060			        ; nope
+	moveq	#ASM_CPU_68080,d0               ; we have a 68080 with FPU
+	bra.s	continue060			
 no_040_60:
 	moveq	#ASM_CPU_68020,d0	;we have a 68020/030-CPU
-	
+        bra.s   continue060
+lc_060:
+      	moveq	#ASM_CPU_68LC060,d0             
 continue060:
     movec.l a0,vbr                  ;restore VBR
                                     ;result is in d0
     lea $f0(a7),a7                  ;release stack
-    movem.l	(sp)+,d1-d5/a2-a3
+    movem.l	(sp)+,d1-d2/a0-a1
 nmi060:
     rte                             ;this restores interrupts anyways
 illegal060:
