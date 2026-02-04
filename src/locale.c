@@ -234,6 +234,7 @@ static const char *default_strings[MSG_COUNT] = {
     /* MSG_COMMENT_GOOD */      "Good speed",
     /* MSG_COMMENT_CLASSIC */   "Classic Amiga",
     /* MSG_COMMENT_DEFAULT */   "What can I say!",
+    
     /* MSG_HARDWARE_STD */		"NORMAL",
     /* MSG_HARDWARE_EXT */		"EXTENDED",
     /* MSG_RAMSEY_CTRL */		"Ramsey control",
