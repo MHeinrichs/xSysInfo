@@ -233,7 +233,7 @@ ULONG get_mhz_cpu()
             tmp *= 100;
             break;
         }
-        debug("    cpu_mhz: results: %ld %ld %ld\n", count, tmp, tmp / count);
+        debug("    cpu_mhz: results: %u %u %u\n", count, tmp, tmp / count);
         mhz = tmp / count;
     }
     else
@@ -349,7 +349,7 @@ ULONG get_mhz_fpu()
 
     multiplier /= 2;
     tmp = BASE_FACTOR * multiplier;
-    debug("    fpu_mhz: results: %ld %ld %ld\n", count, tmp, overhead);
+    debug("    fpu_mhz: results: %u %u %u\n", count, tmp, overhead);
 
     if (count > 0)
     {
@@ -483,7 +483,7 @@ ULONG run_dhrystone(void)
         }
     }
 
-    debug("  bench: finished Dhrystone with %ld attempts and %ld loops in %ld us\n",attempt, loops, (ULONG)elapsed);
+    debug("  bench: finished Dhrystone with %u attempts and %u loops in %u us\n",attempt, loops, (ULONG)elapsed);
     if (elapsed == 0) {
         return 0;
     }
@@ -558,7 +558,7 @@ ULONG run_mflops_benchmark(void)
         elapsed = EClock_Diff_in_ms(&start,&end,E_Freq);
         iterations = FLOPS_BASE_LOOPS * multiplier;
     }
-    debug("  bench: elapsed: %ld, loops %ld tries: %ld\n",elapsed, iterations,multiplier);
+    debug("  bench: memspeed elapsed: %u, loops %u tries: %u\n",(ULONG)elapsed, iterations,multiplier);
 
     /* Calculate MFLOPS * 100 using integer math */
     if (elapsed > 0) {
