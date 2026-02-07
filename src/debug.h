@@ -21,4 +21,11 @@ extern BOOL g_debug_enabled;
         } \
     } while (0)
 
+#ifdef __KICK13__
+#define Printf(fmt, ...) \
+    do { \
+        printf((const char *)fmt, ##__VA_ARGS__); \
+    } while (0)
+#endif
+
 #endif /* DEBUG_H */

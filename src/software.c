@@ -66,7 +66,7 @@ static int compare_entries(const void *a, const void *b)
 {
     const SoftwareEntry *ea = (const SoftwareEntry *)a;
     const SoftwareEntry *eb = (const SoftwareEntry *)b;
-    return stricmp(ea->name, eb->name);
+    return strcmp(ea->name, eb->name);
 }
 
 /*

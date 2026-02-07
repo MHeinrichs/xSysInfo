@@ -11,7 +11,9 @@
 
 #include "xsysinfo.h"
 #include "locale_str.h"
-
+#ifdef __KICK13__
+#include "tagitem.h"
+#endif
 /* Locale library and catalog handles */
 struct LocaleBase *LocaleBase = NULL;
 static struct Catalog *catalog = NULL;

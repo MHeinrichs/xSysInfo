@@ -33,7 +33,7 @@ typedef struct {
 #define REF_A2500   3
 #define REF_A3000   4
 #define REF_A4000   5
-#define MAX_MULTIPLY 1000
+#define MAX_MULTIPLY 1024
 #define MIN_MHZ_MEASURE 2000
 #define CPULOOPS 14680
 #define FPULOOPS 1200

@@ -22,6 +22,9 @@
 #include "gui.h"
 #include "locale_str.h"
 #include "debug.h"
+#ifdef __KICK13__
+#include "tagitem.h"
+#endif
 
 /* Global board list */
 BoardList board_list;

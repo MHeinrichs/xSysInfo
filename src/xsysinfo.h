@@ -40,11 +40,11 @@ extern struct TextAttr Topaz8Font;
 
 /* Minimum library versions */
 #define MIN_IDENTIFY_VERSION    13
-#define MIN_INTUITION_VERSION   36
-#define MIN_GRAPHICS_VERSION    37
-#define MIN_DOS_VERSION         37
+#define MIN_INTUITION_VERSION   34
+#define MIN_GRAPHICS_VERSION    34
+#define MIN_DOS_VERSION         34
 #define MIN_EXPANSION_VERSION   33
-#define MIN_ICON_VERSION        36
+#define MIN_ICON_VERSION        34
 
 /* Screen dimensions */
 #define SCREEN_WIDTH        640
@@ -183,7 +183,7 @@ MemoryLocation determine_mem_location(APTR addr);
 const char *get_location_string(MemoryLocation loc);
 void format_size(ULONG bytes, char *buffer, ULONG bufsize);
 void format_hex(ULONG value, char *buffer, ULONG bufsize);
-
 void format_scaled(char *buffer, size_t size, ULONG value_x100, BOOL round);
+int my_stricmp(char * o1, char * o2);
 
 #endif /* XSYSINFO_H */
