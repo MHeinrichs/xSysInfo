@@ -168,7 +168,7 @@ static void scan_dos_list(void)
 	                 buffer);
 
 
-        debug("  drives: Found device '%s'\n", (LONG)drive->device_name);
+        debug("  drives: Found device '%s'\n", drive->device_name);
 
         /* Try to get startup info */
         if (dol->dol_misc.dol_handler.dol_Startup) {
@@ -270,8 +270,8 @@ static void match_volumes_to_drives(void)
                              sizeof(drive_list.drives[i].volume_name));
                 drive_list.drives[i].disk_state = DISK_OK;
                 debug("  drives: Matched volume '%s' to device '%s'\n",
-                      (LONG)drive_list.drives[i].volume_name,
-                      (LONG)drive_list.drives[i].device_name);
+                      drive_list.drives[i].volume_name,
+                      drive_list.drives[i].device_name);
                 break;
             }
         }
@@ -304,10 +304,10 @@ static void query_drive_details(void)
         /* Skip clearly invalid entries */
         if (!drive->is_valid && !has_volume) continue;
 
-        debug("  drives: Trying Info() on '%s'\n", (LONG)drive->device_name);
+        debug("  drives: Trying Info() on '%s'\n", drive->device_name);
         lock = Lock((CONST_STRPTR)drive->device_name, ACCESS_READ);
         if (!lock) {
-            debug("  drives: Lock failed on '%s'\n", (LONG)drive->device_name);
+            debug("  drives: Lock failed on '%s'\n", drive->device_name);
             if (drive->disk_state == DISK_OK) {
                 drive->disk_state = DISK_NO_DISK;
             }
@@ -350,7 +350,7 @@ static void query_drive_details(void)
 
             drive->is_valid = TRUE;
         } else {
-            debug("  drives: Info() failed on '%s'\n", (LONG)drive->device_name);
+            debug("  drives: Info() failed on '%s'\n", drive->device_name);
         }
 
         UnLock(lock);
@@ -374,8 +374,8 @@ static void check_scsi_support_all(void)
         drive->scsi_supported = check_scsi_direct_support(
             drive->handler_name, drive->unit_number);
         debug("  drives: SCSI support for %s: %s\n",
-              (LONG)drive->handler_name,
-              (LONG)(drive->scsi_supported ? get_string(MSG_YES) : get_string(MSG_NO)));
+              drive->handler_name,
+              (drive->scsi_supported ? get_string(MSG_YES) : get_string(MSG_NO)));
     }
 }
 
@@ -404,7 +404,7 @@ void enumerate_drives(void)
     /* Fourth pass: Check SCSI support */
     check_scsi_support_all();
 
-    debug("  drives: Enumeration complete, found %ld drives\n", (LONG)drive_list.count);
+    debug("  drives: Enumeration complete, found %d drives\n", (LONG)drive_list.count);
 }
 
 /*
@@ -498,9 +498,9 @@ BOOL check_disk_present(ULONG index)
     DeleteIORequest((struct IORequest *)io);
     DeleteMsgPort(port);
 
-    debug("  drives: TD_CHANGESTATE on %s unit %ld: disk %s\n",
-          (LONG)drive->handler_name, (LONG)drive->unit_number,
-          (LONG)(disk_present ? "present" : "not present"));
+    debug("  drives: TD_CHANGESTATE on %s unit %u: disk %s\n",
+          drive->handler_name, drive->unit_number,
+          (disk_present ? "present" : "not present"));
 
     return disk_present;
 }
@@ -532,8 +532,8 @@ ULONG measure_drive_speed(ULONG index)
     if (!ETimerBase) return 0;
 
     if (index >= (ULONG)drive_list.count) {
-        debug("  drives: Invalid drive index %ld (count=%ld)\n",
-              (LONG)index, (LONG)drive_list.count);
+        debug("  drives: Invalid drive index %u (count=%u)\n",
+              index, drive_list.count);
         return 0;
     }
 
@@ -542,7 +542,7 @@ ULONG measure_drive_speed(ULONG index)
     /* Check if we have device info */
     if (!drive->handler_name[0]) {
         debug("  drives: No handler name for speed test on %s\n",
-              (LONG)drive->device_name);
+              drive->device_name);
         /* Mark as measured with 0 speed so user sees it was attempted */
         drive->speed_measured = TRUE;
         drive->speed_bytes_sec = 0;
@@ -580,13 +580,13 @@ ULONG measure_drive_speed(ULONG index)
     }
 
     /* Open the device */
-    debug("  drives: Opening device '%s' unit %ld\n",
-          (LONG)drive->handler_name, (LONG)drive->unit_number);
+    debug("  drives: Opening device '%s' unit %u\n",
+          drive->handler_name, drive->unit_number);
     error = OpenDevice((CONST_STRPTR)drive->handler_name, drive->unit_number,
                        (struct IORequest *)io, 0);
     if (error != 0) {
-        debug("  drives: Failed to open device %s unit %ld (error %ld)\n",
-              (LONG)drive->handler_name, (LONG)drive->unit_number, (LONG)error);
+        debug("  drives: Failed to open device %s unit %u (error %d)\n",
+              drive->handler_name, drive->unit_number, (LONG)error);
         goto cleanup;
     }
     device_opened = TRUE;
@@ -623,8 +623,8 @@ ULONG measure_drive_speed(ULONG index)
 
     read_offset = (ULONG)read_offset_bytes;
 
-    debug("  drives: Speed test on %s unit %ld, %ld reads of %ld bytes at offset %ld\n",
-          (LONG)drive->handler_name, (LONG)drive->unit_number,
+    debug("  drives: Speed test on %s unit %u, %u reads of %u bytes at offset %u\n",
+          drive->handler_name, drive->unit_number,
           (LONG)num_reads, (LONG)buffer_size, (LONG)read_offset);
 
     /* Warm up floppy by doing an untimed read to get the head on track */
@@ -636,7 +636,7 @@ ULONG measure_drive_speed(ULONG index)
 
         error = DoIO((struct IORequest *)io);
         if (error != 0) {
-            debug("  drives: Warm-up read error %ld (ignoring)\n", (LONG)error);
+            debug("  drives: Warm-up read error %d (ignoring)\n", (LONG)error);
         }
     }
 
@@ -652,7 +652,7 @@ ULONG measure_drive_speed(ULONG index)
 
         error = DoIO((struct IORequest *)io);
         if (error != 0) {
-            debug("  drives: Read error %ld at iteration %ld\n", (LONG)error, (LONG)i);
+            debug("  drives: Read error %d at iteration %d\n", (LONG)error, (LONG)i);
             break;
         }
         total_read += io->io_Actual;
@@ -674,7 +674,7 @@ ULONG measure_drive_speed(ULONG index)
         drive->speed_measured = FALSE;
     }
 
-    debug("  drives: Read %ld bytes in %ld us = %ld bytes/sec\n",
+    debug("  drives: Read %d bytes in %d us = %d bytes/sec\n",
           (LONG)total_read, (LONG)elapsed, (LONG)bytes_per_sec);
 
 cleanup:
