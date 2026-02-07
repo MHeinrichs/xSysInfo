@@ -151,10 +151,10 @@ static void scan_dos_list(void)
     char buffer[32];
 
     debug("  drives: Locking DosList...\n");
-    dol = LockDosList(LDF_DEVICES | LDF_READ);
+    dol = (struct DosList *)LockDosList(LDF_DEVICES | LDF_READ);
     debug("  drives: DosList locked\n");
 
-    while ((dol = NextDosEntry(dol, LDF_DEVICES)) != NULL) {
+    while ((dol = (struct DosList *)NextDosEntry(dol, LDF_DEVICES)) != NULL) {
         if (drive_list.count >= MAX_DRIVES) break;
         buffer[0] = '\0';
         DriveInfo *drive = &drive_list.drives[drive_list.count];
@@ -235,8 +235,8 @@ static void match_volumes_to_drives(void)
 
     /* First, collect task pointers for each device */
     memset(dev_tasks, 0, sizeof(dev_tasks));
-    dev_dol = LockDosList(LDF_DEVICES | LDF_READ);
-    while ((dev_dol = NextDosEntry(dev_dol, LDF_DEVICES)) != NULL) {
+    dev_dol = (struct DosList *)LockDosList(LDF_DEVICES | LDF_READ);
+    while ((dev_dol = (struct DosList *)NextDosEntry(dev_dol, LDF_DEVICES)) != NULL) {
         char buffer[32];
         char dev_name[32];
         bstr_to_cstr(dev_dol->dol_Name, buffer, sizeof(buffer) - 2);
@@ -257,8 +257,8 @@ static void match_volumes_to_drives(void)
 
     /* Now scan volumes and match by task pointer */
     debug("  drives: Looking up volume names...\n");
-    dol = LockDosList(LDF_VOLUMES | LDF_READ);
-    while ((dol = NextDosEntry(dol, LDF_VOLUMES)) != NULL) {
+    dol = (struct DosList *)LockDosList(LDF_VOLUMES | LDF_READ);
+    while ((dol = (struct DosList *)NextDosEntry(dol, LDF_VOLUMES)) != NULL) {
         struct MsgPort *vol_task = dol->dol_Task;
 
         if (!vol_task) continue;
@@ -456,7 +456,7 @@ BOOL check_disk_present(ULONG index)
     }
 
     /* Create message port */
-    port = CreateMsgPort();
+    port = (struct MsgPort *)CreateMsgPort();
     if (!port) {
         return FALSE;
     }
@@ -566,7 +566,7 @@ ULONG measure_drive_speed(ULONG index)
     if (block_size > 1) buffer_size -= buffer_size % block_size;
 
     /* Create message port */
-    port = CreateMsgPort();
+    port = (struct MsgPort *)CreateMsgPort();
     if (!port) {
         debug("  drives: Failed to create message port\n");
         goto cleanup;
