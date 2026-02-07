@@ -103,23 +103,42 @@ static void parse_tooltypes(void);
  * Parse command line arguments
  * Returns TRUE on success, FALSE on failure
  */
-static BOOL parse_args(void)
+static BOOL parse_args(int argc, char **argv)
 {
-    /*
-    struct RDArgs *rdargs;
-    LONG args[ARG_COUNT] = { 0 };
-    rdargs = ReadArgs((CONST_STRPTR)TEMPLATE, args, NULL);
-    if (!rdargs) {
-        // ReadArgs failed - but we'll continue with defaults
-        return TRUE;
-    }
 
-    // Check for DEBUG switch
-    if (args[ARG_DEBUG]) {
-        g_debug_enabled = TRUE;
+    /*
+    if (SysBase->LibNode.lib_Version > 34) //kick > 2.0?
+    {
+        struct RDArgs *rdargs;
+        LONG args[ARG_COUNT] = { 0 };
+        rdargs = ReadArgs((CONST_STRPTR)TEMPLATE, args, NULL);
+        if (!rdargs) {
+            // ReadArgs failed - but we'll continue with defaults
+            return TRUE;
+        }
+
+        // Check for DEBUG switch
+        if (args[ARG_DEBUG]) {
+            g_debug_enabled = TRUE;
+        }
+        FreeArgs(rdargs);
     }
-    FreeArgs(rdargs);
-    */
+    else
+    {
+        */
+        // at present only "debug" is recognized
+        if (argc > 1)
+        {
+            for (int i = 1; i < argc; i++)
+            {
+                if (my_stricmp(argv[i], "debug")==0)
+                {
+                    g_debug_enabled = TRUE;
+                    break;
+                }
+            }
+        }
+    /*}*/
     return TRUE;
 }
 
@@ -168,23 +187,34 @@ static void parse_tooltypes(void)
     CurrentDir(old_dir);
 }
 
-int my_stricmp(char * o1, char * o2){
-    if(o1 == NULL) return 1;
-    if(o2 == NULL) return -1;
-    int i= 0;
+int my_stricmp(char *o1, char *o2)
+{
+    if (o1 == NULL)
+        return 1;
+    if (o2 == NULL)
+        return -1;
+    int i = 0;
     char a, b;
-    while(o1[i]!=0 && o2[i] !=0){
-        a= o1[i];
-        if(a >= 0x41 && a <= 0x5A) a-= 0x20;
-        b= o2[i];
-        if(b >= 0x41 && b <= 0x5A) b-= 0x20;
-        if(a!=b){
-            return a>b ? -1:1;
+    while (o1[i] != 0 && o2[i] != 0)
+    {
+        a = o1[i];
+        if (a >= 0x41 && a <= 0x5A)
+            a += 0x20;
+        b = o2[i];
+        if (b >= 0x41 && b <= 0x5A)
+            b += 0x20;
+        if (a != b)
+        {
+            return a > b ? -1 : 1;
         }
+        i++;
     }
-    if(o1[i] == 0 && o2[i] == 0) return 0; //equal!
-    if(o1[i] == 0) return 1;
-    if(o2[i] == 0) return -1;
+    if (o1[i] == 0 && o2[i] == 0)
+        return 0; // equal!
+    if (o1[i] == 0)
+        return 1;
+    if (o2[i] == 0)
+        return -1;
 
     return 0;
 }
@@ -195,7 +225,6 @@ int my_stricmp(char * o1, char * o2){
 int main(int argc, char **argv)
 {
     int ret = RETURN_OK;
-    BOOL kick2 = SysBase->LibNode.lib_Version>34;
     debug(XSYSINFO_NAME ": Checking start...\n");
 
     /* Check if started from Workbench */
@@ -204,20 +233,7 @@ int main(int argc, char **argv)
         wb_startup = (struct WBStartup *)argv;
     } else {
         /* Started from CLI - parse command line arguments */
-        if(kick2){
-            parse_args();
-        }
-        else{
-            //at present only "debug" is recognized
-            if(argc>1){
-                for(int i=1; i< argc; i++){
-                    if(my_stricmp(argv[i], "debug")){
-                        g_debug_enabled = TRUE;
-                        break;
-                    }
-                }
-            }
-        }
+        parse_args(argc, argv);
     }
 
     debug(XSYSINFO_NAME ": Starting...\n");
