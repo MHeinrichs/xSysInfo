@@ -359,10 +359,10 @@ ULONG get_mhz_fpu()
         switch (hw_info.fpu_type)
         {
         case FPU_68881:
-            tmp *= 88;
+            tmp *= 79;
             break;
         case FPU_68882:
-            tmp *= 88;
+            tmp *= 79;
             break;
         default:
             break;
@@ -615,7 +615,7 @@ ULONG measure_mem_read_speed(volatile ULONG *src, ULONG buffer_size, ULONG itera
     struct EClockVal start, end;
     uint64_t elapsed;
     ULONG overhead;
-    ULONG total_read = 0;
+    ULONG total_read = 0, total_loops = 0;
     ULONG longs_per_read;
     ULONG loop_count;
     ULONG i;
@@ -662,7 +662,7 @@ ULONG measure_mem_read_speed(volatile ULONG *src, ULONG buffer_size, ULONG itera
             : "d1", "d2", "d3", "d4", "a1", "a2", "a3", "a4", "cc", "memory"
         );
         total_read += buffer_size;
-        count = loop_count;
+        total_loops += loop_count;
     }
 
     E_Freq = ReadEClock(&end);
@@ -670,8 +670,7 @@ ULONG measure_mem_read_speed(volatile ULONG *src, ULONG buffer_size, ULONG itera
 
 
     /* Compensate for loop overhead */
-    /* Total loops executed = iterations * loop_count */
-    overhead = measure_loop_overhead(iterations * loop_count);
+    overhead = measure_loop_overhead(total_loops);
     if (elapsed > overhead) {
         elapsed -= overhead;
     } else {
