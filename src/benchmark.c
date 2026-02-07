@@ -335,6 +335,7 @@ ULONG get_mhz_fpu()
 
         E_Freq =ReadEClock(&end);
         Permit();
+        loop = FPULOOPS * multiplier; //the above inlineassembly modifies loop
 
         count = EClock_Diff_in_ms(&start,&end,E_Freq);
 
@@ -342,12 +343,11 @@ ULONG get_mhz_fpu()
         if (count > overhead){
             count -= overhead;
         }
-        else{
-            count = 0;
+        if(multiplier >= MAX_MULTIPLY || count >= MIN_MHZ_MEASURE){
+            break;
         }
     }
 
-    multiplier /= 2;
     tmp = BASE_FACTOR * multiplier;
     debug("    fpu_mhz: results: %u %u %u\n", count, tmp, overhead);
 
@@ -467,7 +467,7 @@ ULONG run_dhrystone(void)
         }
 
         if (elapsed < 100) { // super fast system 
-            loops *= 10;
+            loops *= 16;
             if(loops > max_loops){
                 loops = max_loops;
             }
@@ -556,7 +556,7 @@ ULONG run_mflops_benchmark(void)
 
         E_Freq = ReadEClock(&end);
         elapsed = EClock_Diff_in_ms(&start,&end,E_Freq);
-        iterations = FLOPS_BASE_LOOPS * multiplier;
+        iterations = FLOPS_BASE_LOOPS * multiplier; //the above inline assembly modiefies iterations
     }
     debug("  bench: memspeed elapsed: %u, loops %u tries: %u\n",(ULONG)elapsed, iterations,multiplier);
 
@@ -590,7 +590,6 @@ ULONG measure_loop_overhead(ULONG count)
         return 0;
     ULONG E_Freq;
     struct EClockVal start, end;
-    uint64_t elapsed;
 
     Forbid();
     E_Freq = ReadEClock(&start);
@@ -603,8 +602,7 @@ ULONG measure_loop_overhead(ULONG count)
 
     E_Freq = ReadEClock(&end);
     Permit();
-    elapsed = EClock_Diff_in_ms(&start,&end,E_Freq);
-    return (ULONG) elapsed;
+    return EClock_Diff_in_ms(&start,&end,E_Freq);
 }
 
 /*
@@ -664,6 +662,7 @@ ULONG measure_mem_read_speed(volatile ULONG *src, ULONG buffer_size, ULONG itera
             : "d1", "d2", "d3", "d4", "a1", "a2", "a3", "a4", "cc", "memory"
         );
         total_read += buffer_size;
+        count = loop_count;
     }
 
     E_Freq = ReadEClock(&end);
