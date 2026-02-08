@@ -164,19 +164,40 @@ void cleanup_timer(void)
 ULONG get_mhz_cpu()
 {
 
-    ULONG count = 0, tmp, mhz = 0, multiplier, loop;
+    ULONG multiplier, loop, maxMultiplier, startMultiplier;
+    uint64_t count = 0, tmp, mhz = 0;
     APTR test; //for testing the memtype we are running in
 
     // correction factors for fast CPUs!
+    switch (hw_info.cpu_type)
+        {
+        case CPU_68040:
+        case CPU_68EC040:
+        case CPU_68LC040:
+        case CPU_68060:
+        case CPU_68EC060:
+        case CPU_68LC060:
+        case CPU_68080:
+            maxMultiplier = MAX_MULTIPLY*16;
+            startMultiplier = MAX_MULTIPLY/16;
+            break;
+        default:
+            maxMultiplier = MAX_MULTIPLY;
+            startMultiplier = 1;
+            break;
+        }
 
-    for (multiplier = 1; multiplier <= MAX_MULTIPLY && count < MIN_MHZ_MEASURE; multiplier*=2)
+
+    for (multiplier = startMultiplier; multiplier <= maxMultiplier && count < MIN_MHZ_MEASURE; multiplier*=2)
     {
         loop = CPULOOPS * multiplier;
-        count = measure_loop_overhead(loop); //this counts the speed of looping
+        count = (uint64_t) measure_loop_overhead(loop); //this counts the speed of looping
+        if(multiplier >= maxMultiplier || count >= MIN_MHZ_MEASURE){
+            break;
+        }
     }
 
-    multiplier = loop / CPULOOPS;
-    tmp = BASE_FACTOR * multiplier;
+    tmp = BASE_FACTOR * (uint64_t)multiplier;
 
     if (count > 0)
     {
@@ -233,8 +254,8 @@ ULONG get_mhz_cpu()
             tmp *= 100;
             break;
         }
-        debug("    cpu_mhz: results: %u %u %u\n", count, tmp, tmp / count);
         mhz = tmp / count;
+        debug("    cpu_mhz: results: %llu %llu %llu %lu\n", count, tmp, mhz, multiplier);
     }
     else
     {
@@ -272,7 +293,7 @@ ULONG get_mhz_cpu()
         }
     }
 
-    return mhz;
+    return (ULONG) mhz;
 }
 
 /*
@@ -315,10 +336,10 @@ ULONG get_mhz_fpu()
         break;
     }
 
-    ULONG count = 0, tmp, mhz = 0, loop, multiplier, overhead;
+    ULONG loop, multiplier, overhead;
     ULONG E_Freq;
     struct EClockVal start, end;
-
+    uint64_t count = 0, tmp, mhz = 0;
     for (multiplier = 1; multiplier <= MAX_MULTIPLY && count < MIN_MHZ_MEASURE; multiplier*=2)
     {
         loop = FPULOOPS * multiplier;
@@ -337,19 +358,19 @@ ULONG get_mhz_fpu()
         Permit();
         loop = FPULOOPS * multiplier; //the above inlineassembly modifies loop
 
-        count = EClock_Diff_in_ms(&start,&end,E_Freq);
+        count = (uint64_t) EClock_Diff_in_ms(&start,&end,E_Freq);
 
         overhead = measure_loop_overhead(loop);
         if (count > overhead){
-            count -= overhead;
+            count -= (uint64_t) overhead;
         }
         if(multiplier >= MAX_MULTIPLY || count >= MIN_MHZ_MEASURE){
             break;
         }
     }
 
-    tmp = BASE_FACTOR * multiplier;
-    debug("    fpu_mhz: results: %u %u %u\n", count, tmp, overhead);
+    tmp = BASE_FACTOR * (uint64_t) multiplier;
+    debug("    fpu_mhz: results: %llu %llu %lu\n", count, tmp, overhead);
 
     if (count > 0)
     {
@@ -391,7 +412,7 @@ ULONG get_mhz_fpu()
         }
     }
 
-    return mhz;
+    return (ULONG)mhz;
 }
 /*
  * Get current timer ticks (microseconds)
@@ -456,10 +477,11 @@ ULONG run_dhrystone(void)
         if (!Dhry_Initialize()) {
             return 0;
         }
-
+        Forbid();
         E_Freq =ReadEClock(&start);
         Dhry_Run(loops);
         E_Freq =ReadEClock(&end);
+        Permit();
         elapsed = EClock_Diff_in_ms(&start,&end,E_Freq);
 
         if (elapsed >= min_runtime_us || loops >= max_loops) {
@@ -483,7 +505,7 @@ ULONG run_dhrystone(void)
         }
     }
 
-    debug("  bench: finished Dhrystone with %u attempts and %u loops in %u us\n",attempt, loops, (ULONG)elapsed);
+    debug("  bench: finished Dhrystone with %lu attempts and %lu loops in %lu us\n",attempt, loops, (ULONG)elapsed);
     if (elapsed == 0) {
         return 0;
     }
@@ -534,8 +556,8 @@ ULONG run_mflops_benchmark(void)
     for (multiplier = 1; multiplier <= MAX_MULTIPLY && elapsed < MIN_FLOP_MEASURE; multiplier++)
     {
         iterations = FLOPS_BASE_LOOPS * multiplier;
+        Forbid();
         E_Freq = ReadEClock(&start);
-
         /* Inline 68881+/040/060 FPU sequence; no C-side FP state needed */
         __asm__ volatile(
             "fmove.l  #2,fp0\n\t"     /* fb = 2 */
@@ -555,10 +577,11 @@ ULONG run_mflops_benchmark(void)
             : "d0", "fp0", "fp1", "fp2", "cc", "memory");
 
         E_Freq = ReadEClock(&end);
+        Permit();
         elapsed = EClock_Diff_in_ms(&start,&end,E_Freq);
         iterations = FLOPS_BASE_LOOPS * multiplier; //the above inline assembly modiefies iterations
     }
-    debug("  bench: memspeed elapsed: %u, loops %u tries: %u\n",(ULONG)elapsed, iterations,multiplier);
+    debug("  bench: memspeed elapsed: %lu, loops %lu tries: %lu\n",(ULONG)elapsed, iterations,multiplier);
 
     /* Calculate MFLOPS * 100 using integer math */
     if (elapsed > 0) {
@@ -588,7 +611,7 @@ ULONG measure_loop_overhead(ULONG count)
 
     if (!ETimerBase || count == 0)
         return 0;
-    ULONG E_Freq;
+    ULONG E_Freq, oldCount;
     struct EClockVal start, end;
 
     Forbid();
@@ -602,6 +625,7 @@ ULONG measure_loop_overhead(ULONG count)
 
     E_Freq = ReadEClock(&end);
     Permit();
+    count = oldCount;
     return EClock_Diff_in_ms(&start,&end,E_Freq);
 }
 
@@ -639,7 +663,7 @@ ULONG measure_mem_read_speed(volatile ULONG *src, ULONG buffer_size, ULONG itera
 
     if (loop_count == 0) return 0;
 
-    
+    Forbid();
     E_Freq = ReadEClock(&start);
 
     for (i = 0; i < iterations; i++) {
@@ -664,8 +688,8 @@ ULONG measure_mem_read_speed(volatile ULONG *src, ULONG buffer_size, ULONG itera
         total_read += buffer_size;
         total_loops += loop_count;
     }
-
     E_Freq = ReadEClock(&end);
+    Permit();
     elapsed = EClock_Diff_in_ms(&start,&end,E_Freq);
 
 

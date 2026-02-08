@@ -498,7 +498,7 @@ BOOL check_disk_present(ULONG index)
     DeleteIORequest((struct IORequest *)io);
     DeleteMsgPort(port);
 
-    debug("  drives: TD_CHANGESTATE on %s unit %u: disk %s\n",
+    debug("  drives: TD_CHANGESTATE on %s unit %lu: disk %ls\n",
           drive->handler_name, drive->unit_number,
           (disk_present ? "present" : "not present"));
 
@@ -532,7 +532,7 @@ ULONG measure_drive_speed(ULONG index)
     if (!ETimerBase) return 0;
 
     if (index >= (ULONG)drive_list.count) {
-        debug("  drives: Invalid drive index %u (count=%u)\n",
+        debug("  drives: Invalid drive index %lu (count=%lu)\n",
               index, drive_list.count);
         return 0;
     }
@@ -580,13 +580,13 @@ ULONG measure_drive_speed(ULONG index)
     }
 
     /* Open the device */
-    debug("  drives: Opening device '%s' unit %u\n",
+    debug("  drives: Opening device '%s' unit %lu\n",
           drive->handler_name, drive->unit_number);
     error = OpenDevice((CONST_STRPTR)drive->handler_name, drive->unit_number,
                        (struct IORequest *)io, 0);
     if (error != 0) {
-        debug("  drives: Failed to open device %s unit %u (error %d)\n",
-              drive->handler_name, drive->unit_number, (LONG)error);
+        debug("  drives: Failed to open device %s unit %lu (error %lu)\n",
+              drive->handler_name, drive->unit_number, (ULONG)error);
         goto cleanup;
     }
     device_opened = TRUE;
@@ -623,9 +623,9 @@ ULONG measure_drive_speed(ULONG index)
 
     read_offset = (ULONG)read_offset_bytes;
 
-    debug("  drives: Speed test on %s unit %u, %u reads of %u bytes at offset %u\n",
+    debug("  drives: Speed test on %s unit %lu, %lu reads of %lu bytes at offset %lu\n",
           drive->handler_name, drive->unit_number,
-          (LONG)num_reads, (LONG)buffer_size, (LONG)read_offset);
+          (ULONG)num_reads, (ULONG)buffer_size, (ULONG)read_offset);
 
     /* Warm up floppy by doing an untimed read to get the head on track */
     if (is_floppy) {
@@ -636,11 +636,12 @@ ULONG measure_drive_speed(ULONG index)
 
         error = DoIO((struct IORequest *)io);
         if (error != 0) {
-            debug("  drives: Warm-up read error %d (ignoring)\n", (LONG)error);
+            debug("  drives: Warm-up read error %lu (ignoring)\n", (ULONG)error);
         }
     }
 
     /* Get start time */
+    Forbid();
     E_Freq =ReadEClock(&start);
 
     /* Perform reads */
@@ -660,7 +661,7 @@ ULONG measure_drive_speed(ULONG index)
 
     /* Get end time */
     E_Freq =ReadEClock(&end);
-
+    Permit();
     /* Calculate speed */
     elapsed = EClock_Diff_in_ms(&start,&end,E_Freq);
 
