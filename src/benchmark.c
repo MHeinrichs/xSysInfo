@@ -571,7 +571,7 @@ ULONG run_mflops_benchmark(void)
             "fadd.x   fp2,fp0\n\t"    /* fb = fa + fd */
             "fsub.x   fp1,fp0\n\t"    /* fc = fb - fa */
             "fmul.x   fp2,fp0\n\t"    /* fd = fc * fa */
-            "fdbeq    %0,1b\n\t"      /* floating point decrease branch*/
+            "dbeq    %0,1b\n\t"      /* floating point decrease branch*/
             : "+d"(iterations)
             :
             : "d0", "fp0", "fp1", "fp2", "cc", "memory");
