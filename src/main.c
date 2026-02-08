@@ -452,7 +452,7 @@ static BOOL open_display(void)
                 newWindow->Title = (UBYTE *) (XSYSINFO_NAME " " XSYSINFO_VERSION);
                 newWindow->Type = WBENCHSCREEN;
                 newWindow->Width = SCREEN_WIDTH;
-                newWindow->Height = SCREEN_HEIGHT_NTSC + 10,
+                newWindow->Height = SCREEN_HEIGHT_NTSC + 16,
                 newWindow->IDCMPFlags = IDCMP_CLOSEWINDOW | IDCMP_MOUSEBUTTONS |
                         IDCMP_REFRESHWINDOW | IDCMP_VANILLAKEY |
                         IDCMP_MOUSEMOVE | IDCMP_RAWKEY;
