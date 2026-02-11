@@ -206,8 +206,8 @@ ULONG measure_memory_speed(ULONG index)
     buffer_size = 64 * 1024;
 
     /* Limit to available region size */
-    if (buffer_size > region->total_size) {
-        buffer_size = region->total_size;
+    if (buffer_size > region->largest_block/2) {
+        buffer_size = region->largest_block/2;
     }
 
     /* Ensure reasonable minimum size */
