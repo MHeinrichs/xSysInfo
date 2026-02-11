@@ -398,17 +398,26 @@ ULONG get_mhz_fpu()
         {
         case FPU_NONE:
             mhz = 0;
+            break;
         case FPU_68881:
             mhz = 1400;
+            break;
         case FPU_68882:
             mhz = 2500;
+            break;
         case FPU_68040:
             mhz = 5000;
+            break;
         case FPU_68060:
             mhz = 5000;
+            break;
+        case FPU_68080:
+            mhz = 8000;
+            break;
         case FPU_UNKNOWN:
         default:
             mhz = 0;
+            break;
         }
     }
 
@@ -545,50 +554,56 @@ ULONG run_mflops_benchmark(void)
     uint64_t elapsed = 0;
     ULONG iterations = 50000;
     ULONG multiplier;
+    ULONG fpu;
 
     /* Check if FPU is available */
     if (hw_info.fpu_type == FPU_NONE) {
         return 0;
     }
 
+    switch (hw_info.fpu_type)
+        {
+        case FPU_NONE:
+            return 0;
+        case FPU_68881:
+            fpu =  ASM_FPU_68881;
+            break;
+        case FPU_68882:
+            fpu =  ASM_FPU_68882;
+            break;
+        case FPU_68040:
+            fpu =  ASM_FPU_68040;
+            break;
+        case FPU_68060:
+            fpu =  ASM_FPU_68060;
+            break;
+        case FPU_68080:
+            fpu =  ASM_FPU_68080;
+            break;
+        case FPU_UNKNOWN:
+        default:
+            return 0;
+        }
+
     if (!ETimerBase) return 0;
     
     for (multiplier = 1; multiplier <= MAX_MULTIPLY && elapsed < MIN_FLOP_MEASURE; multiplier++)
     {
-        iterations = FLOPS_BASE_LOOPS * multiplier;
+        iterations = FLOPS_BASE_LOOPS * multiplier;  
         Forbid();
         E_Freq = ReadEClock(&start);
-        /* Inline 68881+/040/060 FPU sequence; no C-side FP state needed */
-        __asm__ volatile(
-            "fmove.l  #2,fp0\n\t"     /* fb = 2 */
-            "fmove.l  #3,fp1\n\t"     /* fc = 3 */
-            "fmove.l  #4,fp2\n\t"     /* fd = 4 */
-            "1: fadd.x   fp1,fp0\n\t" /* fa = fb + fc */
-            "fmul.x   fp2,fp0\n\t"    /* fb = fa * fd */
-            "fsub.x   fp1,fp0\n\t"    /* fc = fb - fa */
-            "fdiv.x   fp2,fp0\n\t"    /* fd = fc / fb */
-            "fmul.x   fp1,fp0\n\t"    /* fa = fb * fc */
-            "fadd.x   fp2,fp0\n\t"    /* fb = fa + fd */
-            "fsub.x   fp1,fp0\n\t"    /* fc = fb - fa */
-            "fmul.x   fp2,fp0\n\t"    /* fd = fc * fa */
-            "dbeq    %0,1b\n\t"      /* floating point decrease branch*/
-            : "+d"(iterations)
-            :
-            : "d0", "fp0", "fp1", "fp2", "cc", "memory");
-
+        DoFlops(iterations, fpu);      
         E_Freq = ReadEClock(&end);
         Permit();
         elapsed = EClock_Diff_in_ms(&start,&end,E_Freq);
-        iterations = FLOPS_BASE_LOOPS * multiplier; //the above inline assembly modiefies iterations
     }
-    debug("  bench: memspeed elapsed: %lu, loops %lu tries: %lu\n",(ULONG)elapsed, iterations,multiplier);
+    debug("  bench: flops elapsed: %lu, loops %lu\n",(ULONG)elapsed, iterations);
 
     /* Calculate MFLOPS * 100 using integer math */
     if (elapsed > 0) {
         ULONG total_ops = (iterations * FLOP_LOOP_INSTRUCTIONS) + FLOP_INIT_INSTRUCTIONS;
         unsigned long long scaled =
-            (unsigned long long)total_ops * 1000ULL;
-        scaled /= 58;//correction factor to match old Sysinfo MFlops
+            (unsigned long long)total_ops * 100ULL;
         scaled /= elapsed; /* ops per microsecond = MFLOPS */
         if (scaled > ULONG_MAX) {
             return ULONG_MAX;

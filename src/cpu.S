@@ -61,19 +61,19 @@ _DoFlops:
 	beq		m68881_fpu
 	cmp.l	#ASM_FPU_68040,d1		;is it 68040-code?
 	beq		m68040_fpu
-	cmp.l	#ASM_FPU_68060,d1		;is it 68060-code? (same as 68040)
-	beq		m68040_fpu
+	cmp.l	#ASM_FPU_68060,d1		;is it 68060-code? 
+	beq		m68060_fpu
 	cmp.l	#ASM_FPU_68080,d1		;is it 68080-code? (same as 68881)
 	beq		m68881_fpu
 	;not supported fpu!
 	bra 	end_fpu
 m68881_fpu:
 	MACHINE 68881	
-	fmove.l  #2,fp0 ; fb = 2 
-	fmove.l  #3,fp1 ; fc = 3
-	fmove.l  #4,fp2	; fd = 4
+	fmove.l  #2,fp0 	; fb = 2 
+	fmove.l  #3,fp1 	; fc = 3
+	fmove.l  #4,fp2		; fd = 4
 m68881_fpu_loop: 
-	fadd.x   fp1,fp0 ; fa = fb + fc
+	fadd.x   fp1,fp0 	; fa = fb + fc
 	fmul.x   fp2,fp0	; fb = fa * fd
 	fsub.x   fp1,fp0	; fc = fb - fa
 	fdiv.x   fp2,fp0	; fd = fc / fb
@@ -81,9 +81,7 @@ m68881_fpu_loop:
 	fadd.x   fp2,fp0	; fb = fa + fd
 	fsub.x   fp1,fp0	; fc = fb - fa
 	fmul.x   fp2,fp0	; fd = fc * fa
-	subq.l #1,d0		;loop decrement
-	bne.s m68881_fpu_loop
-	fmove.l  fp0,d0	; fa -> d0
+	dbne	d0,m68881_fpu_loop ;loop decrement
 	bra 	end_fpu
 m68040_fpu:
 	MACHINE 68040	
@@ -99,14 +97,26 @@ m68040_fpu_loop:
 	fadd.x   fp2,fp0	; fb = fa + fd
 	fsub.x   fp1,fp0	; fc = fb - fa
 	fmul.x   fp2,fp0	; fd = fc * fa
-	subq.l #1,d0		;loop decrement
-	bne.s m68040_fpu_loop
-	fmove.l  fp0,d0	; fa -> d0
+	dbne	 d0,m68040_fpu_loop ;loop decrement
+	bra 	 end_fpu
+m68060_fpu:
+	MACHINE 68060	
+	fmove.x  #2,fp0 ; fb = 2 
+	fmove.x  #3,fp1 ; fc = 3
+	fmove.x  #4,fp2	; fd = 4
+m68060_fpu_loop: 
+	fadd.x   fp1,fp0 	; fa = fb + fc
+	fmul.x   fp2,fp0	; fb = fa * fd
+	fsub.x   fp1,fp0	; fc = fb - fa
+	fdiv.x   fp2,fp0	; fd = fc / fb
+	fmul.x   fp1,fp0	; fa = fb * fc
+	fadd.x   fp2,fp0	; fb = fa + fd
+	fsub.x   fp1,fp0	; fc = fb - fa
+	fmul.x   fp2,fp0	; fd = fc * fa
+	dbne	d0,m68060_fpu_loop ;loop decrement
 end_fpu:
 	MACHINE 68060
 	rts
-
-
 
 _GetCPUReg:
 	movem.l	a5/a6,-(sp)
