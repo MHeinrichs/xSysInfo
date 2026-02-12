@@ -772,13 +772,12 @@ void detect_ramsey(void){
 void detect_sdmac(void)
 {
     unsigned char sdmac_rev;
-    uint32_t ovalue, rvalue, wvalue;
+    uint32_t ovalue, rvalue;
     uint8_t sdmac_version = 0;
     uint8_t istr;
     int pass;
     hw_info.sdmac_rev = 0;
     hw_info.is_A4000T = FALSE;
-    *((volatile unsigned char *)FAT_GARY_TIME_OUT_REG) = FAT_GARY_TIME_OUT_DSACK;
 
     if (hw_info.gary_type == FAT_GARY)
     { // you need fat gary to access ncr!
@@ -797,6 +796,7 @@ void detect_sdmac(void)
         sdmac_rev = *((volatile unsigned char *)(SDMAC_REVISION)); //this works only on resdmac
         if (sdmac_rev != 0 && sdmac_rev <= 0xF0) { //realistic values!
             hw_info.sdmac_rev = sdmac_rev;
+            return;
         } 
         if(hw_info.sdmac_rev == 0){
             /* Quick check: ISTR bits - FIFO cannot be both empty and full */
@@ -807,7 +807,8 @@ void detect_sdmac(void)
                 return;
             sdmac_version = 2; //default version
             /* Probe WTC registers to distinguish SDMAC-02 from SDMAC-04 */
-            for (pass = 0; pass < 6 && sdmac_version > 0; pass++) {
+            for (pass = 0; pass < 6; pass++) {
+                uint32_t wvalue;
                 switch (pass) {
                     case 0: wvalue = 0x00000000; break;
                     case 1: wvalue = 0xffffffff; break;
@@ -816,38 +817,34 @@ void detect_sdmac(void)
                     case 4: wvalue = 0xc2c2c3c3; break;
                     case 5: wvalue = 0x3c3c3c3c; break;
                 }
-
-                ovalue = *SDMAC_WTC_ALT;
-                *((volatile unsigned char *)RAMSEY_VER) = 0;/* Push write to bus */
-                *SDMAC_WTC_ALT = wvalue;
-                *((volatile unsigned char *)RAMSEY_VER) = 0;/* Push write to bus */
-                rvalue = *SDMAC_WTC;
-                *((volatile unsigned char *)RAMSEY_VER) = 0;/* Push write to bus */
-                *SDMAC_WTC_ALT = ovalue;
-                *((volatile unsigned char *)RAMSEY_VER) = 0;/* Push write to bus */
-
+                Disable();
+                ovalue = *(volatile uint32_t *)SDMAC_WTC;
+                *(volatile uint32_t *)SDMAC_WTC = wvalue;
+                (void) *(volatile uint32_t *)RAMSEY_VER;/* Push write to bus */
+                rvalue = *(volatile uint32_t *)SDMAC_WTC;
+                *(volatile uint32_t *)SDMAC_WTC = ovalue;
+                Enable();
                 if (rvalue == wvalue) {
                     if ((wvalue != 0x00000000) && (wvalue != 0xffffffff)){
                         sdmac_version = 0; /* Detection failed */
+                        return;
                     }
                 } else if (((rvalue ^ wvalue) & 0x00ffffff) == 0) {
                     /* SDMAC-02: only upper byte differs */
-                    hw_info.sdmac_rev = 2;
-                    return;
-                } else if ((rvalue & (1 << 2)) == 0) {
+                } else if ((rvalue & (1U << (2))) == 0) {
                     /* SDMAC-04: bit 2 is always 0 */
-                    if ((wvalue & (1 << 2)) > 0)
+                    if (wvalue & (1U << (2)))
                         sdmac_version = 4;
                 } 
                 else{
                     sdmac_version = 0; /* Detection failed */
+                    return;
                 }
             }
             hw_info.sdmac_rev = sdmac_version;
         }
     }
-    //switch back berr-timeout
-    *((volatile unsigned char *)FAT_GARY_TIME_OUT_REG) = FAT_GARY_TIME_OUT_BERR;
+
 }
 
 

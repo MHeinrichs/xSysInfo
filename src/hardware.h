@@ -50,8 +50,7 @@
 #define FAT_GARY_TIME_OUT_DSACK 0x0
 #define FAT_GARY_TIME_OUT_BERR 0x80
 #define SDMAC_ISTR      ((volatile uint8_t *)0xDD001F)
-#define SDMAC_WTC       ((volatile uint32_t *)0xDD0024)
-#define SDMAC_WTC_ALT   ((volatile uint32_t *)0xDD0028)
+#define SDMAC_WTC       ((volatile uint32_t *)0xDD0004)
 #define NCR_CTEST8_REG 0x00DD0061
 
 #ifndef AFB_68080
