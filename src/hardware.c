@@ -761,7 +761,7 @@ void detect_ramsey(void){
         hw_info.ramsey_wrap_enabled = hw_info.ramsey_ctl & RAMSEY_WRAP_MODE;
         hw_info.ramsey_size_1M = hw_info.ramsey_ctl & RAMSEY_SIZE;
         hw_info.ramsey_skip_enabled = hw_info.ramsey_ctl & RAMSEY_SKIP_MODE;
-        hw_info.ramsey_refresh_rate = (hw_info.ramsey_ctl & RAMSEY_REFESH_MODE)>>4;
+        hw_info.ramsey_refresh_rate = (hw_info.ramsey_ctl & RAMSEY_REFESH_MODE)>>5;
     }
 }
 

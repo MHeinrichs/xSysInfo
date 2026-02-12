@@ -51,7 +51,7 @@ BOOL readBattMem(BattMemData* dest){//returns false on error
 
 		/* Amnesia on the Amiga side? */
 		if (!ReadBattMem (&Data, BATTMEM_AMIGA_AMNESIA_ADDR, BATTMEM_AMIGA_AMNESIA_LEN)) {
-			dest->amnesia_amiga = (Data & 1);
+			dest->amnesia_amiga = !(Data & 1); //inverted!
 		}
 		else{
 			result = FALSE;
@@ -59,7 +59,7 @@ BOOL readBattMem(BattMemData* dest){//returns false on error
 
 		/* Amnesia on the shared Amiga/Amix side? */
 		if (!ReadBattMem (&Data, BATTMEM_SHARED_AMNESIA_ADDR, BATTMEM_SHARED_AMNESIA_LEN)) {
-			dest->amnesia_shared = (Data & 1);
+			dest->amnesia_shared = !(Data & 1); //inverted!
 		}
 		else{
 			result = FALSE;
