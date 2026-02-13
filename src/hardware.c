@@ -894,6 +894,13 @@ void detect_gary(void){
         tmp &= FAT_GARY_POWER_CYCLE; //mask bus rubbish
         if(tmp == FAT_GARY_POWER_GOOD){
             hw_info.gary_type = FAT_GARY;
+            //correct agnus type if neccessary
+            if(hw_info.agnus_type == AGNUS_ECS_NTSC){ //A3000(T)
+               hw_info.agnus_type = AGNUS_ECS_B_NTSC;
+            }
+            if(hw_info.agnus_type == AGNUS_ECS_PAL){ //A3000(T)
+               hw_info.agnus_type = AGNUS_ECS_B_PAL;
+            }
             //restore old value
             *((volatile unsigned char *)FAT_GARY_POWER_REG) = val;
             return;
@@ -916,8 +923,6 @@ void detect_gary(void){
         }
     }
     
-
-
     /*
     Leftovers:
     A500, A2000, CDTV, A600/A1200:

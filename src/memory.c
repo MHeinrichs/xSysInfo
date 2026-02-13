@@ -21,12 +21,14 @@
 #include "locale_str.h"
 #include "benchmark.h"
 #include "debug.h"
+#include "hardware.h"
 
 /* Global memory region list */
 MemoryRegionList memory_regions;
 
 /* External references */
 extern struct ExecBase *SysBase;
+extern HardwareInfo hw_info;
 extern AppContext *app;
 
 /*
@@ -138,6 +140,18 @@ void enumerate_memory_regions(void)
         region->first_free = mh->mh_First;
         region->amount_free = mh->mh_Free;
         region->memListNode = mh; //to find me in the list
+
+        //see if we found the chipram
+        if(region->mem_type & MEMF_CHIP){
+            //there are 4 possibilities: 256k, 512k, 1MB or 2MB
+            //MuMove4K clips a small region from chip, which sghould be ignored
+            if(hw_info.agnus_type == AGNUS_ECS_PAL  && mh->mh_Upper >0x1000000){
+                hw_info.agnus_type = AGNUS_ECS_2MB_PAL;
+            }
+            if(hw_info.agnus_type == AGNUS_ECS_NTSC  && mh->mh_Upper >0x1000000){
+                hw_info.agnus_type = AGNUS_ECS_2MB_NTSC;
+            }
+        }
 
         analyze_memory_region(mh, &region->num_chunks, &region->largest_block);
 
