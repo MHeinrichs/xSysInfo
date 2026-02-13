@@ -145,10 +145,10 @@ void enumerate_memory_regions(void)
         if(region->mem_type & MEMF_CHIP){
             //there are 4 possibilities: 256k, 512k, 1MB or 2MB
             //MuMove4K clips a small region from chip, which sghould be ignored
-            if(hw_info.agnus_type == AGNUS_ECS_PAL  && mh->mh_Upper >0x1000000){
+            if(hw_info.agnus_type == AGNUS_ECS_PAL  && mh->mh_Upper >0x100000){
                 hw_info.agnus_type = AGNUS_ECS_2MB_PAL;
             }
-            if(hw_info.agnus_type == AGNUS_ECS_NTSC  && mh->mh_Upper >0x1000000){
+            if(hw_info.agnus_type == AGNUS_ECS_NTSC  && mh->mh_Upper >0x100000){
                 hw_info.agnus_type = AGNUS_ECS_2MB_NTSC;
             }
         }
