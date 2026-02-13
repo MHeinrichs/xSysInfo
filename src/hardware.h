@@ -174,6 +174,7 @@ typedef struct {
 
     /* FPU */
     FPUType fpu_type;
+    BOOL fpu_enabled;
     ULONG fpu_mhz;          /* FPU MHz * 100 */
     char fpu_string[32];
 

@@ -28,11 +28,10 @@ SoftwareList mmu_list;
 
 /* External references */
 extern struct ExecBase *SysBase;
+extern HardwareInfo hw_info;
 
 /* Global variables*/
 BOOL mmuLoaded = FALSE;
-BOOL cpu68040Loaded = FALSE;
-BOOL cpu68060Loaded = FALSE;
 struct Library *MMUBase;
 struct DosLibrary *DOSBase;
 
@@ -110,11 +109,13 @@ void enumerate_libraries(void)
          lib = (struct Library *)lib->lib_Node.ln_Succ) {
 
         if(strcmp(lib->lib_Node.ln_Name,"68040.library") == 0){
-            cpu68040Loaded = TRUE;
+            if(hw_info.fpu_type == FPU_68040)
+                hw_info.fpu_enabled = TRUE;
         }
 
         if(strcmp(lib->lib_Node.ln_Name,"68060.library") == 0){
-            cpu68060Loaded = TRUE;
+            if(hw_info.fpu_type == FPU_68060)
+                hw_info.fpu_enabled = TRUE;
         }
 
         if(strcmp(lib->lib_Node.ln_Name,"mmu.library") == 0){

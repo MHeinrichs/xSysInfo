@@ -292,6 +292,7 @@ void detect_fpu(void)
     if((attnFlags & (UWORD)AFF_68080) > 0){ //68080 allways has a fpu
         snprintf(hw_info.fpu_string, sizeof(hw_info.fpu_string), "68080");  
         hw_info.fpu_type = FPU_68080;
+        hw_info.fpu_enabled = TRUE;
         return;
     }
 
@@ -306,7 +307,8 @@ void detect_fpu(void)
         }
         //the 68060 is distinguished from the 68LC/EC060 by the cpu-id reg from the cpu-detect-function
         if(hw_info.cpu_type == CPU_68060){
-            snprintf(hw_info.fpu_string, sizeof(hw_info.fpu_string), "68060 (%s)", get_string(MSG_OFF));
+            hw_info.fpu_type = FPU_68060;
+            snprintf(hw_info.fpu_string, sizeof(hw_info.fpu_string), "68060");
         }
         return;
     }
@@ -315,16 +317,19 @@ void detect_fpu(void)
     if((attnFlags & (UWORD)AFF_68881) > 0){ //68881
         if((attnFlags & (UWORD)AFF_68882) > 0){ //68881
             hw_info.fpu_type = FPU_68882; 
+            hw_info.fpu_enabled = TRUE;
             snprintf(hw_info.fpu_string, sizeof(hw_info.fpu_string), "68882");           
         }
         else{
             hw_info.fpu_type = FPU_68881;            
+            hw_info.fpu_enabled = TRUE;
             snprintf(hw_info.fpu_string, sizeof(hw_info.fpu_string), "68881");           
         }
     }
 
     //is it 040-ish?!
     if((attnFlags & (UWORD)AFF_FPU40) > 0){
+        //enabled will be set in the software-scan-phase, when the 68040/060.library is found!
         if(hw_info.cpu_type == CPU_68040){
             hw_info.fpu_type = FPU_68040; 
             snprintf(hw_info.fpu_string, sizeof(hw_info.fpu_string), "68040");           

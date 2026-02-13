@@ -788,8 +788,7 @@ void run_benchmarks(void)
     if (hw_info.fpu_type != FPU_NONE) {
         debug("  bench: run mflops...\n");
         //attention! an unpatched 68040 crashes here!
-        if( !((hw_info.fpu_type == FPU_68040 && !cpu68040Loaded) ||
-                (hw_info.fpu_type == FPU_68060 && !cpu68060Loaded))){
+        if(hw_info.fpu_enabled){
             bench_results.mflops = run_mflops_benchmark();        
         }
         else{
