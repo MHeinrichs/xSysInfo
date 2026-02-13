@@ -69,9 +69,9 @@ _DoFlops:
 	bra 	end_fpu
 m68881_fpu:
 	MACHINE 68881	
-	fmove.l  #2,fp0 	; fb = 2 
-	fmove.l  #3,fp1 	; fc = 3
-	fmove.l  #4,fp2		; fd = 4
+	fmove.x  #2,fp0 	; fb = 2 
+	fmove.x  #3,fp1 	; fc = 3
+	fmove.x  #4,fp2		; fd = 4
 m68881_fpu_loop: 
 	fadd.x   fp1,fp0 	; fa = fb + fc
 	fmul.x   fp2,fp0	; fb = fa * fd
@@ -84,7 +84,7 @@ m68881_fpu_loop:
 	dbne	d0,m68881_fpu_loop ;loop decrement
 	bra 	end_fpu
 m68040_fpu:
-	MACHINE 68040	
+	MACHINE 68040
 	fmove.x  #2,fp0 ; fb = 2 
 	fmove.x  #3,fp1 ; fc = 3
 	fmove.x  #4,fp2	; fd = 4

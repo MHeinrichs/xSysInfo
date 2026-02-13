@@ -66,6 +66,8 @@ static BOOL etimer_open = FALSE;
 /* External references */
 extern struct ExecBase *SysBase;
 extern HardwareInfo hw_info;
+extern BOOL cpu68040Loaded; //from software.c
+extern BOOL cpu68060Loaded; //from software.c
 
 /* Dhrystone implementation (from original source) */
 int Dhry_Initialize(void);
@@ -255,7 +257,7 @@ ULONG get_mhz_cpu()
             break;
         }
         mhz = tmp / count;
-        debug("    cpu_mhz: results: %llu %llu %llu %lu\n", count, tmp, mhz, multiplier);
+        debug("    cpu_mhz: results: %lu %lu %lu %lu\n", (ULONG)count, (ULONG)tmp, (ULONG)mhz, multiplier);
     }
     else
     {
@@ -558,6 +560,7 @@ ULONG run_mflops_benchmark(void)
 
     /* Check if FPU is available */
     if (hw_info.fpu_type == FPU_NONE) {
+        debug("  bench: no fpu!\n");
         return 0;
     }
 
@@ -582,10 +585,14 @@ ULONG run_mflops_benchmark(void)
             break;
         case FPU_UNKNOWN:
         default:
+            debug("  bench: unknown fpu!\n");
             return 0;
         }
 
-    if (!ETimerBase) return 0;
+    if (!ETimerBase){
+        debug("  bench: no timer!\n");
+        return 0;
+    } 
     
     for (multiplier = 1; multiplier <= MAX_MULTIPLY && elapsed < MIN_FLOP_MEASURE; multiplier++)
     {
@@ -781,8 +788,13 @@ void run_benchmarks(void)
     if (hw_info.fpu_type != FPU_NONE) {
         debug("  bench: run mflops...\n");
         //attention! an unpatched 68040 crashes here!
-        if(hw_info.fpu_type != FPU_68040 || hw_info.mmu_enabled)
+        if( !((hw_info.fpu_type == FPU_68040 && !cpu68040Loaded) ||
+                (hw_info.fpu_type == FPU_68060 && !cpu68060Loaded))){
             bench_results.mflops = run_mflops_benchmark();        
+        }
+        else{
+            debug("  bench: 68040/060: missing 68040/060.library. Cannot compute flops!\n");
+        }
     }
 
     /* Run memory speed tests (CHIP, FAST, ROM) */

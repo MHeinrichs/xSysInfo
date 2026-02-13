@@ -31,6 +31,8 @@ extern struct ExecBase *SysBase;
 
 /* Global variables*/
 BOOL mmuLoaded = FALSE;
+BOOL cpu68040Loaded = FALSE;
+BOOL cpu68060Loaded = FALSE;
 struct Library *MMUBase;
 struct DosLibrary *DOSBase;
 
@@ -107,30 +109,39 @@ void enumerate_libraries(void)
          (struct Node *)lib != (struct Node *)&SysBase->LibList.lh_Tail;
          lib = (struct Library *)lib->lib_Node.ln_Succ) {
 
-        if (libraries_list.count >= MAX_SOFTWARE_ENTRIES) break;
-
-        entry = &libraries_list.entries[libraries_list.count];
-
-        if (lib->lib_Node.ln_Name) {
-            if(strstr(lib->lib_Node.ln_Name,".library") != NULL){
-                copy_base_name(entry->name, lib->lib_Node.ln_Name, sizeof(entry->name));
-            }
-            else{ //not a ".library"
-                strncpy(entry->name, lib->lib_Node.ln_Name, sizeof(entry->name));
-            }
-            if(strcmp(lib->lib_Node.ln_Name,"mmu.library") == 0){
-                mmuLoaded = TRUE;
-            }
-        } else {
-            strncpy(entry->name, "(unknown)", sizeof(entry->name) - 1);
+        if(strcmp(lib->lib_Node.ln_Name,"68040.library") == 0){
+            cpu68040Loaded = TRUE;
         }
 
-        entry->address = (APTR)lib;
-        entry->version = lib->lib_Version;
-        entry->revision = lib->lib_Revision;
-        entry->location = determine_mem_location((APTR)lib);
+        if(strcmp(lib->lib_Node.ln_Name,"68060.library") == 0){
+            cpu68060Loaded = TRUE;
+        }
 
-        libraries_list.count++;
+        if(strcmp(lib->lib_Node.ln_Name,"mmu.library") == 0){
+            mmuLoaded = TRUE;
+        }
+
+        if (libraries_list.count < MAX_SOFTWARE_ENTRIES){
+            entry = &libraries_list.entries[libraries_list.count];
+
+            if (lib->lib_Node.ln_Name) {
+                if(strstr(lib->lib_Node.ln_Name,".library") != NULL){
+                    copy_base_name(entry->name, lib->lib_Node.ln_Name, sizeof(entry->name));
+                }
+                else{ //not a ".library"
+                    strncpy(entry->name, lib->lib_Node.ln_Name, sizeof(entry->name));
+                }
+            } else {
+                strncpy(entry->name, "(unknown)", sizeof(entry->name) - 1);
+            }
+
+            entry->address = (APTR)lib;
+            entry->version = lib->lib_Version;
+            entry->revision = lib->lib_Revision;
+            entry->location = determine_mem_location((APTR)lib);
+
+            libraries_list.count++;
+        }
     }
 
     Permit();
