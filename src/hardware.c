@@ -626,22 +626,22 @@ void detect_chipset(void)
                     hw_info.agnus_type = AGNUS_OCS_FAT_NTSC;
                 hw_info.max_chip_ram = 512 * 1024;  /* 512K */
                 break;
-            case 0x20: //ECS PAL
+            case 0x20: //ECS PAL rev 4
+            case 0x21: //ECS PAL rev 5
                 hw_info.agnus_type = AGNUS_ECS_PAL;
                 hw_info.max_chip_ram = 2048 * 1024;  /* 2MB */
                 break;
-            case 0x30: //ECS NTSC
+            case 0x30: //ECS NTSC rev 4
+            case 0x31: //ECS NTSC rev 5
                 hw_info.agnus_type = AGNUS_ECS_NTSC;
                 hw_info.max_chip_ram = 2048 * 1024;  /* 2MB */
                 break;
-            case 0x21: //ALICE PAL
             case 0x22: //ALICE PAL
             case 0x23: //ALICE PAL
             case 0x24: //ALICE PAL
                 hw_info.agnus_type = AGNUS_ALICE_PAL;
                 hw_info.max_chip_ram = 2048 * 1024;  /* 2MB */
                 break;
-            case 0x31: //ALICE NTSC
             case 0x32: //ALICE NTSC
             case 0x33: //ALICE NTSC
             case 0x34: //ALICE NTSC

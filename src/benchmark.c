@@ -66,8 +66,6 @@ static BOOL etimer_open = FALSE;
 /* External references */
 extern struct ExecBase *SysBase;
 extern HardwareInfo hw_info;
-extern BOOL cpu68040Loaded; //from software.c
-extern BOOL cpu68060Loaded; //from software.c
 
 /* Dhrystone implementation (from original source) */
 int Dhry_Initialize(void);
