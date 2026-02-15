@@ -599,7 +599,7 @@ static void allocate_pens(void)
 
     app->pens_allocated = FALSE;
 
-    if (app->use_custom_screen || SysBase->LibNode.lib_Version<=34) {
+    if (app->use_custom_screen) {
         /* Custom screen: we control the palette, use direct indices */
         for (i = 0; i < NUM_COLORS; i++) {
             app->pens[i] = i;
@@ -646,7 +646,7 @@ static void release_pens(void)
     UWORD i;
     struct ColorMap *cm;
 
-    if (!app->pens_allocated || !app->screen || TRUE || SysBase->LibNode.lib_Version<=34) {
+    if (!app->pens_allocated || !app->screen || SysBase->LibNode.lib_Version<=34) {
         return;
     }
 

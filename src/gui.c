@@ -20,6 +20,7 @@
 
 #include "xsysinfo.h"
 #include "gui.h"
+#include "debug.h"
 #include "hardware.h"
 #include "benchmark.h"
 #include "software.h"
@@ -1898,7 +1899,6 @@ void show_status_overlay(const char *message)
 
     /* Disable multitasking */
     Forbid();
-
     /* Draw shadow */
     //SetAPen(rp, COLOR_BUTTON_DARK);
     //RectFill(rp, dialog_x + 2, dialog_y + 2, dialog_x + dialog_w + 1, dialog_y + dialog_h + 1);
@@ -1915,6 +1915,7 @@ void show_status_overlay(const char *message)
     SetBPen(rp, COLOR_BAR_YOU);
     Move(rp, dialog_x + (dialog_w - text_len * 8) / 2, dialog_y + 16);
     Text(rp, (CONST_STRPTR)message, text_len);
+
 }
 
 /*
@@ -1976,7 +1977,7 @@ static void draw_requester_overlay(WORD x, WORD y, WORD w, WORD h,
     struct RastPort *rp = app->rp;
     WORD field_x, field_y, field_w, field_h;
     WORD btn_y, btn_w, btn_h;
-
+    debug("  gui: draw_requester_overlay. rp: %lX\n",rp );
     /* Draw outer panel with shadow effect */
     //SetAPen(rp, COLOR_BUTTON_DARK);
     //RectFill(rp, x + 2, y + 2, x + w + 1, y + h + 1);
@@ -2041,6 +2042,7 @@ static void draw_requester_overlay(WORD x, WORD y, WORD w, WORD h,
  */
 BOOL show_filename_requester(const char *title, char *filename, ULONG filename_size)
 {
+    debug("  gui: show_filename_requester. Title: %s, file: %s\n",title,filename );
     struct IntuiMessage *msg;
     BOOL running = TRUE;
     BOOL result = FALSE;
@@ -2075,16 +2077,18 @@ BOOL show_filename_requester(const char *title, char *filename, ULONG filename_s
     filename_len = strlen(filename);
     cursor_pos = filename_len;
 
+    debug("  gui: show_filename_requester: draw overlay \n" );
     /* Draw initial dialog */
     draw_requester_overlay(dialog_x, dialog_y, dialog_w, dialog_h,
                            title, filename, cursor_pos);
 
+    debug("  gui: show_filename_requester: waiting for input overlay \n" );
     /* Event loop for dialog */
     while (running) {
         WaitPort(app->window->UserPort);
 
         while ((msg = (struct IntuiMessage *)
-                GetMsg(app->window->UserPort)) != NULL) {
+                GetMsg(app->window->UserPort)) != NULL && running) {
 
             ULONG class = msg->Class;
             UWORD code = msg->Code;
@@ -2203,6 +2207,7 @@ BOOL show_filename_requester(const char *title, char *filename, ULONG filename_s
             }
         }
     }
+    debug("  gui: show_filename_requester: restore drawing area\n" );
 
     /* Redraw the main view to restore the area */
     redraw_current_view();
