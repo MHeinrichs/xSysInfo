@@ -47,7 +47,7 @@ struct IntuitionBase *IntuitionBase = NULL;
 struct GfxBase *GfxBase = NULL;
 struct Library *IdentifyBase = NULL;
 struct Library *IconBase = NULL;
-struct DosLibrary *DOSBase;
+extern struct DosLibrary *DOSBase;
 
 /* Workbench startup message (if started from WB) */
 static struct WBStartup *wb_startup = NULL;
@@ -327,6 +327,7 @@ static BOOL open_libraries(void)
     // SysBase = *(struct ExecBase **)4;
 
     /* Open intuition.library */
+    debug(XSYSINFO_NAME " open_libraries: trying intuition.library\n");
     IntuitionBase = (struct IntuitionBase *)
         OpenLibrary((CONST_STRPTR)"intuition.library", MIN_INTUITION_VERSION);
     if (!IntuitionBase) {
@@ -336,6 +337,7 @@ static BOOL open_libraries(void)
     }
 
     /* Open graphics.library */
+    debug(XSYSINFO_NAME " open_libraries: trying graphics.library\n");
     GfxBase = (struct GfxBase *)
         OpenLibrary((CONST_STRPTR)"graphics.library", MIN_GRAPHICS_VERSION);
     if (!GfxBase) {
@@ -345,11 +347,8 @@ static BOOL open_libraries(void)
     }
 
     /* Open identify.library */
-    if (DOSBase = (struct DosLibrary *)OpenLibrary((CONST_STRPTR)"dos.library", 37L)) // kick >2.0?
-    {
-        IdentifyBase = OpenLibrary((CONST_STRPTR) "identify.library", MIN_IDENTIFY_VERSION);
-        CloseLibrary((struct Library *)DOSBase);
-    }
+            debug(XSYSINFO_NAME " open_libraries: trying identify.library\n");
+            IdentifyBase = OpenLibrary((CONST_STRPTR) "identify.library", MIN_IDENTIFY_VERSION);
     /*
     if (!IdentifyBase) {
         Printf((CONST_STRPTR)"%s\n", (LONG)get_string(MSG_ERR_NO_IDENTIFY));
@@ -357,6 +356,8 @@ static BOOL open_libraries(void)
     */
 
     app->IdentifyBase = IdentifyBase;
+
+    debug(XSYSINFO_NAME " open_libraries: trying icon.library\n");
 
     /* Open icon.library - optional, for reading tooltypes */
     {
