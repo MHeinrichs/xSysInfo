@@ -7,6 +7,7 @@
 
 #include <string.h>
 #include <stdio.h>
+#include <stdarg.h>
 
 #include <dos/dos.h>
 #include <dos/datetime.h>

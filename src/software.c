@@ -32,8 +32,8 @@ extern HardwareInfo hw_info;
 
 /* Global variables*/
 BOOL mmuLoaded = FALSE;
-struct Library *MMUBase;
-struct DosLibrary *DOSBase;
+extern struct Library *MMUBase;
+extern struct DosLibrary *DOSBase;
 
 /*
  * Copy name, stripping everything after the last dot
