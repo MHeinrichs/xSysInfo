@@ -51,6 +51,8 @@ RAMSEY_CTRL EQU $DE0003
 	XDEF	_GetCPU060;
 	XDEF	_GetVBR
 	XDEF	_GetMMU
+	XDEF	_GetCacheBits
+	XDEF	_SetCacheBits
 	XDEF	_GetRamseyRev
 	XDEF	_GetRamseyCtrl
 
@@ -230,6 +232,36 @@ _GetVBR:
 _readvbr:
 	movec	VBR,d0
 	rte
+
+
+_GetCacheBits:	
+	movem.l	a5/a6,-(sp)
+	lea.l	_readCacheBits,a5
+	move.l	$4.w,a6
+	jsr	_LVOSupervisor(a6)
+	movem.l	(sp)+,a5/a6
+	rts
+
+_readCacheBits
+	movec	CACR,d0					; this will crash on 68000/010
+        rte
+
+_SetCacheBits:	;d1: flags d2: mask
+	movem.l	d1/d2/a5/a6,-(sp)
+	lea.l	_writeCacheBits,a5
+	move.l	$4.w,a6
+	jsr	_LVOSupervisor(a6)
+	movem.l	(sp)+,d1/d2/a5/a6
+	rts
+
+_writeCacheBits
+        movec	CACR,d0 				; save old value
+        not.l   d2      ;invert mask
+        and.l   d0,d2   ;keep unaffected values
+        or.l    d2,d1
+	movec	d1,CACR					; this will crash on 68000/010
+	
+        rte
 
 _GetMMU:	;d0 holds the cpu type: either ASM_CPU_68020, ASM_CPU_68030 or ASM_CPU_68040
 	movem.l	a5/a6,-(sp)

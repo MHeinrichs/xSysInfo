@@ -164,14 +164,14 @@ void detect_cpu(void)
 
         // now we have at least a 68020/030
         // the CACRF_FreezeI is a 68020/030-only flag!
-        oldBits = CacheControl(CACRF_FreezeI, CACRF_FreezeI); // can instruction cache be frezed?
-        newBits = CacheControl(0, 0);
-        CacheControl(oldBits & CACRF_FreezeI, CACRF_FreezeI); // reset to old state
+        oldBits = SetCacheBits(CACRF_FreezeI, CACRF_FreezeI); // can instruction cache be frezed?
+        newBits = GetCacheBits();
+        SetCacheBits(oldBits & CACRF_FreezeI, CACRF_FreezeI); // reset to old state
         if ((newBits & CACRF_FreezeI) == CACRF_FreezeI)
         {
-            oldBits = CacheControl(CACRF_IBE, CACRF_IBE); // can instruction burst be enabled?
-            newBits = CacheControl(0, 0);
-            CacheControl(oldBits & CACRF_IBE, CACRF_IBE); // reset to old state
+            oldBits = SetCacheBits(CACRF_IBE, CACRF_IBE); // can instruction burst be enabled?
+            newBits = GetCacheBits();
+            SetCacheBits(oldBits & CACRF_IBE, CACRF_IBE); // reset to old state
             if ((newBits & CACRF_IBE) == 0)
             {
                 // no 68030
@@ -357,8 +357,8 @@ void detect_mmu(void)
     strncpy(hw_info.mmu_string, get_string(MSG_NA), sizeof(hw_info.mmu_string) - 1);
 
     // first: try mmu.lib
-    if (DOSBase = (struct DosLibrary *)OpenLibrary((CONST_STRPTR)"dos.library", 37L))
-    {
+    //if (DOSBase = (struct DosLibrary *)OpenLibrary((CONST_STRPTR)"dos.library", 37L))
+    //{
         if (MMUBase = (struct Library *)OpenLibrary((CONST_STRPTR)"mmu.library", 40L))
         { // check for mmu.lib
             fallBack = FALSE;
@@ -416,8 +416,8 @@ void detect_mmu(void)
             }
             CloseLibrary((struct Library *)MMUBase);
         }
-        CloseLibrary((struct Library *)DOSBase);
-    }
+        //CloseLibrary((struct Library *)DOSBase);
+    //}
     
 
     if (fallBack) //mmu.library or dos.library didn't open
@@ -1061,7 +1061,7 @@ void detect_frequencies(void)
  */
 void refresh_cache_status(void)
 {
-    ULONG cacr_bits;
+    ULONG cacr_bits = 0;
 
     /* Determine available cache features based on CPU type */
     hw_info.has_icache          = (hw_info.cpu_type >= CPU_68020);
@@ -1072,7 +1072,9 @@ void refresh_cache_status(void)
     hw_info.has_super_scalar    = (hw_info.cpu_type >= CPU_68060 && hw_info.cpu_type <=CPU_68080);
 
     /* Get current cache state */
-    cacr_bits = CacheControl(0, 0);
+    if(hw_info.cpu_type >= CPU_68020){
+        cacr_bits = GetCacheBits();
+    }
 
     hw_info.icache_enabled = (cacr_bits & CACRF_EnableI) ? TRUE : FALSE;
     hw_info.dcache_enabled = (cacr_bits & CACRF_EnableD) ? TRUE : FALSE;
