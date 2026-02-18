@@ -14,6 +14,7 @@
 
 #include <proto/exec.h>
 #include <proto/timer.h>
+#include <clib/alib_protos.h>
 
 #include "xsysinfo.h"
 #include "benchmark.h"
@@ -55,6 +56,7 @@ void format_reference_label(char *buffer, size_t buffer_size, const ReferenceSys
 
 /* Timer resources */
 static struct MsgPort *timer_port = NULL;
+static struct MsgPort *etimer_port = NULL;
 static struct timerequest *timer_req = NULL;
 struct Device *TimerBase = NULL;
 static BOOL timer_open = FALSE;
@@ -76,28 +78,40 @@ void Dhry_Run(unsigned long Number_Of_Runs);
  */
 BOOL init_timer(void)
 {
-    timer_port = CreateMsgPort();
+    timer_port = CreatePort(NULL,0);
     if (!timer_port) return FALSE;
 
+    etimer_port = CreatePort(NULL,0);
+    if (!etimer_port) {
+        DeletePort(timer_port);
+        return FALSE;
+    }
+
+
     timer_req = (struct timerequest *)
-        CreateIORequest(timer_port, sizeof(struct timerequest));
+        CreateExtIO(timer_port, sizeof(struct timerequest));
     if (!timer_req) {
-        DeleteMsgPort(timer_port);
+        debug("    init_timer: no timer_req\n");
+        DeletePort(timer_port);
         timer_port = NULL;
         return FALSE;
     }
     etimer_req = (struct timerequest *)
-        CreateIORequest(timer_port, sizeof(struct timerequest));
+        CreateExtIO(timer_port, sizeof(struct timerequest));
     if (!etimer_req) {
-        DeleteMsgPort(timer_port);
+        debug("    init_timer: no etimer_req\n");
+        DeletePort(timer_port);
+        DeletePort(etimer_port);
         timer_port = NULL;
         return FALSE;
     }
 
     if (OpenDevice((CONST_STRPTR)"timer.device", UNIT_MICROHZ,
                    (struct IORequest *)timer_req, 0) != 0) {
-        DeleteIORequest((struct IORequest *)timer_req);
-        DeleteMsgPort(timer_port);
+        debug("    init_timer: no OpenDevice timer_req\n");
+        DeleteExtIO((struct IORequest *)timer_req);
+        DeletePort(timer_port);
+        DeletePort(etimer_port);
         timer_req = NULL;
         timer_port = NULL;
         return FALSE;
@@ -105,9 +119,11 @@ BOOL init_timer(void)
 
     if (OpenDevice((CONST_STRPTR)"timer.device", UNIT_ECLOCK,
                    (struct IORequest *)etimer_req, 0) != 0) {
-        DeleteIORequest((struct IORequest *)timer_req);
-        DeleteIORequest((struct IORequest *)etimer_req);
-        DeleteMsgPort(timer_port);
+        debug("    init_timer: no OpenDevice etimer_req\n");
+        DeleteExtIO((struct IORequest *)timer_req);
+        DeleteExtIO((struct IORequest *)etimer_req);
+        DeletePort(timer_port);
+        DeletePort(etimer_port);
         timer_req = NULL;
         etimer_req = NULL;
         timer_port = NULL;
@@ -135,7 +151,7 @@ void cleanup_timer(void)
     }
 
     if (timer_req) {
-        DeleteIORequest((struct IORequest *)timer_req);
+        DeleteExtIO((struct IORequest *)timer_req);
         timer_req = NULL;
     }
 
@@ -145,14 +161,20 @@ void cleanup_timer(void)
     }
 
     if (etimer_req) {
-        DeleteIORequest((struct IORequest *)etimer_req);
+        DeleteExtIO((struct IORequest *)etimer_req);
         etimer_req = NULL;
     }
 
     if (timer_port) {
-        DeleteMsgPort(timer_port);
+        DeletePort(timer_port);
         timer_port = NULL;
     }
+
+    if (etimer_port) {
+        DeletePort(etimer_port);
+        etimer_port = NULL;
+    }
+
 
     TimerBase = NULL;
     ETimerBase = NULL;

@@ -293,9 +293,11 @@ int main(int argc, char **argv)
         goto cleanup;
     }
 
+    debug(XSYSINFO_NAME ": Init buttons...\n");
     /* Initialize GUI buttons */
     init_buttons();
 
+    debug(XSYSINFO_NAME ": Init timer...\n");
     /* Initialize benchmark timer */
     if (!init_timer()) {
         Printf((CONST_STRPTR)"Failed to initialize timer\n");
@@ -303,9 +305,11 @@ int main(int argc, char **argv)
         goto cleanup;
     }
 
+    debug(XSYSINFO_NAME ": Draw screen...\n");
     /* Draw initial view */
     redraw_current_view();
 
+    debug(XSYSINFO_NAME ": Start main loop...\n");
     /* Main event loop */
     main_loop();
 
@@ -442,6 +446,8 @@ static BOOL open_display(void)
     app->is_pal = (GfxBase->DisplayFlags & PAL) ? TRUE : FALSE;
 
     if (use_window) {
+        debug(XSYSINFO_NAME " open_display: opening window\n");
+
         /* Open window on Workbench */
         app->use_custom_screen = FALSE;
 
@@ -484,6 +490,8 @@ static BOOL open_display(void)
             }
         }
     } else {
+        debug(XSYSINFO_NAME " open_display: opening screen\n");
+
         /* Open custom screen */
         app->use_custom_screen = TRUE;
 
@@ -537,9 +545,11 @@ static BOOL open_display(void)
 
         app->rp = app->window->RPort;
     }
+    debug(XSYSINFO_NAME " open_display: allocationg pens\n");
 
     /* Allocate/map pens for drawing */
     allocate_pens();
+    debug(XSYSINFO_NAME " open_display: finished\n");
 
     return TRUE;
 }
@@ -600,7 +610,7 @@ static void allocate_pens(void)
 
     app->pens_allocated = FALSE;
 
-    if (app->use_custom_screen) {
+    if (app->use_custom_screen || hw_info.kickstart_patch_version<36) {
         /* Custom screen: we control the palette, use direct indices */
         for (i = 0; i < NUM_COLORS; i++) {
             app->pens[i] = i;
