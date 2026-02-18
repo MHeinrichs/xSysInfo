@@ -519,15 +519,15 @@ BOOL check_disk_present(ULONG index)
     }
 
     /* Create message port */
-    port = (struct MsgPort *)CreateMsgPort();
+    port = (struct MsgPort *)CreatePort(NULL,0);
     if (!port) {
         return FALSE;
     }
 
     /* Create I/O request */
-    io = (struct IOStdReq *)CreateIORequest(port, sizeof(struct IOStdReq));
+    io = (struct IOStdReq *)CreateExtIO(port, sizeof(struct IOStdReq));
     if (!io) {
-        DeleteMsgPort(port);
+        DeletePort(port);
         return FALSE;
     }
 
@@ -535,8 +535,8 @@ BOOL check_disk_present(ULONG index)
     error = OpenDevice((CONST_STRPTR)drive->handler_name, drive->unit_number,
                        (struct IORequest *)io, 0);
     if (error != 0) {
-        DeleteIORequest((struct IORequest *)io);
-        DeleteMsgPort(port);
+        DeleteExtIO((struct IORequest *)io);
+        DeletePort(port);
         return FALSE;
     }
 
@@ -558,8 +558,8 @@ BOOL check_disk_present(ULONG index)
     /* Clean up */
     CloseDevice((struct IORequest *)io);
     WaitTOF();
-    DeleteIORequest((struct IORequest *)io);
-    DeleteMsgPort(port);
+    DeleteExtIO((struct IORequest *)io);
+    DeletePort(port);
 
     debug("  drives: TD_CHANGESTATE on %s unit %lu: disk %ls\n",
           drive->handler_name, drive->unit_number,
@@ -629,14 +629,14 @@ ULONG measure_drive_speed(ULONG index)
     if (block_size > 1) buffer_size -= buffer_size % block_size;
 
     /* Create message port */
-    port = (struct MsgPort *)CreateMsgPort();
+    port = (struct MsgPort *)CreatePort(NULL,0);
     if (!port) {
         debug("  drives: Failed to create message port\n");
         goto cleanup;
     }
 
     /* Create I/O request */
-    io = (struct IOStdReq *)CreateIORequest(port, sizeof(struct IOStdReq));
+    io = (struct IOStdReq *)CreateExtIO(port, sizeof(struct IOStdReq));
     if (!io) {
         debug("  drives: Failed to create IO request\n");
         goto cleanup;
@@ -747,8 +747,8 @@ cleanup:
         CloseDevice((struct IORequest *)io);
         WaitTOF();
     }
-    if (io) DeleteIORequest((struct IORequest *)io);
-    if (port) DeleteMsgPort(port);
+    if (io) DeleteExtIO((struct IORequest *)io);
+    if (port) DeletePort(port);
 
     if (!device_opened) {
         /* If we failed to open or allocate, ensure marked as failed */
