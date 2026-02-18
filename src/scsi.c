@@ -23,6 +23,7 @@
 
 #include <proto/exec.h>
 #include <proto/graphics.h>
+#include <clib/alib_protos.h>
 
 #include "xsysinfo.h"
 #include "scsi.h"
@@ -140,6 +141,7 @@ static ScsiAnsiVersion convert_ansi_version(UBYTE version)
     }
 }
 
+
 /*
  * Check if a device supports SCSI direct commands
  * Returns TRUE if the device responds to HD_SCSICMD or NSCMD_TD_SCSI
@@ -159,15 +161,15 @@ BOOL check_scsi_direct_support(const char *handler_name, ULONG unit_number)
     }
 
     /* Create message port */
-    port = (struct MsgPort *) CreateMsgPort();
+    port = (struct MsgPort *) CreatePort(NULL,0);
     if (!port) {
         return FALSE;
     }
 
     /* Create I/O request */
-    io = (struct IOStdReq *)CreateIORequest(port, sizeof(struct IOStdReq));
+    io = (struct IOStdReq *)CreateExtIO(port, sizeof(struct IOStdReq));
     if (!io) {
-        DeleteMsgPort(port);
+        DeletePort(port);
         return FALSE;
     }
 
@@ -175,8 +177,8 @@ BOOL check_scsi_direct_support(const char *handler_name, ULONG unit_number)
     error = OpenDevice((CONST_STRPTR)handler_name, unit_number,
                        (struct IORequest *)io, 0);
     if (error != 0) {
-        DeleteIORequest((struct IORequest *)io);
-        DeleteMsgPort(port);
+        DeleteExtIO((struct IORequest *)io);
+        DeletePort(port);
         return FALSE;
     }
 
@@ -212,8 +214,8 @@ BOOL check_scsi_direct_support(const char *handler_name, ULONG unit_number)
     }
 
     CloseDevice((struct IORequest *)io);
-    DeleteIORequest((struct IORequest *)io);
-    DeleteMsgPort(port);
+    DeleteExtIO((struct IORequest *)io);
+    DeletePort(port);
 
     return supports_scsi;
 }
@@ -238,10 +240,10 @@ static BOOL scsi_inquiry(int target, int lun,
     memset(inquiry_data, 0, sizeof(struct SCSIInquiryData));
 
 
-    if ((mp = (struct MsgPort *)CreateMsgPort()) == NULL) return FALSE;
+    if ((mp = (struct MsgPort *)CreatePort(NULL,0)) == NULL) return FALSE;
 
-    if ((io = (struct IOStdReq *)CreateIORequest(mp,sizeof(struct IOStdReq))) == NULL) {
-        DeleteMsgPort(mp);
+    if ((io = (struct IOStdReq *)CreateExtIO(mp,sizeof(struct IOStdReq))) == NULL) {
+        DeletePort(mp);
         return FALSE;
     }
 
@@ -255,8 +257,8 @@ static BOOL scsi_inquiry(int target, int lun,
         error = OpenDevice((CONST_STRPTR)scsi_device_list.device_name, 0,
                            (struct IORequest *)io, 0);
         if (error != 0) {
-            DeleteIORequest((struct IORequest *)io);
-            DeleteMsgPort(mp);
+            DeleteExtIO((struct IORequest *)io);
+            DeletePort(mp);
             return FALSE;
         }
     }
@@ -284,8 +286,8 @@ static BOOL scsi_inquiry(int target, int lun,
     error = DoIO((struct IORequest *)io);
 
     CloseDevice((struct IORequest *)io);
-    DeleteIORequest((struct IORequest *)io);
-    DeleteMsgPort(mp);
+    DeleteExtIO((struct IORequest *)io);
+    DeletePort(mp);
 
     if (error != 0 || scsi_cmd.scsi_Status != 0) {
         return FALSE;
@@ -309,10 +311,10 @@ static BOOL scsi_read_capacity(int target, int lun,
     BYTE error;
     ULONG unit;
 
-    if ((mp = (struct MsgPort *)CreateMsgPort()) == NULL) return FALSE;
+    if ((mp = (struct MsgPort *)CreatePort(NULL,0)) == NULL) return FALSE;
 
-    if ((io = (struct IOStdReq *)CreateIORequest(mp,sizeof(struct IOStdReq))) == NULL) {
-        DeleteMsgPort(mp);
+    if ((io = (struct IOStdReq *)CreateExtIO(mp,sizeof(struct IOStdReq))) == NULL) {
+        DeletePort(mp);
         return FALSE;
     }
 
@@ -328,8 +330,8 @@ static BOOL scsi_read_capacity(int target, int lun,
                        (struct IORequest *)io, 0);
 
     if (error != 0) {
-        DeleteIORequest((struct IORequest *)io);
-        DeleteMsgPort(mp);
+        DeleteExtIO((struct IORequest *)io);
+        DeletePort(mp);
         return FALSE;
     }
 
@@ -353,8 +355,8 @@ static BOOL scsi_read_capacity(int target, int lun,
     error = DoIO((struct IORequest *)io);
 
     CloseDevice((struct IORequest *)io);
-    DeleteIORequest((struct IORequest *)io);
-    DeleteMsgPort(mp);
+    DeleteExtIO((struct IORequest *)io);
+    DeletePort(mp);
 
     if (error != 0 || scsi_cmd.scsi_Status != 0) {
         return FALSE;
@@ -401,17 +403,17 @@ void scan_scsi_devices(const char *handler_name, ULONG base_unit)
     debug("  scsi: Scanning SCSI devices on %s\n", handler_name);
 
     /* Create message port */
-    port = (struct MsgPort *)CreateMsgPort();
+    port = (struct MsgPort *)CreatePort(NULL,0);
     if (!port) {
         debug("  scsi: Failed to create message port\n");
         return;
     }
 
     /* Create I/O request */
-    io = (struct IOStdReq *)CreateIORequest(port, sizeof(struct IOStdReq));
+    io = (struct IOStdReq *)CreateExtIO(port, sizeof(struct IOStdReq));
     if (!io) {
         debug("  scsi: Failed to create IO request\n");
-        DeleteMsgPort(port);
+        DeletePort(port);
         return;
     }
 
@@ -492,8 +494,8 @@ void scan_scsi_devices(const char *handler_name, ULONG base_unit)
         }
     }
 
-    DeleteIORequest((struct IORequest *)io);
-    DeleteMsgPort(port);
+    DeleteExtIO((struct IORequest *)io);
+    DeletePort(port);
 
     debug("  scsi: Scan complete, found %d devices\n", (LONG)scsi_device_list.count);
 }
