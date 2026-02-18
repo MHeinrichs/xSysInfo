@@ -28,6 +28,7 @@
 #include "locale_str.h"
 #include "debug.h"
 #include <limits.h>
+#include "hardware.h"
 
 /* Global drive list */
 DriveList drive_list;
@@ -37,6 +38,7 @@ extern AppContext *app;
 extern Button buttons[];
 extern int num_buttons;
 extern struct Device *ETimerBase;
+extern struct DosLibrary *DOSBase;
 
 /* DOS type identifiers */
 /* ID_DOS_DISK and ID_FFS_DISK are defined in dos/dos.h */
@@ -141,6 +143,67 @@ static void bstr_to_cstr(BSTR bstr, char *cstr, ULONG maxlen)
 
 /* Helpers */
 static BOOL is_floppy_device(ULONG total_blocks);
+struct DosList *MyLockDosList(ULONG flags);
+struct DosList *MyNextDosEntry(struct DosList * list,ULONG flags);
+void MyUnLockDosList(ULONG flags);
+#define MIN_KICK_DEVICE_VERSION 36
+
+/* This is a Kick2.0/1.3 switch function of LockDosList
+*/
+struct DosList *MyLockDosList(ULONG flags){
+    struct DosList *dol;
+    if(hw_info.kickstart_patch_version>=MIN_KICK_DEVICE_VERSION){
+        dol = (struct DosList *)LockDosList(flags);
+    }
+    else{
+        Forbid();
+        dol = (struct DosList *)BADDR(((struct DosInfo *)BADDR(DOSBase->dl_Root->rn_Info))->di_DevInfo);
+    }
+    return dol;
+}
+
+/* This is a Kick2.0/1.3 switch function of UnLockDosList
+*/
+void MyUnLockDosList(ULONG flags){
+    if(hw_info.kickstart_patch_version>=MIN_KICK_DEVICE_VERSION){
+        UnLockDosList(flags);
+    }
+    else{
+        Permit();
+    }
+}
+
+/* This is a Kick2.0/1.3 switch function of NextDosEntry
+*/
+struct DosList *MyNextDosEntry(struct DosList *list, ULONG flags)
+{
+    struct DosList *dol;
+    if (hw_info.kickstart_patch_version >= MIN_KICK_DEVICE_VERSION)
+    {
+        dol = (struct DosList *)NextDosEntry(list, flags);
+    }
+    else
+    {
+        //convert LockDosList-Flags to DosList type flags
+        if(flags == LDF_DEVICES){
+            flags = DLT_DEVICE;
+        }
+        else if(flags == LDF_VOLUMES){
+            flags = DLT_VOLUME;
+        }
+        dol = (struct DosList *) BADDR(list->dol_Next); //skip the given entry itself
+        while (dol)
+        {
+            if (dol->dol_Type == flags)
+            {
+                break;
+            }
+            dol = (struct DosList *) BADDR(dol->dol_Next);
+        } 
+    }
+
+    return dol;
+}
 
 /*
  * Helper: Scan DosList for devices and populate drive list
@@ -151,10 +214,10 @@ static void scan_dos_list(void)
     char buffer[32];
 
     debug("  drives: Locking DosList...\n");
-    dol = (struct DosList *)LockDosList(LDF_DEVICES | LDF_READ);
+    dol = (struct DosList *)MyLockDosList(LDF_DEVICES | LDF_READ);
     debug("  drives: DosList locked\n");
 
-    while ((dol = (struct DosList *)NextDosEntry(dol, LDF_DEVICES)) != NULL) {
+    while ((dol = (struct DosList *)MyNextDosEntry(dol, LDF_DEVICES)) != NULL) {
         if (drive_list.count >= MAX_DRIVES) break;
         buffer[0] = '\0';
         DriveInfo *drive = &drive_list.drives[drive_list.count];
@@ -220,7 +283,7 @@ static void scan_dos_list(void)
     }
 
     debug("  drives: Unlocking DosList...\n");
-    UnLockDosList(LDF_DEVICES | LDF_READ);
+    MyUnLockDosList(LDF_DEVICES | LDF_READ);
 }
 
 /*
@@ -235,8 +298,8 @@ static void match_volumes_to_drives(void)
 
     /* First, collect task pointers for each device */
     memset(dev_tasks, 0, sizeof(dev_tasks));
-    dev_dol = (struct DosList *)LockDosList(LDF_DEVICES | LDF_READ);
-    while ((dev_dol = (struct DosList *)NextDosEntry(dev_dol, LDF_DEVICES)) != NULL) {
+    dev_dol = (struct DosList *)MyLockDosList(LDF_DEVICES | LDF_READ);
+    while ((dev_dol = (struct DosList *)MyNextDosEntry(dev_dol, LDF_DEVICES)) != NULL) {
         char buffer[32];
         char dev_name[32];
         bstr_to_cstr(dev_dol->dol_Name, buffer, sizeof(buffer) - 2);
@@ -253,12 +316,12 @@ static void match_volumes_to_drives(void)
             }
         }
     }
-    UnLockDosList(LDF_DEVICES | LDF_READ);
+    MyUnLockDosList(LDF_DEVICES | LDF_READ);
 
     /* Now scan volumes and match by task pointer */
     debug("  drives: Looking up volume names...\n");
-    dol = (struct DosList *)LockDosList(LDF_VOLUMES | LDF_READ);
-    while ((dol = (struct DosList *)NextDosEntry(dol, LDF_VOLUMES)) != NULL) {
+    dol = (struct DosList *)MyLockDosList(LDF_VOLUMES | LDF_READ);
+    while ((dol = (struct DosList *)MyNextDosEntry(dol, LDF_VOLUMES)) != NULL) {
         struct MsgPort *vol_task = dol->dol_Task;
 
         if (!vol_task) continue;
@@ -276,7 +339,7 @@ static void match_volumes_to_drives(void)
             }
         }
     }
-    UnLockDosList(LDF_VOLUMES | LDF_READ);
+    MyUnLockDosList(LDF_VOLUMES | LDF_READ);
 }
 
 /*
