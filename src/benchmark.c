@@ -93,6 +93,7 @@ BOOL init_timer(void)
     if (!timer_req) {
         debug("    init_timer: no timer_req\n");
         DeletePort(timer_port);
+        DeletePort(etimer_port);
         timer_port = NULL;
         return FALSE;
     }
