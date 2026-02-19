@@ -89,5 +89,5 @@ void wait_ticks(ULONG ticks);
 ULONG measure_loop_overhead(ULONG count);
 void generate_comment(void);
 ULONG EClock_Diff_in_ms(struct EClockVal *start, struct EClockVal *end, ULONG EFreq);
-
+ULONG MyReadClock(struct EClockVal *val);
 #endif /* BENCHMARK_H */

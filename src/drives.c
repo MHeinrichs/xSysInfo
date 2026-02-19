@@ -705,7 +705,7 @@ ULONG measure_drive_speed(ULONG index)
 
     /* Get start time */
     Forbid();
-    E_Freq =ReadEClock(&start);
+    E_Freq =MyReadClock(&start);
 
     /* Perform reads */
     for (i = 0; i < num_reads; i++) {
@@ -723,7 +723,7 @@ ULONG measure_drive_speed(ULONG index)
     }
 
     /* Get end time */
-    E_Freq =ReadEClock(&end);
+    E_Freq =MyReadClock(&end);
     Permit();
     /* Calculate speed */
     elapsed = EClock_Diff_in_ms(&start,&end,E_Freq);
