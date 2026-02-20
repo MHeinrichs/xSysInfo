@@ -59,11 +59,12 @@ static struct MsgPort *timer_port = NULL;
 static struct MsgPort *etimer_port = NULL;
 static struct timerequest *timer_req = NULL;
 struct Device *TimerBase = NULL;
-static BOOL timer_open = FALSE;
+BOOL timer_open = FALSE;
 static struct timerequest *etimer_req = NULL;
-struct Device *ETimerBase = NULL;
 static BOOL etimer_open = FALSE;
-
+struct EClockVal *startE, *endE;
+struct timeval *startT, *endT;
+ULONG EFreq = 0;
 
 /* External references */
 extern struct ExecBase *SysBase;
@@ -82,6 +83,14 @@ BOOL init_timer(void)
     timer_port = CreatePort(NULL, 0);
     if (!timer_port){
         retVal = FALSE;
+    }
+    if (retVal)
+    {
+        startE = AllocMem(sizeof(struct EClockVal), MEMF_ANY | MEMF_CLEAR);
+        endE   = AllocMem(sizeof(struct EClockVal), MEMF_ANY | MEMF_CLEAR);
+        startT = AllocMem(sizeof(struct   timeval), MEMF_ANY | MEMF_CLEAR);
+        endT   = AllocMem(sizeof(struct   timeval), MEMF_ANY | MEMF_CLEAR);
+        retVal = startE !=NULL & endE  !=NULL & startT !=NULL & endT !=NULL; //got all?
     }
 
     if (retVal)
@@ -132,11 +141,7 @@ BOOL init_timer(void)
                 retVal = FALSE;
             }
         }
-        if (retVal)
-        {
-            ETimerBase = (struct Device *)etimer_req->tr_node.io_Device;
-            etimer_open = TRUE;
-        }
+        etimer_open = retVal;
     }
     if (retVal)
     {
@@ -145,28 +150,7 @@ BOOL init_timer(void)
     }
     else
     {
-        if (timer_req)
-        {
-            DeleteExtIO((struct IORequest *)timer_req);
-            timer_req = NULL;
-        }
-        if (etimer_req)
-        {
-            DeleteExtIO((struct IORequest *)etimer_req);
-            etimer_req = NULL;
-        }
-        if (timer_port)
-        {
-            DeletePort(timer_port);
-            timer_port = NULL;
-        }
-        if (etimer_port)
-        {
-            DeletePort(etimer_port);
-            etimer_port = NULL;
-        }
-        timer_req = NULL;
-        timer_port = NULL;
+        cleanup_timer();
     }
 
     return retVal;
@@ -207,9 +191,14 @@ void cleanup_timer(void)
         etimer_port = NULL;
     }
 
+    if(startE) FreeMem(startE, sizeof(struct EClockVal));
+    if(  endE) FreeMem(  endE, sizeof(struct EClockVal));
+    if(startT) FreeMem(startT, sizeof(struct   timeval));
+    if(  endT) FreeMem(  endT, sizeof(struct   timeval));
 
     TimerBase = NULL;
-    ETimerBase = NULL;
+    timer_open = FALSE;
+    etimer_open = FALSE;
 }
 
 /*
@@ -368,7 +357,7 @@ ULONG get_mhz_fpu()
         return 0;
     }
     
-    if (!ETimerBase) return 0;
+    if (!timer_open) return 0;
 
     switch (hw_info.cpu_type)
     {
@@ -391,14 +380,13 @@ ULONG get_mhz_fpu()
     }
 
     ULONG loop, multiplier, overhead;
-    ULONG E_Freq;
-    struct EClockVal start, end;
+    
     uint64_t count = 0, tmp, mhz = 0;
     for (multiplier = 1; multiplier <= MAX_MULTIPLY && count < MIN_MHZ_MEASURE; multiplier*=2)
     {
         loop = FPULOOPS * multiplier;
+        StartStopWatch();
         Forbid();
-        E_Freq =MyReadClock(&start);
         __asm__ volatile(
             "fmove.w #1,fp1\n\t"
             "1:		fdiv.x fp1,fp1\n\t"
@@ -408,11 +396,11 @@ ULONG get_mhz_fpu()
             :
             : "cc", "fp1");
 
-        E_Freq =MyReadClock(&end);
         Permit();
+        EndStopWatch();
         loop = FPULOOPS * multiplier; //the above inlineassembly modifies loop
 
-        count = (uint64_t) EClock_Diff_in_ms(&start,&end,E_Freq);
+        count = (uint64_t) Clock_Diff_in_ms();
 
         overhead = measure_loop_overhead(loop);
         if (count > overhead){
@@ -484,7 +472,7 @@ uint64_t get_timer_ticks(void)
 {
     struct timeval tv;
 
-    if (!TimerBase) return 0;
+    if (!timer_open) return 0;
 
     GetSysTime(&tv);
 
@@ -498,7 +486,7 @@ uint64_t get_timer_ticks(void)
 void get_timer(struct timeval *tv)
 {
 
-    if (!TimerBase) return;
+    if (!timer_open) return;
 
     GetSysTime(tv);
 
@@ -528,34 +516,28 @@ ULONG run_dhrystone(void)
     const uint64_t min_runtime_us = 2000000ULL; /* Aim for ~2 seconds to reduce timer noise */
     const uint64_t max_loops = 5000000ULL;      /* Upper bound from the original sources */
     const int max_attempts = 3;
-    ULONG loops = default_loops;
-    ULONG E_Freq;
-    struct EClockVal start, end;
+    ULONG loops = default_loops;    
     uint64_t elapsed = 0;
     int attempt;
 
-    if (!TimerBase) return 0;
-    debug("  bench: starting measure loop\n");
+    if (!timer_open) return 0;
     for (attempt = 0; attempt < max_attempts; attempt++) {
-        debug("  bench: starting init\n");
         if (!Dhry_Initialize()) {
             return 0;
         }
-        debug("  bench: run loop\n");
+        debug("  bench: run loop %ld\n",loops);
 
+        StartStopWatch();
         Forbid();
-        E_Freq =MyReadClock(&start);
         Dhry_Run(loops);
-        E_Freq =MyReadClock(&end);
         Permit();
-        elapsed = EClock_Diff_in_ms(&start,&end,E_Freq);
-        debug("  bench: finished loop\n");
+        EndStopWatch();
+        elapsed = Clock_Diff_in_ms();
 
         if (elapsed >= min_runtime_us || loops >= max_loops) {
             break;
         }
 
-        debug("  bench: adjust loop count\n");
         if (elapsed < 100) { // super fast system 
             loops *= 16;
             if(loops > max_loops){
@@ -608,8 +590,6 @@ ULONG calculate_mips(ULONG dhrystones)
  */
 ULONG run_mflops_benchmark(void)
 {
-    struct EClockVal start, end;
-    ULONG E_Freq;
     uint64_t elapsed = 0;
     ULONG iterations = 50000;
     ULONG multiplier;
@@ -646,7 +626,7 @@ ULONG run_mflops_benchmark(void)
             return 0;
         }
 
-    if (!TimerBase){
+    if (!timer_open){
         debug("  bench: no timer!\n");
         return 0;
     } 
@@ -654,12 +634,12 @@ ULONG run_mflops_benchmark(void)
     for (multiplier = 1; multiplier <= MAX_MULTIPLY && elapsed < MIN_FLOP_MEASURE; multiplier++)
     {
         iterations = FLOPS_BASE_LOOPS * multiplier;  
+        StartStopWatch();
         Forbid();
-        E_Freq = MyReadClock(&start);
         DoFlops(iterations, fpu);      
-        E_Freq = MyReadClock(&end);
         Permit();
-        elapsed = EClock_Diff_in_ms(&start,&end,E_Freq);
+        EndStopWatch();
+        elapsed = Clock_Diff_in_ms();
     }
     debug("  bench: flops elapsed: %lu, loops %lu\n",(ULONG)elapsed, iterations);
 
@@ -688,13 +668,11 @@ ULONG run_mflops_benchmark(void)
 ULONG measure_loop_overhead(ULONG count)
 {
 
-    if (!TimerBase || count == 0)
+    if (!timer_open || count == 0)
         return 0;
-    ULONG E_Freq, oldCount;
-    struct EClockVal start, end;
 
+    StartStopWatch();
     Forbid();
-    E_Freq = MyReadClock(&start);
     __asm__ volatile(
         "1: subq.l #1,%0\n\t"
         "bne.s 1b"
@@ -702,10 +680,9 @@ ULONG measure_loop_overhead(ULONG count)
         :
         : "cc");
 
-    E_Freq = MyReadClock(&end);
     Permit();
-    count = oldCount;
-    return EClock_Diff_in_ms(&start,&end,E_Freq);
+    EndStopWatch();
+    return Clock_Diff_in_ms();
 }
 
 /*
@@ -714,8 +691,6 @@ ULONG measure_loop_overhead(ULONG count)
  */
 ULONG measure_mem_read_speed(volatile ULONG *src, ULONG buffer_size, ULONG iterations)
 {
-    ULONG E_Freq;
-    struct EClockVal start, end;
     uint64_t elapsed;
     ULONG overhead;
     ULONG total_read = 0, total_loops = 0;
@@ -725,7 +700,7 @@ ULONG measure_mem_read_speed(volatile ULONG *src, ULONG buffer_size, ULONG itera
     volatile ULONG *aligned_src;
 
     /* Ensure buffer is large enough for our unrolled loop */
-    if (!TimerBase) return 0;
+    if (!timer_open) return 0;
 
     /* Align source pointer to 16 bytes for optimal burst mode */
     aligned_src = (volatile ULONG *)(((ULONG)src + 15) & ~15);
@@ -742,9 +717,8 @@ ULONG measure_mem_read_speed(volatile ULONG *src, ULONG buffer_size, ULONG itera
 
     if (loop_count == 0) return 0;
 
+    StartStopWatch();
     Forbid();
-    E_Freq = MyReadClock(&start);
-
     for (i = 0; i < iterations; i++) {
         volatile ULONG *p = aligned_src;
         ULONG count = loop_count;
@@ -767,9 +741,9 @@ ULONG measure_mem_read_speed(volatile ULONG *src, ULONG buffer_size, ULONG itera
         total_read += buffer_size;
         total_loops += loop_count;
     }
-    E_Freq = MyReadClock(&end);
     Permit();
-    elapsed = EClock_Diff_in_ms(&start,&end,E_Freq);
+    EndStopWatch();
+    elapsed = Clock_Diff_in_ms();
 
 
     /* Compensate for loop overhead */
@@ -935,30 +909,42 @@ void generate_comment(void)
     strncpy(hw_info.comment, comment, sizeof(hw_info.comment) - 1);
 }
 
-ULONG EClock_Diff_in_ms(struct EClockVal *start, struct EClockVal *end, ULONG EFreq){
-    uint64_t elapsed;
-    if(hw_info.kickstart_patch_version>=36 && EFreq > 0){
-        elapsed = (((((uint64_t)end->ev_hi<<32)+(uint64_t)end->ev_lo) - (((uint64_t)start->ev_hi<<32)+(uint64_t)start->ev_lo))) * (uint64_t)1000000;
+ULONG Clock_Diff_in_ms(){
+    uint64_t elapsed =0;    
+    if(etimer_open && EFreq > 0){
+        elapsed = (((((uint64_t)endE->ev_hi<<32)+(uint64_t)endE->ev_lo) - (((uint64_t)startE->ev_hi<<32)+(uint64_t)startE->ev_lo))) * (uint64_t)1000000ULL;
         elapsed /= EFreq; //this should put the value in range of ULONG again
+        debug("   Bench: Clock_Diff_in_ms (EClock) end Hival : %ld LoVal : %lu start: Hival : %lu LoVal : %lu\n",endE->ev_hi, endE->ev_lo,startE->ev_hi, startE->ev_lo);
     }
-    else{
-        SubTime( (struct timeval *)end, (struct timeval *)start); //fortunately timeval and EClockVal are the same structure!
-        elapsed = (uint64_t)end->ev_hi;
-        elapsed *= (uint64_t)1000000;
-        elapsed += (uint64_t) end->ev_lo;
+    else{        
+        debug("   Bench: Clock_Diff_in_ms (Micros) end Hival : %lu LoVal : %lu start: Hival : %lu LoVal : %lu\n",endT->tv_secs , endT->tv_micro ,startT->tv_secs , startT->tv_micro );
+        SubTime(endT, startT);
+        elapsed = ((uint64_t)endT->tv_secs*1000000ULL)+(uint64_t)endT->tv_micro;
     }
-    if(elapsed > 0)
-        return (ULONG)elapsed;
-    else 
-        return 1;
+    debug("   Bench: Clock_Diff_in_ms elapsed : %ld \n",(ULONG)elapsed);
+    return (ULONG)elapsed;
+
 }
 
-ULONG MyReadClock(struct EClockVal *val){
-    if(hw_info.kickstart_patch_version>=36){
-        return ReadEClock(val); 
+void StartStopWatch(){
+    if(etimer_open){
+        EFreq = ReadEClock(startE); 
     }
     else{
-        GetSysTime((struct timeval *)val); //fortunately timeval and EClockVal are the same structure!
-        return 0;
+        timer_req->tr_node.io_Command = TR_GETSYSTIME;
+        DoIO((struct IORequest *) timer_req );
+        startT->tv_secs = timer_req->tr_time.tv_secs;
+        startT->tv_micro = timer_req->tr_time.tv_micro;
+    }
+}
+void EndStopWatch(){
+    if(etimer_open){
+        EFreq = ReadEClock(endE); 
+    }
+    else{
+        timer_req->tr_node.io_Command = TR_GETSYSTIME;
+        DoIO((struct IORequest *) timer_req );
+        endT->tv_secs = timer_req->tr_time.tv_secs;
+        endT->tv_micro = timer_req->tr_time.tv_micro;
     }
 }

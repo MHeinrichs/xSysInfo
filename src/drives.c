@@ -37,7 +37,7 @@ DriveList drive_list;
 extern AppContext *app;
 extern Button buttons[];
 extern int num_buttons;
-extern struct Device *ETimerBase;
+extern BOOL timer_open;
 extern struct DosLibrary *DOSBase;
 
 /* DOS type identifiers */
@@ -581,8 +581,6 @@ ULONG measure_drive_speed(ULONG index)
     ULONG buffer_size = 0;
     ULONG block_size;
     ULONG total_read = 0;
-    ULONG E_Freq;
-    struct EClockVal start, end;
     uint64_t  elapsed;
     ULONG bytes_per_sec = 0;
     ULONG num_reads;
@@ -592,7 +590,7 @@ ULONG measure_drive_speed(ULONG index)
     BYTE error;
     BOOL is_floppy;
 
-    if (!ETimerBase) return 0;
+    if (!timer_open) return 0;
 
     if (index >= (ULONG)drive_list.count) {
         debug("  drives: Invalid drive index %lu (count=%lu)\n",
@@ -704,8 +702,8 @@ ULONG measure_drive_speed(ULONG index)
     }
 
     /* Get start time */
+    StartStopWatch();
     Forbid();
-    E_Freq =MyReadClock(&start);
 
     /* Perform reads */
     for (i = 0; i < num_reads; i++) {
@@ -723,10 +721,10 @@ ULONG measure_drive_speed(ULONG index)
     }
 
     /* Get end time */
-    E_Freq =MyReadClock(&end);
     Permit();
+    EndStopWatch();
     /* Calculate speed */
-    elapsed = EClock_Diff_in_ms(&start,&end,E_Freq);
+    elapsed = Clock_Diff_in_ms();
 
     if (elapsed > 0 && total_read > 0) {
         /* Timer ticks are in microseconds */

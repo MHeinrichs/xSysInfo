@@ -54,6 +54,8 @@ typedef struct {
     BOOL benchmarks_valid;  /* TRUE if benchmarks have been run */
 } BenchmarkResults;
 
+extern BOOL timer_open;
+
 /* Global benchmark results */
 extern BenchmarkResults bench_results;
 
@@ -88,6 +90,7 @@ void get_timer(struct timeval *tv);    /* Returns result in provided timeval-str
 void wait_ticks(ULONG ticks);
 ULONG measure_loop_overhead(ULONG count);
 void generate_comment(void);
-ULONG EClock_Diff_in_ms(struct EClockVal *start, struct EClockVal *end, ULONG EFreq);
-ULONG MyReadClock(struct EClockVal *val);
+ULONG Clock_Diff_in_ms(void);
+void StartStopWatch(void);
+void EndStopWatch(void);
 #endif /* BENCHMARK_H */
