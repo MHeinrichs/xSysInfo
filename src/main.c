@@ -48,12 +48,15 @@ struct GfxBase *GfxBase = NULL;
 struct Library *IdentifyBase = NULL;
 struct Library *IconBase = NULL;
 extern struct DosLibrary *DOSBase;
+extern BenchmarkResults bench_results;
+extern HardwareInfo hw_info;
 
 /* Workbench startup message (if started from WB) */
 static struct WBStartup *wb_startup = NULL;
 
 /* Global debug flag */
 BOOL g_debug_enabled = FALSE;
+BOOL g_text_mode = FALSE;
 
 /* Global application context */
 AppContext app_context;
@@ -66,7 +69,7 @@ struct TextAttr Topaz8Font = {
 AppContext *app = &app_context;
 
 /* Command line argument template */
-#define TEMPLATE "DEBUG/S"
+#define TEMPLATE "DEBUG/S TEXT/s"
 
 /* Argument array indices */
 enum {
@@ -134,8 +137,11 @@ static BOOL parse_args(int argc, char **argv)
                 if (my_stricmp(argv[i], "debug")==0)
                 {
                     g_debug_enabled = TRUE;
-                    break;
                 }
+                if (my_stricmp(argv[i], "text")==0)
+                {
+                    g_text_mode = TRUE;
+                }                
             }
         }
     /*}*/
@@ -179,6 +185,11 @@ static void parse_tooltypes(void)
         /* Check for DEBUG tooltype */
         if (FindToolType((CONST_STRPTR *)tooltypes, (CONST_STRPTR)"DEBUG")) {
             g_debug_enabled = TRUE;
+        }
+
+        /* Check for TEXT tooltype */
+        if (FindToolType((CONST_STRPTR *)tooltypes, (CONST_STRPTR)"TEXT")) {
+            g_text_mode = TRUE;
         }
 
         FreeDiskObject(dobj);
@@ -285,18 +296,6 @@ int main(int argc, char **argv)
     /* Enumerate drives */
     enumerate_drives();
 
-    debug(XSYSINFO_NAME ": Opening display...\n");
-    /* Open display (screen or window) */
-    if (!open_display()) {
-        Printf((CONST_STRPTR)"%s\n", get_string(MSG_ERR_NO_WINDOW));
-        ret = RETURN_FAIL;
-        goto cleanup;
-    }
-
-    debug(XSYSINFO_NAME ": Init buttons...\n");
-    /* Initialize GUI buttons */
-    init_buttons();
-
     debug(XSYSINFO_NAME ": Init timer...\n");
     /* Initialize benchmark timer */
     if (!init_timer()) {
@@ -305,13 +304,106 @@ int main(int argc, char **argv)
         goto cleanup;
     }
 
-    debug(XSYSINFO_NAME ": Draw screen...\n");
-    /* Draw initial view */
-    redraw_current_view();
+    if(!g_text_mode){
+        debug(XSYSINFO_NAME ": Opening display...\n");
+        /* Open display (screen or window) */
+        if (!open_display()) {
+            Printf((CONST_STRPTR)"%s\n", get_string(MSG_ERR_NO_WINDOW));
+            ret = RETURN_FAIL;
+            goto cleanup;
+        }
 
-    debug(XSYSINFO_NAME ": Start main loop...\n");
-    /* Main event loop */
-    main_loop();
+        debug(XSYSINFO_NAME ": Init buttons...\n");
+        /* Initialize GUI buttons */
+        init_buttons();
+
+        debug(XSYSINFO_NAME ": Draw screen...\n");
+        /* Draw initial view */
+        redraw_current_view();
+
+        debug(XSYSINFO_NAME ": Start main loop...\n");
+        /* Main event loop */
+        main_loop();
+    }
+    else{
+        char buffer[16];
+        run_benchmarks();
+
+        printf("CPU: %s MHz:",hw_info.cpu_string);
+        if (hw_info.cpu_mhz >0) {            
+            format_scaled(buffer, sizeof(buffer), hw_info.cpu_mhz, TRUE);
+            printf("%s\n", buffer);
+        } else {
+            printf("%s\n", get_string(MSG_NA));
+        }
+
+        printf("MMU: %s enabled: %s\n",hw_info.mmu_string, hw_info.mmu_enabled?get_string(MSG_YES):get_string(MSG_NO));
+
+        printf("FPU: %s MHz:",hw_info.fpu_string);
+        if (hw_info.fpu_mhz >0) {
+            format_scaled(buffer, sizeof(buffer), hw_info.fpu_mhz, TRUE);
+            printf("%s\n", buffer);
+        } else {
+            printf("%s\n", get_string(MSG_NA));
+        }
+
+        printf("Dhrystones: ");
+        if (bench_results.benchmarks_valid) {
+            printf("%lu\n", (unsigned long)bench_results.dhrystones);
+        } else {
+            printf("%s\n",get_string(MSG_NA));
+        }
+        printf("MIPS: ");
+        if (bench_results.benchmarks_valid) {
+            format_scaled(buffer, sizeof(buffer), bench_results.mips, TRUE);
+            printf("%s\n", buffer);
+        } else {
+            printf("%s\n",get_string(MSG_NA));
+        }
+
+        printf("MFLOPS: ");
+        if (hw_info.fpu_type != FPU_NONE && bench_results.benchmarks_valid && hw_info.fpu_enabled) {
+            format_scaled(buffer, sizeof(buffer), bench_results.mflops, TRUE);
+            printf("%s\n", buffer);
+        } else {
+            printf("%s\n", get_string(MSG_NA));
+        }
+
+
+        /* Format CHIP speed in MB/s */
+        if (bench_results.benchmarks_valid && bench_results.chip_speed > 0)
+        {
+            format_scaled(buffer, sizeof(buffer), bench_results.chip_speed / 10000, TRUE);
+        }
+        else
+        {
+            snprintf(buffer, sizeof(buffer), "%s", get_string(MSG_NA));
+        }
+        printf("Chipram speed: %s\n",buffer);
+
+
+        /* Format FAST speed in MB/s or N/A */
+        if (bench_results.benchmarks_valid && bench_results.fast_speed > 0)
+        {
+            format_scaled(buffer, sizeof(buffer), bench_results.fast_speed / 10000, TRUE);
+        }
+        else
+        {
+            snprintf(buffer, sizeof(buffer), "%s", get_string(MSG_NA));
+        }
+        printf("Fastram speed: %s\n",buffer);
+
+        /* Format ROM speed in MB/s */
+        if (bench_results.benchmarks_valid && bench_results.rom_speed > 0)
+        {
+            format_scaled(buffer, sizeof(buffer), bench_results.rom_speed / 10000, TRUE);
+        }
+        else
+        {
+            snprintf(buffer, sizeof(buffer), "%s", get_string(MSG_NA));
+        }
+        printf("ROM speed: %s\n",buffer);
+    }
 
 cleanup:
     cleanup_timer();
