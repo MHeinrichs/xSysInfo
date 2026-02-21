@@ -647,6 +647,63 @@ static BOOL open_display(void)
 }
 
 /*
+Helper from amiga developpement kit
+*/
+
+void CloseWindowSafely(struct Window *win)
+{
+    /* we forbid here to keep out of race conditions with Intuition */
+    Forbid();
+
+    /* send back any messages for this window
+     * that have not yet been processed
+     */
+    StripIntuiMessages(win->UserPort, win);
+
+    /* clear UserPort so Intuition will not free it */
+    win->UserPort = NULL;
+
+    /* tell Intuition to stop sending more messages */
+    ModifyIDCMP(win, 0L);
+
+    /* turn multitasking back on */
+    Permit();
+
+    /* and really close the window */
+    CloseWindow(win);
+}
+
+/* remove and reply all IntuiMessages on a port that
+ * have been sent to a particular window
+ * (note that we don't rely on the ln_Succ pointer
+ *  of a message after we have replied it)
+ */
+void StripIntuiMessages(struct MsgPort *mp, struct Window *win)
+{
+    struct IntuiMessage *msg;
+    struct Node *succ;
+
+    msg = (struct IntuiMessage *)mp->mp_MsgList.lh_Head;
+
+    while (succ = msg->ExecMessage.mn_Node.ln_Succ)
+    {
+
+        if (msg->IDCMPWindow == win)
+        {
+
+            /* Intuition is about to free this message.
+             * Make sure that we have politely sent it back.
+             */
+            Remove(msg);
+
+            ReplyMsg(msg);
+        }
+
+        msg = (struct IntuiMessage *)succ;
+    }
+}
+
+/*
  * Close display
  */
 static void close_display(void)
@@ -654,14 +711,14 @@ static void close_display(void)
     /* Release any allocated pens before closing */
     release_pens();
 
-    if (app->window) {
-        CloseWindow(app->window);
-        app->window = NULL;
-    }
-
     if (app->tf) {
         CloseFont(app->tf);
         app->tf = NULL;
+    }
+
+    if (app->window) {
+        CloseWindowSafely(app->window);
+        app->window = NULL;
     }
 
     if (app->use_custom_screen && app->screen) {
@@ -749,7 +806,7 @@ static void release_pens(void)
     UWORD i;
     struct ColorMap *cm;
 
-    if (!app->pens_allocated || !app->screen || SysBase->LibNode.lib_Version<=34) {
+    if (!app->pens_allocated || !app->screen || SysBase->LibNode.lib_Version<36) {
         return;
     }
 
