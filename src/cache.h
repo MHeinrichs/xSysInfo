@@ -12,6 +12,9 @@
 
 /* Function prototypes */
 
+ULONG convert68030to68040(ULONG input);
+ULONG convert68040to68030(ULONG input);
+
 /* Toggle cache settings */
 void toggle_icache(void);
 void toggle_dcache(void);

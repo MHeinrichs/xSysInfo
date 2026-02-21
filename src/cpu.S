@@ -69,6 +69,7 @@ RAMSEY_CTRL EQU $DE0003
 	XDEF	_GetMMU
 	XDEF	_GetCacheBits
 	XDEF	_SetCacheBits
+	XDEF	_SetCacheBitsMasked
 	XDEF	_GetRamseyRev
 	XDEF	_GetRamseyCtrl
 
@@ -251,19 +252,25 @@ _readvbr:
 
 
 _GetCacheBits:	
-	movem.l	a5/a6,-(sp)
+	movem.l	d4/a5/a6,-(sp)
+	move.l	$4.w,a6
+        move.w	AttnFlags(a6),d4 ;test for 68020-cpu
+	btst	#AFB_68020,d4
+        beq.s	gcb_exit
 	lea.l	_readCacheBits,a5
 	move.l	$4.w,a6
 	jsr	_LVOSupervisor(a6)
-	movem.l	(sp)+,a5/a6
+gcb_exit:
+	movem.l	(sp)+,d4/a5/a6
 	rts
 
 _readCacheBits
-	movec	CACR,d0					; this will crash on 68000/010
+	movec	CACR,d0					
         rte
 
-_SetCacheBits:	;d1: flags d2: mask
-	movem.l	d1-d4/a5/a6,-(sp)
+
+_SetCacheBits:	
+	movem.l	d4/a5/a6,-(sp)
 	move.l	$4.w,a6
         move.w	AttnFlags(a6),d4 ;test for 68020-cpu
 	btst	#AFB_68020,d4
@@ -271,13 +278,30 @@ _SetCacheBits:	;d1: flags d2: mask
 	lea.l	_writeCacheBits,a5
 	jsr	_LVOSupervisor(a6)
 scb_exit:
+	movem.l	(sp)+,d4/a5/a6
+	rts
+
+_writeCacheBits
+	movec	d0,CACR
+        rte
+
+
+_SetCacheBitsMasked:	;d1: flags d2: mask
+	movem.l	d1-d4/a5/a6,-(sp)
+	move.l	$4.w,a6
+        move.w	AttnFlags(a6),d4 ;test for 68020-cpu
+	btst	#AFB_68020,d4
+        beq.s	scbm_exit
+	lea.l	_writeCacheBitsMasked,a5
+	jsr	_LVOSupervisor(a6)
+scbm_exit:
 	movem.l	(sp)+,d1-d4/a5/a6
 	rts
 
 ;d0 = result, d1 = flags, d2 = mask, D4= AttnFlags
-_writeCacheBits
+_writeCacheBitsMasked
         or.w	#$0700,SR	;disable interrupts (rte enables)
-        and.l   d2,d1   ;delete bite, which to not matter
+        and.l   d2,d1   ;delete bits, which to not matter
         or.w	#CACRF_ClearD!CACRF_ClearI,d1 ; Clear data cache & clear instruction cache
         not.l   d2      ;invert mask
         movec	CACR,d0 				; save old value
@@ -288,18 +312,16 @@ _writeCacheBits
         btst.l  #31,d0
         beq.s   no_DC_040
         and.l   #$7FFFFFFF,d0
-        or.l    #CACRF_EnableD,d0
-        or.l    #CACRF_DBE,d0   ;enable databurst aswell!!
+        or.l    #CACRF_EnableD!CACRF_DBE,d0 ;enable databurst aswell!!       
 no_DC_040        
         ;68040: instructioncache is bit 15
         btst.l  #15,d0
         beq.s   scb_020
         and.l   #$FFFF7FFF,d0
-        or.l    #CACRF_EnableI,d0
-        or.l    #CACRF_IBE,d0 ;enable instructionburst aswell!!
+        or.l    #CACRF_EnableI!CACRF_IBE,d0 ;enable instructionburst aswell!!
 scb_020: 
         and.l   d0,d2   ;keep unaffected values
-        or.l    d2,d1   ; now d1 holds the desired value in 680340-style , but... hey if we have a 68040 we have to transform it back!
+        or.l    d2,d1   ; now d1 holds the desired value in 68030-style , but... hey if we have a 68040 we have to transform it back!
         btst	#AFB_68040,d4
 	beq.s	scb_020_2 ;nope: just go on!
         ;the 68040 has exactly two cache-bits : Data cache and Instruction cache, so test them and set them

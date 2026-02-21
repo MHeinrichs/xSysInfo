@@ -11,24 +11,90 @@
 #include "cache.h"
 #include "hardware.h"
 #include "cpu.h"
+#include "debug.h"
 
 /* External references */
 extern HardwareInfo hw_info;
+
+/*
+    helper to convert 68030-style cachebits to 68040-style cachebits
+*/
+
+ULONG convert68030to68040(ULONG input){
+    ULONG output = 0;
+    if(hw_info.cpu_type >= CPU_68040 && hw_info.cpu_type <= CPU_68080){
+        if(input & (CACRF_CopyBack|CACRF_EnableD|CACRF_DBE)){//datacache enable
+            output |= CACRF_CopyBack;
+        }
+        if(input & (CACRF_EnableI|CACRF_IBE)){//instructioncache enable
+            output |= 0x8000;
+        }
+        //debug("  cache: convert68030to68040 in %X out %X\n", input, output);
+    }
+    else{
+        output = input;
+    }
+    return output;
+}
+
+ULONG convert68040to68030(ULONG input){
+    ULONG output = 0;
+    if(hw_info.cpu_type >= CPU_68040 && hw_info.cpu_type <= CPU_68080){
+        if(input & CACRF_CopyBack){//datacache enable
+            output |= CACRF_CopyBack|CACRF_EnableD|CACRF_DBE;
+        }
+        if(input & 0x8000){//instructioncache enable
+            output |= CACRF_EnableI|CACRF_IBE;
+        }
+        //debug("  cache: convert68040to68030 in %X out %X\n", input, output);
+    }
+    else{
+        output = input;
+    }
+    return output;
+}
+
+/*
+The 68040 has no burst mode just a general instruction cache and datacache.
+So any change in IBE DBE causes all data-cache or instructioncache acces to be accesed
+*/
+ULONG convertFlagsFor68040(ULONG input){
+    ULONG output = 0;
+    if(hw_info.cpu_type >= CPU_68040 && hw_info.cpu_type <= CPU_68080){
+        if(input & (CACRF_CopyBack|CACRF_EnableD|CACRF_DBE)){//datacache enable
+            output |= CACRF_CopyBack|CACRF_EnableD|CACRF_DBE;
+        }
+        if(input & (CACRF_EnableI|CACRF_IBE)){//instructioncache enable
+            output |= CACRF_EnableI|CACRF_IBE;
+        }
+        //debug("  cache: convertFlagsFor68040 in %X out %X\n", input, output);
+    }
+    else{
+        output = input;
+    }
+    return output;
+
+}
+
 
 /*
  * Helper to toggle a cache flag
  */
 static void toggle_cache_flag(ULONG flag)
 {
-    ULONG current = GetCacheBits();
-
-    if (current & flag) {
+    ULONG current = convert68040to68030(GetCacheBits());
+    flag = convertFlagsFor68040(flag);
+    if ((current & flag)>0) {
         /* Disable */
-        SetCacheBits(0, flag);
+        current &= ~(flag);
+        debug("  cache: toggle_cache_flag disabling %X result: %X\n", flag,current);
     } else {
         /* Enable */
-        SetCacheBits(flag, flag);
+        current |= flag;
+        debug("  cache: toggle_cache_flag enabling %X result: %X\n", flag,current);
     }
+
+    SetCacheBits(convert68030to68040(current));
 }
 
 /*

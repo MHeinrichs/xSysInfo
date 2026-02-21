@@ -28,6 +28,7 @@
 #include "hardware.h"
 #include "locale_str.h"
 #include "debug.h"
+#include "cache.h"
 #include "cpu.h" //for cpu-type/rev
 #include "benchmark.h" //for frequencies
 
@@ -164,14 +165,14 @@ void detect_cpu(void)
 
         // now we have at least a 68020/030
         // the CACRF_FreezeI is a 68020/030-only flag!
-        oldBits = SetCacheBits(CACRF_FreezeI, CACRF_FreezeI); // can instruction cache be frezed?
+        oldBits = SetCacheBitsMasked(CACRF_FreezeI, CACRF_FreezeI); // can instruction cache be frezed?
         newBits = GetCacheBits();
-        SetCacheBits(oldBits & CACRF_FreezeI, CACRF_FreezeI); // reset to old state
+        SetCacheBitsMasked(oldBits & CACRF_FreezeI, CACRF_FreezeI); // reset to old state
         if ((newBits & CACRF_FreezeI) == CACRF_FreezeI)
         {
-            oldBits = SetCacheBits(CACRF_IBE, CACRF_IBE); // can instruction burst be enabled?
+            oldBits = SetCacheBitsMasked(CACRF_IBE, CACRF_IBE); // can instruction burst be enabled?
             newBits = GetCacheBits();
-            SetCacheBits(oldBits & CACRF_IBE, CACRF_IBE); // reset to old state
+            SetCacheBitsMasked(oldBits & CACRF_IBE, CACRF_IBE); // reset to old state
             if ((newBits & CACRF_IBE) == 0)
             {
                 // no 68030
@@ -1073,7 +1074,7 @@ void refresh_cache_status(void)
 
     /* Get current cache state */
     if(hw_info.cpu_type >= CPU_68020){
-        cacr_bits = GetCacheBits();
+        cacr_bits = convert68040to68030(GetCacheBits());
     }
 
     hw_info.icache_enabled = (cacr_bits & CACRF_EnableI) ? TRUE : FALSE;

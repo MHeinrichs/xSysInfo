@@ -37,7 +37,8 @@
 ULONG GetCPUReg(void);
 ULONG SetCPUReg( ULONG value __asm("d0"));
 ULONG GetCacheBits(void);
-ULONG SetCacheBits( ULONG value __asm("d1"),ULONG mask __asm("d2")) ;
+ULONG SetCacheBitsMasked( ULONG value __asm("d1"),ULONG mask __asm("d2")) ;
+ULONG SetCacheBits( ULONG value __asm("d0")) ;
 ULONG GetCPU060(void);
 ULONG GetVBR(void);
 ULONG GetMMU( ULONG cpuType __asm("d0"));
