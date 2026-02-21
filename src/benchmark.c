@@ -474,7 +474,14 @@ uint64_t get_timer_ticks(void)
 
     if (!timer_open) return 0;
 
-    GetSysTime(&tv);
+    if(etimer_open) //kick 2.0 mode
+        GetSysTime(&tv);
+    else{ //do expensive IO
+        timer_req->tr_node.io_Command = TR_GETSYSTIME;
+        DoIO((struct IORequest *) timer_req );
+        tv.tv_secs = timer_req->tr_time.tv_secs;
+        tv.tv_micro = timer_req->tr_time.tv_micro;
+    }
 
     /* Return microseconds (may wrap around, but OK for short measurements) */
     return (uint64_t)tv.tv_secs * 1000000ULL + tv.tv_micro;
@@ -488,7 +495,14 @@ void get_timer(struct timeval *tv)
 
     if (!timer_open) return;
 
-    GetSysTime(tv);
+    if(etimer_open) //kick 2.0 mode
+        GetSysTime(&tv);
+    else{ //do expensive IO
+        timer_req->tr_node.io_Command = TR_GETSYSTIME;
+        DoIO((struct IORequest *) timer_req );
+        tv->tv_secs = timer_req->tr_time.tv_secs;
+        tv->tv_micro = timer_req->tr_time.tv_micro;
+    }
 
 }
 
