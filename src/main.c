@@ -759,13 +759,24 @@ static void allocate_pens(void)
 
     app->pens_allocated = FALSE;
 
-    if (app->use_custom_screen || hw_info.kickstart_patch_version<36) {
+    if (app->use_custom_screen) {
         /* Custom screen: we control the palette, use direct indices */
         for (i = 0; i < NUM_COLORS; i++) {
             app->pens[i] = i;
         }
         return;
     }
+
+    if (hw_info.kickstart_patch_version<36) {
+        /* Kick1.3: manual mapping */
+        app->pens[0] = 0;
+        app->pens[1] = 1;
+        for (i = 2; i < NUM_COLORS; i++) {
+            app->pens[i] = i;
+        }
+        return;
+    }
+
 
     /* Workbench window mode: need to obtain matching pens */
     cm = app->screen->ViewPort.ColorMap;

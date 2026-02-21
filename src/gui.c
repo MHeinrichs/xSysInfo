@@ -326,7 +326,7 @@ void main_view_handle_button(ButtonID id)
             switch_to_view(VIEW_BOARDS);
             break;
 
-        case BTN_SPEED:
+        case BTN_SPEED:        
             show_status_overlay(get_string(MSG_MEASURING_SPEED));
             run_benchmarks();
             update_hardware_text();
