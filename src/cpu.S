@@ -10,11 +10,27 @@ AttnFlags		EQU   296
 
 _LVOSuperVisor		EQU   -30
 
+;definitions from exec_base
+CACRF_EnableI 			EQU $1		;Enable instruction cache bit
+CACRF_FreezeI			EQU $2          ;Freeze ICache 
+CACRF_ClearI	                EQU $8          ;Clear instruction cache
+CACRF_IBE	                EQU $16         ;Instruction burst enable
+CACRF_EnableD	                EQU $256        ;68030 Enable data cache
+CACRF_FreezeD	                EQU $512        ;68030 Freeze data cache
+CACRF_ClearD	                EQU $2048       ;68030 Clear data cache
+CACRF_DBE	                EQU $4096       ;68030 Data burst enable
+CACRF_WriteAllocate             EQU $8192       ;68030 Write-Allocate mode (must always be set!)
+CACRF_EnableE                   EQU $1073741824 ;Master enable for external caches
+CACRF_CopyBack                  EQU $2147483648 ;Master enable for copyback caches
+AFB_68010	EQU $0	
+AFB_68020	EQU $1	
+AFB_68030	EQU $2	
+AFB_68040	EQU $3
+AFB_68881	EQU $4	
+AFB_68882	EQU $5
+AFB_FPU40	EQU $6	
 
-CACRB_EnableI 			EQU $1		;Enable instruction cache bit 020/30
-CACRF_EnableI			EQU $2
-
-
+;definitions from cpu.h
 ASM_CPU_68000 EQU 1
 ASM_CPU_68010 EQU 2
 ASM_CPU_68020 EQU 3
@@ -185,11 +201,11 @@ _read060fpu
 	;test for 040/60
 	movec	CACR,d1					; this will crash on 68000/010 -> crashvector
 	move.l	d1,d2					; copy
-	or.l	#CACRF_EnableI,d2		; 020/30 only flag
+	or.l	#CACRF_FreezeI,d2		; 020/30 only flag
 	movec	d2,CACR					; this will crash on 68000/010 -> crashvector
 	movec	CACR,d2
 	movec	d1,CACR					; restore old cache state
-	btst	#CACRB_EnableI,d2		; this flag is ignored on 68040/60
+	btst	#CACRF_EnableI,d2		; this flag is ignored on 68040/60
 	bne.s	no_040_60
 
 	
@@ -247,21 +263,64 @@ _readCacheBits
         rte
 
 _SetCacheBits:	;d1: flags d2: mask
-	movem.l	d1/d2/a5/a6,-(sp)
-	lea.l	_writeCacheBits,a5
+	movem.l	d1-d4/a5/a6,-(sp)
 	move.l	$4.w,a6
+        move.w	AttnFlags(a6),d4 ;test for 68020-cpu
+	btst	#AFB_68020,d4
+        beq.s	scb_exit
+	lea.l	_writeCacheBits,a5
 	jsr	_LVOSupervisor(a6)
-	movem.l	(sp)+,d1/d2/a5/a6
+scb_exit:
+	movem.l	(sp)+,d1-d4/a5/a6
 	rts
 
+;d0 = result, d1 = flags, d2 = mask, D4= AttnFlags
 _writeCacheBits
-        movec	CACR,d0 				; save old value
+        or.w	#$0700,SR	;disable interrupts (rte enables)
+        and.l   d2,d1   ;delete bite, which to not matter
+        or.w	#CACRF_ClearD!CACRF_ClearI,d1 ; Clear data cache & clear instruction cache
         not.l   d2      ;invert mask
+        movec	CACR,d0 				; save old value
+        btst	#AFB_68040,d4
+	beq.s	scb_020
+        ;now modify the bits from 68040-style to 68030-style
+        ;68040: datacache is bit 31 (CACRF_CopyBack)
+        btst.l  #31,d0
+        beq.s   no_DC_040
+        and.l   #$7FFFFFFF,d0
+        or.l    #CACRF_EnableD,d0
+        or.l    #CACRF_DBE,d0   ;enable databurst aswell!!
+no_DC_040        
+        ;68040: instructioncache is bit 15
+        btst.l  #15,d0
+        beq.s   scb_020
+        and.l   #$FFFF7FFF,d0
+        or.l    #CACRF_EnableI,d0
+        or.l    #CACRF_IBE,d0 ;enable instructionburst aswell!!
+scb_020: 
         and.l   d0,d2   ;keep unaffected values
-        or.l    d2,d1
-	movec	d1,CACR					; this will crash on 68000/010
-	
-        rte
+        or.l    d2,d1   ; now d1 holds the desired value in 680340-style , but... hey if we have a 68040 we have to transform it back!
+        btst	#AFB_68040,d4
+	beq.s	scb_020_2 ;nope: just go on!
+        ;the 68040 has exactly two cache-bits : Data cache and Instruction cache, so test them and set them
+        btst.l  #8,d1 ;bit 8 = datacache
+        beq.s   no_DCSET_040
+        or.l    #$80000000,d1 ;set datacache        
+no_DCSET_040:
+        btst.l  #0,d1 ; bit 0 = instruction cahce
+        beq.s   no_ICSET_040
+        or.l    #$8000,d1 ;set datacache        
+no_ICSET_040:
+        and.l   #$80008000,d1 ; mask all other bits
+        CPUSHA  IC/DC ;invalidate all caches
+        nop     ;some 68040 need some nops here
+scb_020_2:
+	movec	d1,CACR					
+        nop     ;some 68040 need some nops here	
+        rte     ;rte enables interrupts
+
+
+
 
 _GetMMU:	;d0 holds the cpu type: either ASM_CPU_68020, ASM_CPU_68030 or ASM_CPU_68040
 	movem.l	a5/a6,-(sp)
