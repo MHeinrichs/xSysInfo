@@ -10,3 +10,9 @@ TinySetPatch
 
 /src/*.hunk
 /extern/
+/3rdparty/mmu/reference/clib/*
+/3rdparty/mmu/reference/fd/*
+/3rdparty/mmu/reference/inline/*
+/3rdparty/mmu/reference/mmu/*
+/3rdparty/mmu/reference/pragmas/*
+/3rdparty/mmu/reference/proto/*
