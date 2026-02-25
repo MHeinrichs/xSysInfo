@@ -527,6 +527,7 @@ static BOOL open_display(void)
                         wb_screen->Height > RTG_HEIGHT_THRESHOLD)
                     {
                         use_window = TRUE;
+                        app->display_mode = DISPLAY_WINDOW;
                     }
                 }
                 FreeMem(wb_screen, sizeof(struct Screen));
@@ -552,13 +553,17 @@ static BOOL open_display(void)
                 newWindow->Type = WBENCHSCREEN;
                 newWindow->Width = SCREEN_WIDTH;
                 newWindow->Height = SCREEN_HEIGHT_NTSC + 16,
+                newWindow->LeftEdge = 0;
+                newWindow->TopEdge = 0;
                 newWindow->IDCMPFlags = IDCMP_CLOSEWINDOW | IDCMP_MOUSEBUTTONS |
                         IDCMP_REFRESHWINDOW | IDCMP_VANILLAKEY |
                         IDCMP_MOUSEMOVE | IDCMP_RAWKEY;
                 newWindow->Flags = WFLG_CLOSEGADGET | WFLG_DRAGBAR | WFLG_DEPTHGADGET |
                         WFLG_ACTIVATE | WFLG_SMART_REFRESH | WFLG_GIMMEZEROZERO |
                         WFLG_REPORTMOUSE;
-                
+                if (hw_info.kickstart_patch_version<36) {
+                    newWindow->BlockPen = 1;
+                }
                 app->window = OpenWindow(newWindow);
                 FreeMem(newWindow, sizeof(struct NewWindow));
             }
@@ -669,7 +674,7 @@ void CloseWindowSafely(struct Window *win)
     /* turn multitasking back on */
     Permit();
 
-    /* and really close the window */
+    /* and really close the window */   
     CloseWindow(win);
 }
 
@@ -719,6 +724,10 @@ static void close_display(void)
     if (app->window) {
         CloseWindowSafely(app->window);
         app->window = NULL;
+        if (!app->use_custom_screen) {
+            app->screen = NULL;
+            app->screen_height = 0;
+        }
     }
 
     if (app->use_custom_screen && app->screen) {
