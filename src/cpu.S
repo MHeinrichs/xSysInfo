@@ -3,9 +3,23 @@
 	INCDIR  "include:"
 	INCLUDE "lvo/exec_lib.i"
 
-BusErrorVector			EQU $8
+ResetVector			EQU $00
+INITOFFSET			EQU $02  ;Location of JMP instruction
+SysBase 			EQU $04
+BusErrorVector			EQU $08
+AdddressErrorVector		EQU $0C
 IllegalInstructionVector	EQU $10
+ZeroDivideVector		EQU $14
+CHKVector			EQU $18
+TRAPccVector			EQU $1C
+PrivTrapVector			EQU $20
+TraceVector			EQU $24
+Line1010Vector			EQU $28
 Line1111Vector			EQU $2C
+Trap15Vector			EQU $BC  ;Used by Wack
+LastExceptVector		EQU $100 ;Last exception vector
+
+
 AttnFlags		EQU   296
 
 _LVOSuperVisor		EQU   -30
@@ -184,8 +198,16 @@ _read060fpu
 	moveq #ASM_CPU_68020,d0         ;default result is: ASM_CPU_68020
 	movec.l vbr,a0                  ;saveback VBR
 	lea illegal060(pc),a1             ;entry for Illegal/LineF
-	move.l a1,$10(a7)               ;set it
-	move.l a1,$2c(a7)               ;ditto
+	move.l a1,BusErrorVector(a7)           ;set it
+	move.l a1,AdddressErrorVector(a7)      ;ditto
+	move.l a1,IllegalInstructionVector(a7) ;ditto
+	move.l a1,ZeroDivideVector(a7)         ;ditto
+	move.l a1,CHKVector(a7)                ;ditto
+	move.l a1,TRAPccVector(a7)             ;ditto
+	move.l a1,PrivTrapVector(a7)           ;ditto
+	move.l a1,TraceVector(a7)              ;ditto
+	move.l a1,Line1010Vector(a7)           ;ditto
+	move.l a1,Line1111Vector(a7)           ;ditto
 	move.l a1,$34(a7)
 	move.l a1,$e0(a7)
 	move.l a1,$e4(a7)
@@ -266,11 +288,12 @@ gcb_exit:
 
 _readCacheBits
 	movec	CACR,d0					
+        nop
         rte
 
 
 _SetCacheBits:	
-	movem.l	d4/a5/a6,-(sp)
+	movem.l	d3/d4/a5/a6,-(sp)
 	move.l	$4.w,a6
         move.w	AttnFlags(a6),d4 ;test for 68020-cpu
 	btst	#AFB_68020,d4
@@ -278,11 +301,23 @@ _SetCacheBits:
 	lea.l	_writeCacheBits,a5
 	jsr	_LVOSupervisor(a6)
 scb_exit:
-	movem.l	(sp)+,d4/a5/a6
+	movem.l	(sp)+,d3/d4/a5/a6
 	rts
 
 _writeCacheBits
-	movec	d0,CACR
+	ori.w #$0700,sr                 ;disable interrupts
+        move.l  d0,d3
+	movec	CACR,d0					
+        nop
+	btst	#AFB_68040,d4
+        beq.s   noFlush
+        CPUSHA  IC ;invalidate all caches
+        nop     ;some 68040 need some nops here
+        CPUSHA  DC ;invalidate all caches
+        nop     ;some 68040 need some nops here
+noFlush:
+	movec	d3,CACR
+        nop
         rte
 
 
@@ -305,6 +340,7 @@ _writeCacheBitsMasked
         or.w	#CACRF_ClearD!CACRF_ClearI,d1 ; Clear data cache & clear instruction cache
         not.l   d2      ;invert mask
         movec	CACR,d0 				; save old value
+        nop
         btst	#AFB_68040,d4
 	beq.s	scb_020
         ;now modify the bits from 68040-style to 68030-style
@@ -318,7 +354,7 @@ no_DC_040
         btst.l  #15,d0
         beq.s   scb_020
         and.l   #$FFFF7FFF,d0
-        or.l    #CACRF_EnableI!CACRF_IBE,d0 ;enable instructionburst aswell!!
+        or.l    #CACRF_EnableI!CACRF_IBE,d0 ;enable instruction burst aswell!!
 scb_020: 
         and.l   d0,d2   ;keep unaffected values
         or.l    d2,d1   ; now d1 holds the desired value in 68030-style , but... hey if we have a 68040 we have to transform it back!
@@ -327,14 +363,16 @@ scb_020:
         ;the 68040 has exactly two cache-bits : Data cache and Instruction cache, so test them and set them
         btst.l  #8,d1 ;bit 8 = datacache
         beq.s   no_DCSET_040
-        or.l    #$80000000,d1 ;set datacache        
+        or.l    #$80000000,d1 ;set data cache        
 no_DCSET_040:
-        btst.l  #0,d1 ; bit 0 = instruction cahce
+        btst.l  #0,d1 ; bit 0 = instruction cache
         beq.s   no_ICSET_040
-        or.l    #$8000,d1 ;set datacache        
+        or.l    #$8000,d1 ;set instruction cache        
 no_ICSET_040:
         and.l   #$80008000,d1 ; mask all other bits
-        CPUSHA  IC/DC ;invalidate all caches
+        CPUSHA  IC ;invalidate all caches
+        nop     ;some 68040 need some nops here
+        CPUSHA  DC ;invalidate all caches
         nop     ;some 68040 need some nops here
 scb_020_2:
 	movec	d1,CACR					
@@ -392,8 +430,16 @@ m68020_mmu:
         moveq #ASM_MMU,d0               ;default result is: YES
         movec.l vbr,a0                  ;saveback VBR
         lea .illegal(pc),a1             ;entry for Illegal/LineF
-        move.l a1,$10(a7)               ;set it
-        move.l a1,$2c(a7)               ;ditto
+	move.l a1,BusErrorVector(a7)           ;set it
+	move.l a1,AdddressErrorVector(a7)      ;ditto
+	move.l a1,IllegalInstructionVector(a7) ;ditto
+	move.l a1,ZeroDivideVector(a7)         ;ditto
+	move.l a1,CHKVector(a7)                ;ditto
+	move.l a1,TRAPccVector(a7)             ;ditto
+	move.l a1,PrivTrapVector(a7)           ;ditto
+	move.l a1,TraceVector(a7)              ;ditto
+	move.l a1,Line1010Vector(a7)           ;ditto
+	move.l a1,Line1111Vector(a7)           ;ditto
         move.l a1,$34(a7)
         move.l a1,$e0(a7)
         move.l a1,$e4(a7)
@@ -462,8 +508,16 @@ m68030_mmu:
         moveq #ASM_MMU,d0               ;default result is: YES
         movec.l vbr,a0                  ;saveback VBR
         lea .illegal(pc),a1             ;entry for Illegal/LineF
-        move.l a1,$10(a7)               ;set it
-        move.l a1,$2c(a7)               ;ditto
+	move.l a1,BusErrorVector(a7)           ;set it
+	move.l a1,AdddressErrorVector(a7)      ;ditto
+	move.l a1,IllegalInstructionVector(a7) ;ditto
+	move.l a1,ZeroDivideVector(a7)         ;ditto
+	move.l a1,CHKVector(a7)                ;ditto
+	move.l a1,TRAPccVector(a7)             ;ditto
+	move.l a1,PrivTrapVector(a7)           ;ditto
+	move.l a1,TraceVector(a7)              ;ditto
+	move.l a1,Line1010Vector(a7)           ;ditto
+	move.l a1,Line1111Vector(a7)           ;ditto
         move.l a1,$34(a7)
         move.l a1,$e0(a7)
         move.l a1,$e4(a7)
@@ -575,8 +629,16 @@ m68040_mmu:
                                         ;exception vectors
         movec.l vbr,a0                  ;saveback VBR
         lea .illegal(pc),a1             ;entry for Illegal/LineF
-        move.l a1,$10(a7)               ;set it
-        move.l a1,$2c(a7)               ;ditto
+	move.l a1,BusErrorVector(a7)           ;set it
+	move.l a1,AdddressErrorVector(a7)      ;ditto
+	move.l a1,IllegalInstructionVector(a7) ;ditto
+	move.l a1,ZeroDivideVector(a7)         ;ditto
+	move.l a1,CHKVector(a7)                ;ditto
+	move.l a1,TRAPccVector(a7)             ;ditto
+	move.l a1,PrivTrapVector(a7)           ;ditto
+	move.l a1,TraceVector(a7)              ;ditto
+	move.l a1,Line1010Vector(a7)           ;ditto
+	move.l a1,Line1111Vector(a7)           ;ditto
         lea .nmi(pc),a1
         move.l a1,$7c(a7)               ;NMI disable
         movec.l a7,vbr                  ;VBR temporary on stack

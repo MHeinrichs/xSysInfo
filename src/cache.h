@@ -9,6 +9,9 @@
 #define CACHE_H
 
 #include "xsysinfo.h"
+#define CACRF_ICACHE040 0x8000
+#define CACRF_EBC060 (1<<29)
+#define CACRF_ESB060 (1<<23)
 
 /* Function prototypes */
 

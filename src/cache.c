@@ -21,15 +21,18 @@ extern HardwareInfo hw_info;
 */
 
 ULONG convert68030to68040(ULONG input){
-    ULONG output = 0;
+    ULONG output = 0, keeper;
     if(hw_info.cpu_type >= CPU_68040 && hw_info.cpu_type <= CPU_68080){
-        if(input & (CACRF_CopyBack|CACRF_EnableD|CACRF_DBE)){//datacache enable
-            output |= CACRF_CopyBack;
+        if((input & (CACRF_CopyBack|CACRF_EnableD|CACRF_DBE))>0){//datacache enable
+            output = CACRF_CopyBack;
         }
-        if(input & (CACRF_EnableI|CACRF_IBE)){//instructioncache enable
-            output |= 0x8000;
+        if((input & (CACRF_EnableI|CACRF_IBE))>0){//instructioncache enable
+            output = output | CACRF_ICACHE040;
         }
-        //debug("  cache: convert68030to68040 in %X out %X\n", input, output);
+        //now keep all unaffected flags
+        keeper = input & ~(CACRF_CopyBack|CACRF_EnableD|CACRF_DBE|CACRF_EnableI|CACRF_IBE|CACRF_ICACHE040);
+        output = output | keeper;
+        debug("  cache: convert68030to68040 in %X out %X\n", input, output);
     }
     else{
         output = input;
@@ -38,15 +41,17 @@ ULONG convert68030to68040(ULONG input){
 }
 
 ULONG convert68040to68030(ULONG input){
-    ULONG output = 0;
+    ULONG output = 0, keeper;
     if(hw_info.cpu_type >= CPU_68040 && hw_info.cpu_type <= CPU_68080){
-        if(input & CACRF_CopyBack){//datacache enable
-            output |= CACRF_CopyBack|CACRF_EnableD|CACRF_DBE;
+        if((input & CACRF_CopyBack)>0){//datacache enable
+            output = CACRF_CopyBack|CACRF_EnableD|CACRF_DBE;
         }
-        if(input & 0x8000){//instructioncache enable
-            output |= CACRF_EnableI|CACRF_IBE;
+        if((input & CACRF_ICACHE040)>0){//instructioncache enable
+            output = output | CACRF_EnableI|CACRF_IBE;
         }
-        //debug("  cache: convert68040to68030 in %X out %X\n", input, output);
+        keeper = input & ~(CACRF_CopyBack|CACRF_EnableD|CACRF_DBE|CACRF_EnableI|CACRF_IBE|CACRF_ICACHE040);
+        output = output | keeper;
+        debug("  cache: convert68040to68030 in %X out %X\n", input, output);
     }
     else{
         output = input;
@@ -56,18 +61,18 @@ ULONG convert68040to68030(ULONG input){
 
 /*
 The 68040 has no burst mode just a general instruction cache and datacache.
-So any change in IBE DBE causes all data-cache or instructioncache acces to be accesed
+So any change in I/D-cache causes all I/D-cache-bits to be accesed
 */
 ULONG convertFlagsFor68040(ULONG input){
     ULONG output = 0;
     if(hw_info.cpu_type >= CPU_68040 && hw_info.cpu_type <= CPU_68080){
-        if(input & (CACRF_CopyBack|CACRF_EnableD|CACRF_DBE)){//datacache enable
-            output |= CACRF_CopyBack|CACRF_EnableD|CACRF_DBE;
+        if((input & (CACRF_CopyBack|CACRF_EnableD|CACRF_DBE))>0){//datacache enable
+            output = CACRF_CopyBack|CACRF_EnableD|CACRF_DBE;
         }
-        if(input & (CACRF_EnableI|CACRF_IBE)){//instructioncache enable
-            output |= CACRF_EnableI|CACRF_IBE;
+        if((input & (CACRF_EnableI|CACRF_IBE))>0){//instructioncache enable
+            output = output | CACRF_EnableI|CACRF_IBE;
         }
-        //debug("  cache: convertFlagsFor68040 in %X out %X\n", input, output);
+        debug("  cache: convertFlagsFor68040 in %X out %X\n", input, output);
     }
     else{
         output = input;
@@ -86,11 +91,11 @@ static void toggle_cache_flag(ULONG flag)
     flag = convertFlagsFor68040(flag);
     if ((current & flag)>0) {
         /* Disable */
-        current &= ~(flag);
+        current = current & ~(flag);
         debug("  cache: toggle_cache_flag disabling %X result: %X\n", flag,current);
     } else {
         /* Enable */
-        current |= flag;
+        current = current | flag;
         debug("  cache: toggle_cache_flag enabling %X result: %X\n", flag,current);
     }
 

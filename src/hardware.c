@@ -165,14 +165,16 @@ void detect_cpu(void)
 
         // now we have at least a 68020/030
         // the CACRF_FreezeI is a 68020/030-only flag!
-        oldBits = SetCacheBitsMasked(CACRF_FreezeI, CACRF_FreezeI); // can instruction cache be frezed?
+        oldBits = GetCacheBits();
+        SetCacheBits(oldBits | CACRF_FreezeI); // can instruction cache be frezed?
         newBits = GetCacheBits();
-        SetCacheBitsMasked(oldBits & CACRF_FreezeI, CACRF_FreezeI); // reset to old state
+        SetCacheBits(oldBits); // reset to old state
         if ((newBits & CACRF_FreezeI) == CACRF_FreezeI)
         {
-            oldBits = SetCacheBitsMasked(CACRF_IBE, CACRF_IBE); // can instruction burst be enabled?
+            oldBits = GetCacheBits();
+            SetCacheBits(oldBits | CACRF_IBE); // can instruction burst be enabled?
             newBits = GetCacheBits();
-            SetCacheBitsMasked(oldBits & CACRF_IBE, CACRF_IBE); // reset to old state
+            SetCacheBits(oldBits); // reset to old state
             if ((newBits & CACRF_IBE) == 0)
             {
                 // no 68030
@@ -268,9 +270,22 @@ BOOL get_super_scalar_mode(void){
 
 BOOL set_super_scalar_mode(BOOL value){
     if(hw_info.cpu_type>=CPU_68060 && hw_info.cpu_type<=CPU_68080){
-        ULONG cpuReg = value? 1L:0L;
+        ULONG cpuReg = value? 1L:0L, cacheBoost;
         cpuReg = SetCPUReg(cpuReg);
         cpuReg &=1L; //lowest bit ist Super scalar bit
+        if(value){
+            //be bold: set enhanced branch cache and store buffer too!
+            cacheBoost = GetCacheBits();
+            cacheBoost |= CACRF_EBC060|CACRF_ESB060;
+            SetCacheBits(cacheBoost);
+        }
+        else{
+            //be bold: unset enhanced branch cache and store buffer too!
+            cacheBoost = GetCacheBits();
+            cacheBoost &= ~(CACRF_EBC060|CACRF_ESB060);
+            SetCacheBits(cacheBoost);        
+        }
+
         return cpuReg>0;
     }
     else{
@@ -1066,23 +1081,23 @@ void refresh_cache_status(void)
 
     /* Determine available cache features based on CPU type */
     hw_info.has_icache          = (hw_info.cpu_type >= CPU_68020);
-    hw_info.has_dcache          = (hw_info.cpu_type >= CPU_68030);
-    hw_info.has_iburst          = (hw_info.cpu_type >= CPU_68030);
-    hw_info.has_dburst          = (hw_info.cpu_type >= CPU_68030);
-    hw_info.has_copyback        = (hw_info.cpu_type >= CPU_68040  && hw_info.cpu_type <=CPU_68080);
+    hw_info.has_dcache          = (hw_info.cpu_type == CPU_68030 || hw_info.cpu_type == CPU_68EC030);
+    hw_info.has_iburst          = (hw_info.cpu_type == CPU_68030 || hw_info.cpu_type == CPU_68EC030);
+    hw_info.has_dburst          = (hw_info.cpu_type == CPU_68030 || hw_info.cpu_type == CPU_68EC030);
+    hw_info.has_copyback        = (hw_info.cpu_type >= CPU_68040 && hw_info.cpu_type <=CPU_68080);
     hw_info.has_super_scalar    = (hw_info.cpu_type >= CPU_68060 && hw_info.cpu_type <=CPU_68080);
 
     /* Get current cache state */
     if(hw_info.cpu_type >= CPU_68020){
-        cacr_bits = convert68040to68030(GetCacheBits());
+        cacr_bits = convert68040to68030(GetCacheBits()); //convert leavs the nbis unchanged for 68020/030 and emulated cpus
     }
 
-    hw_info.icache_enabled = (cacr_bits & CACRF_EnableI) ? TRUE : FALSE;
-    hw_info.dcache_enabled = (cacr_bits & CACRF_EnableD) ? TRUE : FALSE;
-    hw_info.iburst_enabled = (cacr_bits & CACRF_IBE) ? TRUE : FALSE;
-    hw_info.dburst_enabled = (cacr_bits & CACRF_DBE) ? TRUE : FALSE;
-    hw_info.copyback_enabled = (cacr_bits & CACRF_CopyBack) ? TRUE : FALSE;
-    hw_info.super_scalar_enabled = get_super_scalar_mode() ? TRUE : FALSE;
+    hw_info.icache_enabled = (cacr_bits & CACRF_EnableI) && hw_info.has_icache ? TRUE : FALSE;
+    hw_info.dcache_enabled = (cacr_bits & CACRF_EnableD) && hw_info.has_dcache ? TRUE : FALSE;
+    hw_info.iburst_enabled = (cacr_bits & CACRF_IBE) && hw_info.has_iburst ? TRUE : FALSE;
+    hw_info.dburst_enabled = (cacr_bits & CACRF_DBE) && hw_info.has_dburst ? TRUE : FALSE;
+    hw_info.copyback_enabled = (cacr_bits & CACRF_CopyBack) && hw_info.has_copyback? TRUE : FALSE;
+    hw_info.super_scalar_enabled = get_super_scalar_mode() && hw_info.has_super_scalar? TRUE : FALSE;
 }
 
 /*
