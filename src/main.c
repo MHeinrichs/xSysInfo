@@ -778,10 +778,12 @@ static void allocate_pens(void)
 
     if (hw_info.kickstart_patch_version<36) {
         /* Kick1.3: manual mapping */
-        app->pens[0] = 0;
-        app->pens[1] = 1;
-        for (i = 2; i < NUM_COLORS; i++) {
-            app->pens[i] = i;
+        for (i = 0; i < NUM_COLORS; i++) {
+            if(app->use_custom_screen)
+                app->pens[i] = i; 
+            else{
+                app->pens[i] = i%4; //WB in kick 1.3 has only four colors
+            }
         }
         return;
     }

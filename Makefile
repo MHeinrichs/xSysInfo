@@ -5,7 +5,8 @@
 
 ADATE   := $(shell date '+%-d.%-m.%Y')
 # FULL_VERSION is 42.xx-yy-dirty
-FULL_VERSION ?= $(shell git describe --tags --dirty | sed -r 's/^release_//')
+# FULL_VERSION ?= $(shell git describe --tags --dirty | sed -r 's/^release_//')
+FULL_VERSION := 0.52-rc-candidate
 PROG_VERSION := $(shell echo $(FULL_VERSION) | cut -f1 -d\.)
 PROG_REVISION := $(shell echo $(FULL_VERSION) | cut -f2 -d\.|cut -f1 -d\-)
 
@@ -14,20 +15,27 @@ STRIP = m68k-amigaos-strip
 VASM    := vasmm68k_mot
 
 # NDK include path (override with: make NDK_INC=/your/path)
-NDK_INC ?= /opt/amiga/m68k-amigaos/ndk-include
+#NDK_INC ?= /opt/amiga/m68k-amigaos/ndk-include
+NDK_INC = /mnt/c/Users/Matze/Amiga/SoftwareHacks/NDK3.2R4/Include_I
+#C_NDK_INC = /mnt/c/Users/Matze/Amiga/SoftwareHacks/NDK_3.1/INCLUDES_LIBS/INCLUDE_H
 
 # Include paths: our includes + identify.library reference includes
-IDENTIFY_INC = 3rdparty/identify/reference
+IDENTIFY_INC = /mnt/c/Users/Matze/Amiga/SoftwareHacks/xSysInfo/3rdparty/identify/reference
 MMU_INC = 3rdparty/mmu/reference
 
-CFLAGS = -O2 -m68000 -mtune=68020-60 -Wa,-m68881 -msoft-float -noixemul -Wall -Wextra \
+CFLAGS = -O2 -m68000 -mtune=68020-60 -Wa,-m68881 -msoft-float -Wall -Wextra \
          -I$(IDENTIFY_INC) \
          -I$(MMU_INC) \
          -DXSYSINFO_DATE="\"$(ADATE)\"" -DXSYSINFO_VERSION="\"$(FULL_VERSION)\"" \
          -DPROG_VERSION=$(PROG_VERSION) -DPROG_REVISION=$(PROG_REVISION) \
+         -DTIMEVAL_DEFINED \
+		 -mcrt=nix13
 		 #-mcrt=nix13	 		 
+		 
 ASMFLAGS = -Fhunk -esc -sc -m68020up -I $(NDK_INC)
-LDFLAGS = -noixemul
+LDFLAGS = 	-mcrt=nix13 
+			#-mcrt=nix13
+			
 LIBS = -lamiga -lgcc
 
 # Source files
@@ -139,12 +147,16 @@ $(TARGET): $(OBJS) $(ASM_OBJS)
 
 src/%.o: src/%.c src/xsysinfo.h
 	@echo "  CC    $@"
-	@$(CC) $(CFLAGS) -c -o $@ $<
+	@$(CC) $(CFLAGS) $(DEBUGFLAG) -c -o $@ $<
 
 src/%.hunk: src/%.S
 	@echo "  ASM   $@"
 	@$(VASM) $(ASMFLAGS) -o $@ $<
 
+recompile:
+	@echo "  RECOMPILE"
+	@rm -f $(OBJS) $(ASM_OBJS)
+	
 clean:
 	@echo "  CLEAN"
 	@rm -f $(OBJS) $(ASM_OBJS) $(TARGET) TinySetPatch
