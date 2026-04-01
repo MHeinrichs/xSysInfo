@@ -694,9 +694,9 @@ cleanup:
 }
 
 /*
- * Draw drives view
+ * Draw drives data area (buttons, info panel, action buttons - no title)
  */
-void draw_drives_view(void)
+static void draw_drives_data(BOOL full_redraw)
 {
     struct RastPort *rp = app->rp;
     WORD y;
@@ -704,14 +704,6 @@ void draw_drives_view(void)
     char buffer[64];
     Button *btn;
     int i;
-
-    /* Draw title panel */
-    draw_panel(100, 0, 520, 24, NULL);
-
-    SetAPen(rp, COLOR_TEXT);
-    SetBPen(rp, COLOR_PANEL_BG);
-    Move(rp, 250, 14);
-    Text(rp, (CONST_STRPTR)get_string(MSG_DRIVES_INFO), strlen(get_string(MSG_DRIVES_INFO)));
 
     /* Draw drive selection buttons on left */
     for (i = 0; i < num_buttons; i++) {
@@ -723,8 +715,14 @@ void draw_drives_view(void)
         }
     }
 
-    /* Draw drive info panel on right */
-    draw_panel(100, 28, 520, 152, NULL);
+    if (full_redraw) {
+        /* Draw drive info panel with 3D border */
+        draw_panel(100, 28, 520, 152, NULL);
+    } else {
+        /* Clear panel interior only (preserve 3D border) */
+        SetAPen(rp, COLOR_PANEL_BG);
+        RectFill(rp, 101, 29, 618, 178);
+    }
 
     if (app->selected_drive < 0 || app->selected_drive >= (LONG)drive_list.count) {
         SetAPen(rp, COLOR_TEXT);
@@ -858,6 +856,25 @@ void draw_drives_view(void)
 }
 
 /*
+ * Draw drives view
+ */
+void draw_drives_view(void)
+{
+    struct RastPort *rp = app->rp;
+
+    /* Draw title panel */
+    draw_panel(100, 0, 520, 24, NULL);
+
+    SetAPen(rp, COLOR_TEXT);
+    SetBPen(rp, COLOR_PANEL_BG);
+    Move(rp, 250, 14);
+    Text(rp, (CONST_STRPTR)get_string(MSG_DRIVES_INFO), strlen(get_string(MSG_DRIVES_INFO)));
+
+    /* Draw data area with full panel borders */
+    draw_drives_data(TRUE);
+}
+
+/*
  * Update buttons for Drives view
  */
 void drives_view_update_buttons(void)
@@ -928,7 +945,9 @@ void drives_view_handle_button(ButtonID id)
                 app->selected_drive = drive_index;
                 /* Check if disk is present when selecting a drive */
                 check_disk_present(drive_index);
-                redraw_current_view();
+                /* Only redraw data area, not the entire screen */
+                update_button_states();
+                draw_drives_data(FALSE);
             }
             break;
     }
