@@ -266,29 +266,33 @@ ULONG measure_memory_speed(ULONG index)
 /*
  * Draw memory view
  */
-void draw_memory_view(void)
+/*
+ * Draw memory data area (info panel and navigation buttons - no title)
+ */
+static void draw_memory_data(BOOL full_redraw)
 {
     struct RastPort *rp = app->rp;
     char buffer[64];
     WORD y;
     MemoryRegion *region;
-
-    /* Draw title panel */
-    draw_panel(100, 0, 520, 24, NULL);
-
-    SetAPen(rp, COLOR_TEXT);
-    SetBPen(rp, COLOR_PANEL_BG);
-    Move(rp, 250, 14);
-    Text(rp, (CONST_STRPTR)get_string(MSG_MEMORY_INFO), strlen(get_string(MSG_MEMORY_INFO)));
+    Button *btn;
 
     if (memory_regions.count == 0) {
+        SetAPen(rp, COLOR_TEXT);
+        SetBPen(rp, COLOR_PANEL_BG);
         Move(rp, 200, 120);
         Text(rp, (CONST_STRPTR)"No memory regions found", 23);
         return;
     }
 
-    /* Draw memory info panel */
-    draw_panel(100, 28, 520, 150, NULL);
+    if (full_redraw) {
+        /* Draw memory info panel with 3D border */
+        draw_panel(100, 28, 520, 150, NULL);
+    } else {
+        /* Clear panel interior only (preserve 3D border) */
+        SetAPen(rp, COLOR_PANEL_BG);
+        RectFill(rp, 101, 29, 618, 176);
+    }
 
     /* Refresh current region data */
     refresh_memory_region(app->memory_region_index);
@@ -380,7 +384,6 @@ void draw_memory_view(void)
     draw_label_value(128, y, get_string(MSG_MEMORY_SPEED), buffer, 168);
 
     /* Draw navigation buttons */
-    Button *btn;
     btn = find_button(BTN_MEM_PREV);
     if (btn) draw_button(btn);
     btn = find_button(BTN_MEM_COUNTER);
@@ -391,6 +394,22 @@ void draw_memory_view(void)
     if (btn) draw_button(btn);
     btn = find_button(BTN_MEM_EXIT);
     if (btn) draw_button(btn);
+}
+
+void draw_memory_view(void)
+{
+    struct RastPort *rp = app->rp;
+
+    /* Draw title panel */
+    draw_panel(100, 0, 520, 24, NULL);
+
+    SetAPen(rp, COLOR_TEXT);
+    SetBPen(rp, COLOR_PANEL_BG);
+    Move(rp, 250, 14);
+    Text(rp, (CONST_STRPTR)get_string(MSG_MEMORY_INFO), strlen(get_string(MSG_MEMORY_INFO)));
+
+    /* Draw data area with full panel borders */
+    draw_memory_data(TRUE);
 }
 
 /*
@@ -424,14 +443,18 @@ void memory_view_handle_button(ButtonID id)
         case BTN_MEM_PREV:
             if (app->memory_region_index > 0) {
                 app->memory_region_index--;
-                redraw_current_view();
+                /* Only redraw data area, not the entire screen */
+                update_button_states();
+                draw_memory_data(FALSE);
             }
             break;
 
         case BTN_MEM_NEXT:
             if (app->memory_region_index < (LONG)memory_regions.count - 1) {
                 app->memory_region_index++;
-                redraw_current_view();
+                /* Only redraw data area, not the entire screen */
+                update_button_states();
+                draw_memory_data(FALSE);
             }
             break;
 
