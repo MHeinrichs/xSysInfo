@@ -787,11 +787,16 @@ void detect_sdmac(void)
     uint8_t sdmac_version = 0;
     uint8_t istr;
     int pass;
+    uint8_t old_timeout;
     hw_info.sdmac_rev = 0;
     hw_info.is_A4000T = FALSE;
 
     if (hw_info.gary_type == FAT_GARY)
     { // you need fat gary to access ncr!
+        // Switch to DSACK timeout to avoid bus errors when probing
+        old_timeout = *((volatile uint8_t *)FAT_GARY_TIME_OUT_REG);
+        *((volatile uint8_t *)FAT_GARY_TIME_OUT_REG) = FAT_GARY_TIME_OUT_DSACK;
+
         // now test for A4000T NCR53C710: upper four bits of CTEST8-register contains the chip-rev.
         sdmac_rev = *((volatile unsigned char *)(NCR_CTEST8_REG));
         sdmac_rev = (sdmac_rev & 0xF0) >> 4; // only upper four bits matter
@@ -800,22 +805,28 @@ void detect_sdmac(void)
             hw_info.sdmac_rev = sdmac_rev;
             hw_info.is_A4000T = TRUE;
         }
+
+        // Restore original timeout mode
+        *((volatile uint8_t *)FAT_GARY_TIME_OUT_REG) = old_timeout;
     }
 
     if (hw_info.ramsey_rev > 0 && hw_info.gary_type == FAT_GARY && !hw_info.is_A4000T) { //you need fat gary and ramsey to access sdmac!
-        //Switch to DSACK-Timeout to avoid bus errors on a A4000!
+        // Switch to DSACK timeout to avoid bus errors on A4000
+        old_timeout = *((volatile uint8_t *)FAT_GARY_TIME_OUT_REG);
+        *((volatile uint8_t *)FAT_GARY_TIME_OUT_REG) = FAT_GARY_TIME_OUT_DSACK;
+
         sdmac_rev = *((volatile unsigned char *)(SDMAC_REVISION)); //this works only on resdmac
         if (sdmac_rev != 0 && sdmac_rev <= 0xF0) { //realistic values!
             hw_info.sdmac_rev = sdmac_rev;
-            return;
+            goto sdmac_done;
         }
         if (hw_info.sdmac_rev == 0) {
             /* Quick check: ISTR bits - FIFO cannot be both empty and full */
             istr = *SDMAC_ISTR;
             if (istr == 0xff)
-                return;
+                goto sdmac_done;
             if ((istr & SDMAC_ISTR_FIFOE) && (istr & SDMAC_ISTR_FIFOF))
-                return;
+                goto sdmac_done;
             sdmac_version = 2; //default version
             /* Probe WTC registers to distinguish SDMAC-02 from SDMAC-04 */
             for (pass = 0; pass < 6; pass++) {
@@ -838,7 +849,7 @@ void detect_sdmac(void)
                 if (rvalue == wvalue) {
                     if ((wvalue != 0x00000000) && (wvalue != 0xffffffff)) {
                         sdmac_version = 0; /* Detection failed */
-                        return;
+                        goto sdmac_done;
                     }
                 } else if (((rvalue ^ wvalue) & 0x00ffffff) == 0) {
                     /* SDMAC-02: only upper byte differs */
@@ -849,11 +860,14 @@ void detect_sdmac(void)
                 }
                 else {
                     sdmac_version = 0; /* Detection failed */
-                    return;
+                    goto sdmac_done;
                 }
             }
             hw_info.sdmac_rev = sdmac_version;
         }
+sdmac_done:
+        // Restore original timeout mode
+        *((volatile uint8_t *)FAT_GARY_TIME_OUT_REG) = old_timeout;
     }
 }
 
