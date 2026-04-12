@@ -1082,22 +1082,40 @@ void refresh_cache_status(void)
 {
     ULONG cacr_bits = 0;
 
-    /* Determine available cache features based on CPU type */
+    /*
+     * Determine available cache features based on CPU type.
+     *
+     * For 68040/060/080-class CPUs we expose a real D-cache control and
+     * keep the old "CBack" pseudo-feature hidden, because our current
+     * cache-bit mapping collapses those controls onto the same hardware
+     * state on these CPUs.
+     */
     hw_info.has_icache = (hw_info.cpu_type >= CPU_68020);
     hw_info.has_dcache = (hw_info.cpu_type == CPU_68030 ||
-                          hw_info.cpu_type == CPU_68EC030);
+                          hw_info.cpu_type == CPU_68EC030 ||
+                          (hw_info.cpu_type >= CPU_68040 &&
+                           hw_info.cpu_type <= CPU_68080));
     hw_info.has_iburst = (hw_info.cpu_type == CPU_68030 ||
                           hw_info.cpu_type == CPU_68EC030);
     hw_info.has_dburst = (hw_info.cpu_type == CPU_68030 ||
                           hw_info.cpu_type == CPU_68EC030);
-    hw_info.has_copyback = (hw_info.cpu_type >= CPU_68040 &&
-                            hw_info.cpu_type <= CPU_68080);
+    hw_info.has_copyback = FALSE;
     hw_info.has_super_scalar = (hw_info.cpu_type >= CPU_68060 &&
                                 hw_info.cpu_type <= CPU_68080);
 
-    /* Get current cache state, converting 68040 bit layout to 68030 */
+    /*
+     * Prefer Exec's abstracted cache state when available.
+     *
+     * On 68040/060 systems, CacheControl() reports the generic Amiga
+     * CACRF_* view, while Kickstart 1.3 requires raw CACR access.
+     */
     if (hw_info.cpu_type >= CPU_68020) {
-        cacr_bits = convert68040to68030(GetCacheBits());
+        if (SysBase->LibNode.lib_Version >= 36 &&
+            hw_info.cpu_type != CPU_68080) {
+            cacr_bits = CacheControl(0, 0);
+        } else {
+            cacr_bits = convert68040to68030(GetCacheBits());
+        }
     }
 
     hw_info.icache_enabled = (cacr_bits & CACRF_EnableI) &&

@@ -5,6 +5,8 @@
  * xSysInfo - CPU cache control
  */
 
+#include <exec/execbase.h>
+
 #include <proto/exec.h>
 
 #include "xsysinfo.h"
@@ -13,7 +15,21 @@
 #include "cpu.h"
 
 /* External references */
+extern struct ExecBase *SysBase;
 extern HardwareInfo hw_info;
+
+/*
+ * Prefer Exec's generic CacheControl() API when it exists.
+ *
+ * On 68040/060 systems, Exec normalizes cache control to the old
+ * CACRF_* abstraction, while Kickstart 1.3 has no CacheControl()
+ * and still needs the raw CACR fallback.
+ */
+static BOOL use_exec_cachecontrol(void)
+{
+	return (SysBase->LibNode.lib_Version >= 36 &&
+		hw_info.cpu_type != CPU_68080);
+}
 
 /*
  * Convert 68030-style CACR flags to 68040/060 format.
@@ -95,6 +111,16 @@ ULONG convertFlagsFor68040(ULONG input)
  */
 static void toggle_cache_flag(ULONG flag)
 {
+	if (use_exec_cachecontrol()) {
+		ULONG current = CacheControl(0, 0);
+
+		if (current & flag)
+			CacheControl(0, flag);
+		else
+			CacheControl(flag, flag);
+		return;
+	}
+
 	ULONG current = convert68040to68030(GetCacheBits());
 	ULONG expanded = convertFlagsFor68040(flag);
 	ULONG new_val;
