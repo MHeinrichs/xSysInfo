@@ -1296,11 +1296,11 @@ static void draw_hardware_panel(void)
                       get_string(MSG_AGNUS_ECS_B_PAL));
                 break;
             case AGNUS_ALICE_NTSC:
-                snprintf(buffer, sizeof(buffer), "%s Rev: %X",
+                snprintf(buffer, sizeof(buffer), "%s Rev. %X",
                       get_string(MSG_AGNUS_ALICE_NTSC), (hw_info.agnus_rev&0xF));
                 break;
             case AGNUS_ALICE_PAL:
-                snprintf(buffer, sizeof(buffer), "%s Rev: %X",
+                snprintf(buffer, sizeof(buffer), "%s Rev. %X",
                       get_string(MSG_AGNUS_ALICE_PAL), (hw_info.agnus_rev&0xF));
                 break;
             case AGNUS_SAGA:
