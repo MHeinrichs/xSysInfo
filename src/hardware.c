@@ -742,7 +742,6 @@ void detect_batt_mem(void)
         && openBattMem() //batt mem ressource is open
         ) {
         hw_info.battMemData.valid_data = readBattMem(&hw_info.battMemData);
-        hw_info.battMemData.valid_data = TRUE;
     }
 
 }
