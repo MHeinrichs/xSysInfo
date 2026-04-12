@@ -414,10 +414,10 @@ void detect_mmu(void)
                     snprintf(hw_info.mmu_string, sizeof(hw_info.mmu_string), "68080");
                     break;
                 default:
+                    hw_info.mmu_type = MMU_NONE;
+                    strncpy(hw_info.mmu_string, get_string(MSG_NA), sizeof(hw_info.mmu_string) - 1);
                     break;
                 }
-                hw_info.mmu_type = MMU_NONE;
-                strncpy(hw_info.mmu_string, get_string(MSG_NA), sizeof(hw_info.mmu_string) - 1);
                 break;
             default:
                 break;
