@@ -530,10 +530,7 @@ void draw_scsi_view(void)
     /* Draw title panel */
     draw_panel(20, 0, 600, 24, NULL);
 
-    SetAPen(rp, COLOR_TEXT);
-    SetBPen(rp, COLOR_PANEL_BG);
-    Move(rp, 250, 14);
-    Text(rp, (CONST_STRPTR)get_string(MSG_SCSI_INFO), strlen(get_string(MSG_SCSI_INFO)));
+    draw_text_centered(20, 14, 600, get_string(MSG_SCSI_INFO), COLOR_TEXT);
 
     /* Draw column headers */
     draw_panel(20, 28, 600, 16, NULL);

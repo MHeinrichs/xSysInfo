@@ -134,6 +134,7 @@ void draw_3d_box(WORD x, WORD y, WORD w, WORD h, BOOL recessed);
 void TightText(struct RastPort *rp, int x, int y, CONST_STRPTR str, int charGap, int spaceWidth);
 void draw_text(WORD x, WORD y, const char *text, UBYTE color);
 void draw_text_right(WORD x, WORD y, WORD width, const char *text, UBYTE color);
+void draw_text_centered(WORD x, WORD y, WORD width, const char *text, UBYTE color);
 void draw_label_value(WORD x, WORD y, const char *label, const char *value, WORD offset);
 
 /* Bar graph drawing */

@@ -789,6 +789,15 @@ void draw_text_right(WORD x, WORD y, WORD width, const char *text, UBYTE color)
 }
 
 /*
+ * Draw text centered within a width
+ */
+void draw_text_centered(WORD x, WORD y, WORD width, const char *text, UBYTE color)
+{
+    WORD text_x = x + (width - (strlen(text) * 8)) / 2;
+    draw_text(text_x, y, text, color);
+}
+
+/*
  * Draw label: value pair
  * If value is NULL, only the label is drawn
  */

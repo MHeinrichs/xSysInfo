@@ -918,15 +918,10 @@ static void draw_drives_data(BOOL full_redraw)
  */
 void draw_drives_view(void)
 {
-    struct RastPort *rp = app->rp;
-
     /* Draw title panel */
     draw_panel(100, 0, 520, 24, NULL);
 
-    SetAPen(rp, COLOR_TEXT);
-    SetBPen(rp, COLOR_PANEL_BG);
-    Move(rp, 250, 14);
-    Text(rp, (CONST_STRPTR)get_string(MSG_DRIVES_INFO), strlen(get_string(MSG_DRIVES_INFO)));
+    draw_text_centered(100, 14, 520, get_string(MSG_DRIVES_INFO), COLOR_TEXT);
 
     /* Draw data area with full panel borders */
     draw_drives_data(TRUE);
