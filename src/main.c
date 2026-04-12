@@ -565,7 +565,9 @@ static BOOL open_display(void)
 
         app->rp = app->window->RPort;
         app->screen = app->window->WScreen;
-        app->screen_height = app->screen->Height;
+        app->screen_height = app->window->Height -
+                             app->window->BorderTop -
+                             app->window->BorderBottom;
 
         /* If default screen font is larger than Topaz8, switch to Topaz8 */
         if (app->window->IFont->tf_YSize > Topaz8Font.ta_YSize)
