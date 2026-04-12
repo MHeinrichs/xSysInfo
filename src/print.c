@@ -86,7 +86,7 @@ void export_hardware(BPTR fh)
 {
     char buffer[74];
 
-    WRITE_LINE(fh, "=== INTERNAL HARDWARE MODES ===");
+    WRITE_LINE(fh, "=== HARDWARE INFORMATION ===");
     WRITE_LINE(fh, "");
     write_formatted(fh, "%-16s %s", "Clock:", hw_info.clock_string);
 
