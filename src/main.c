@@ -90,6 +90,9 @@ static const UWORD palette[8] = {
     0x0444,     /* 7: Dark (3D button shadow) */
 };
 
+/* Default pens array for SA_Pens (use system defaults) */
+static const UWORD default_pens[] = { (UWORD)~0 };
+
 /* Forward declarations */
 static BOOL open_libraries(void);
 static void close_libraries(void);
@@ -99,6 +102,7 @@ static void main_loop(void);
 static void set_palette(void);
 static void allocate_pens(void);
 static void release_pens(void);
+static BOOL is_rtg_mode(struct Screen *screen);
 static void parse_tooltypes(void);
 
 /*
@@ -452,13 +456,32 @@ static void close_libraries(void)
 }
 
 /*
+ * Check if a screen is using RTG (high resolution) mode
+ */
+static BOOL is_rtg_mode(struct Screen *screen)
+{
+    if (!screen)
+        return FALSE;
+
+    /* Resolution above native chipset limits implies RTG use */
+    if (screen->Width > RTG_WIDTH_THRESHOLD ||
+        screen->Height > RTG_HEIGHT_THRESHOLD) {
+        return TRUE;
+    }
+
+    return FALSE;
+}
+
+/*
  * Open display - either a window on Workbench or a custom screen
  */
 static BOOL open_display(void)
 {
     struct NewScreen *newScreen;
     struct NewWindow *newWindow;
+    struct Screen *wb_screen;
     BOOL use_window = FALSE;
+    BOOL has_v36_intuition = (IntuitionBase->LibNode.lib_Version >= 36);
 
     /* Check display mode setting from tooltypes */
     if (app->display_mode == DISPLAY_WINDOW) {
@@ -467,7 +490,17 @@ static BOOL open_display(void)
         use_window = FALSE;
     } else {
         /* AUTO mode - detect based on RTG */
-        if (wb_startup) {
+        if (has_v36_intuition) {
+            wb_screen = LockPubScreen((CONST_STRPTR)"Workbench");
+            if (!wb_screen) {
+                wb_screen = LockPubScreen(NULL);  /* Default public screen */
+            }
+
+            if (wb_screen) {
+                use_window = is_rtg_mode(wb_screen);
+                UnlockPubScreen(NULL, wb_screen);
+            }
+        } else if (wb_startup) {
             /* Get a copy of Workbench screen to check its mode */
             struct Screen *wb_screen = (struct Screen *)AllocMem(sizeof(struct Screen), MEMF_ANY | MEMF_CLEAR);
             if (wb_screen) {
@@ -492,23 +525,38 @@ static BOOL open_display(void)
         /* Open window on Workbench */
         app->use_custom_screen = FALSE;
 
-        newWindow = (struct NewWindow *)AllocMem(sizeof(struct NewWindow), MEMF_ANY | MEMF_CLEAR);
-        if (newWindow) {
-            newWindow->Title = (UBYTE *)(XSYSINFO_NAME " " XSYSINFO_VERSION);
-            newWindow->Type = WBENCHSCREEN;
-            newWindow->Width = SCREEN_WIDTH;
-            newWindow->Height = SCREEN_HEIGHT_NTSC + 16;
-            newWindow->IDCMPFlags = IDCMP_CLOSEWINDOW | IDCMP_MOUSEBUTTONS |
-                    IDCMP_REFRESHWINDOW | IDCMP_VANILLAKEY |
-                    IDCMP_MOUSEMOVE | IDCMP_RAWKEY;
-            newWindow->Flags = WFLG_CLOSEGADGET | WFLG_DRAGBAR | WFLG_DEPTHGADGET |
-                    WFLG_ACTIVATE | WFLG_SMART_REFRESH | WFLG_GIMMEZEROZERO |
-                    WFLG_REPORTMOUSE;
-            if (hw_info.kickstart_patch_version < 36)
-                newWindow->BlockPen = 1;
+        if (has_v36_intuition) {
+            app->window = OpenWindowTags(NULL,
+                WA_Title, (ULONG)XSYSINFO_NAME " " XSYSINFO_VERSION,
+                WA_InnerWidth, SCREEN_WIDTH,
+                WA_InnerHeight, SCREEN_HEIGHT_NTSC + 10,
+                WA_IDCMP, IDCMP_CLOSEWINDOW | IDCMP_MOUSEBUTTONS |
+                          IDCMP_REFRESHWINDOW | IDCMP_VANILLAKEY |
+                          IDCMP_MOUSEMOVE | IDCMP_RAWKEY,
+                WA_Flags, WFLG_CLOSEGADGET | WFLG_DRAGBAR | WFLG_DEPTHGADGET |
+                          WFLG_ACTIVATE | WFLG_SMART_REFRESH | WFLG_GIMMEZEROZERO |
+                          WFLG_REPORTMOUSE,
+                WA_PubScreenName, (ULONG)"Workbench",
+                TAG_DONE);
+        } else {
+            newWindow = (struct NewWindow *)AllocMem(sizeof(struct NewWindow), MEMF_ANY | MEMF_CLEAR);
+            if (newWindow) {
+                newWindow->Title = (UBYTE *)(XSYSINFO_NAME " " XSYSINFO_VERSION);
+                newWindow->Type = WBENCHSCREEN;
+                newWindow->Width = SCREEN_WIDTH;
+                newWindow->Height = SCREEN_HEIGHT_NTSC + 16;
+                newWindow->IDCMPFlags = IDCMP_CLOSEWINDOW | IDCMP_MOUSEBUTTONS |
+                        IDCMP_REFRESHWINDOW | IDCMP_VANILLAKEY |
+                        IDCMP_MOUSEMOVE | IDCMP_RAWKEY;
+                newWindow->Flags = WFLG_CLOSEGADGET | WFLG_DRAGBAR | WFLG_DEPTHGADGET |
+                        WFLG_ACTIVATE | WFLG_SMART_REFRESH | WFLG_GIMMEZEROZERO |
+                        WFLG_REPORTMOUSE;
+                if (hw_info.kickstart_patch_version < 36)
+                    newWindow->BlockPen = 1;
 
-            app->window = OpenWindow(newWindow);
-            FreeMem(newWindow, sizeof(struct NewWindow));
+                app->window = OpenWindow(newWindow);
+                FreeMem(newWindow, sizeof(struct NewWindow));
+            }
         }
 
         if (!app->window) {
@@ -536,18 +584,34 @@ static BOOL open_display(void)
 
         app->screen_height = app->is_pal ? SCREEN_HEIGHT_PAL : SCREEN_HEIGHT_NTSC;
 
-        newScreen = (struct NewScreen *)AllocMem(sizeof(struct NewScreen), MEMF_ANY | MEMF_CLEAR);
-        if (newScreen) {
-            newScreen->Width = SCREEN_WIDTH;
-            newScreen->Height = app->screen_height;
-            newScreen->Depth = SCREEN_DEPTH;
-            newScreen->DefaultTitle = (UBYTE *)(XSYSINFO_NAME " " XSYSINFO_VERSION);
-            newScreen->Type = CUSTOMSCREEN;
-            newScreen->Font = &Topaz8Font;
-            newScreen->ViewModes = HIRES;
-            app->screen = OpenScreen(newScreen);
-            ShowTitle(app->screen, FALSE);
-            FreeMem(newScreen, sizeof(struct NewScreen));
+        if (has_v36_intuition) {
+            app->screen = OpenScreenTags(NULL,
+                SA_Width, SCREEN_WIDTH,
+                SA_Height, app->screen_height,
+                SA_Depth, SCREEN_DEPTH,
+                SA_Title, (ULONG)XSYSINFO_NAME " " XSYSINFO_VERSION,
+                SA_Type, CUSTOMSCREEN,
+                SA_Font, (ULONG)&Topaz8Font,
+                SA_DisplayID, HIRES_KEY,
+                SA_Pens, (ULONG)default_pens,
+                SA_ShowTitle, FALSE,
+                TAG_DONE);
+        } else {
+            newScreen = (struct NewScreen *)AllocMem(sizeof(struct NewScreen), MEMF_ANY | MEMF_CLEAR);
+            if (newScreen) {
+                newScreen->Width = SCREEN_WIDTH;
+                newScreen->Height = app->screen_height;
+                newScreen->Depth = SCREEN_DEPTH;
+                newScreen->DefaultTitle = (UBYTE *)(XSYSINFO_NAME " " XSYSINFO_VERSION);
+                newScreen->Type = CUSTOMSCREEN;
+                newScreen->Font = &Topaz8Font;
+                newScreen->ViewModes = HIRES;
+                app->screen = OpenScreen(newScreen);
+                if (app->screen) {
+                    ShowTitle(app->screen, FALSE);
+                }
+                FreeMem(newScreen, sizeof(struct NewScreen));
+            }
         }
 
         if (!app->screen) {
@@ -559,18 +623,32 @@ static BOOL open_display(void)
         set_palette();
 
         /* Open borderless window on our screen */
-        newWindow = (struct NewWindow *)AllocMem(sizeof(struct NewWindow), MEMF_ANY | MEMF_CLEAR);
-        if (newWindow) {
-            newWindow->Type = CUSTOMSCREEN;
-            newWindow->Width = SCREEN_WIDTH;
-            newWindow->Height = app->screen_height;
-            newWindow->IDCMPFlags = IDCMP_MOUSEBUTTONS | IDCMP_VANILLAKEY | IDCMP_REFRESHWINDOW |
-                        IDCMP_MOUSEMOVE | IDCMP_RAWKEY;
-            newWindow->Flags = WFLG_BORDERLESS | WFLG_ACTIVATE |
-                        WFLG_RMBTRAP | WFLG_SMART_REFRESH | WFLG_REPORTMOUSE;
-            newWindow->Screen = app->screen;
-            app->window = OpenWindow(newWindow);
-            FreeMem(newWindow, sizeof(struct NewWindow));
+        if (has_v36_intuition) {
+            app->window = OpenWindowTags(NULL,
+                WA_CustomScreen, (ULONG)app->screen,
+                WA_Left, 0,
+                WA_Top, 0,
+                WA_Width, SCREEN_WIDTH,
+                WA_Height, app->screen_height,
+                WA_IDCMP, IDCMP_MOUSEBUTTONS | IDCMP_VANILLAKEY | IDCMP_REFRESHWINDOW |
+                          IDCMP_MOUSEMOVE | IDCMP_RAWKEY,
+                WA_Flags, WFLG_BORDERLESS | WFLG_ACTIVATE | WFLG_BACKDROP |
+                          WFLG_RMBTRAP | WFLG_SMART_REFRESH | WFLG_REPORTMOUSE,
+                TAG_DONE);
+        } else {
+            newWindow = (struct NewWindow *)AllocMem(sizeof(struct NewWindow), MEMF_ANY | MEMF_CLEAR);
+            if (newWindow) {
+                newWindow->Type = CUSTOMSCREEN;
+                newWindow->Width = SCREEN_WIDTH;
+                newWindow->Height = app->screen_height;
+                newWindow->IDCMPFlags = IDCMP_MOUSEBUTTONS | IDCMP_VANILLAKEY | IDCMP_REFRESHWINDOW |
+                            IDCMP_MOUSEMOVE | IDCMP_RAWKEY;
+                newWindow->Flags = WFLG_BORDERLESS | WFLG_ACTIVATE | WFLG_BACKDROP |
+                            WFLG_RMBTRAP | WFLG_SMART_REFRESH | WFLG_REPORTMOUSE;
+                newWindow->Screen = app->screen;
+                app->window = OpenWindow(newWindow);
+                FreeMem(newWindow, sizeof(struct NewWindow));
+            }
         }
 
         if (!app->window) {
