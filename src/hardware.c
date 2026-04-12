@@ -466,6 +466,7 @@ void detect_mmu(void)
         if (mmuResult > 0)
         {
             // we have an mmu!
+            hw_info.mmu_enabled = TRUE;
             switch (hw_info.cpu_type)
             {
             case CPU_68EC020:
