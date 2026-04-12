@@ -77,12 +77,17 @@ void Dhry_Run(unsigned long Number_Of_Runs);
  */
 BOOL init_timer(void)
 {
+    timer_open = FALSE;
+    etimer_open = FALSE;
+    TimerBase = NULL;
+    ETimerBase = NULL;
+
     timer_port = CreatePort(NULL, 0);
     if (!timer_port) return FALSE;
 
     etimer_port = CreatePort(NULL, 0);
     if (!etimer_port) {
-        DeletePort(timer_port);
+        cleanup_timer();
         return FALSE;
     }
 
@@ -90,47 +95,33 @@ BOOL init_timer(void)
         CreateExtIO(timer_port, sizeof(struct timerequest));
     if (!timer_req) {
         debug("    init_timer: no timer_req\n");
-        DeletePort(timer_port);
-        DeletePort(etimer_port);
-        timer_port = NULL;
+        cleanup_timer();
         return FALSE;
     }
     etimer_req = (struct timerequest *)
         CreateExtIO(etimer_port, sizeof(struct timerequest));
     if (!etimer_req) {
         debug("    init_timer: no etimer_req\n");
-        DeletePort(timer_port);
-        DeletePort(etimer_port);
-        timer_port = NULL;
+        cleanup_timer();
         return FALSE;
     }
 
     if (OpenDevice((CONST_STRPTR)"timer.device", UNIT_MICROHZ,
                    (struct IORequest *)timer_req, 0) != 0) {
         debug("    init_timer: no OpenDevice timer_req\n");
-        DeleteExtIO((struct IORequest *)timer_req);
-        DeletePort(timer_port);
-        DeletePort(etimer_port);
-        timer_req = NULL;
-        timer_port = NULL;
+        cleanup_timer();
         return FALSE;
     }
+
+    timer_open = TRUE;
+    TimerBase = (struct Device *)timer_req->tr_node.io_Device;
 
     if (OpenDevice((CONST_STRPTR)"timer.device", UNIT_ECLOCK,
                    (struct IORequest *)etimer_req, 0) != 0) {
         debug("    init_timer: no OpenDevice etimer_req\n");
-        DeleteExtIO((struct IORequest *)timer_req);
-        DeleteExtIO((struct IORequest *)etimer_req);
-        DeletePort(timer_port);
-        DeletePort(etimer_port);
-        timer_req = NULL;
-        etimer_req = NULL;
-        timer_port = NULL;
+        cleanup_timer();
         return FALSE;
     }
-
-    TimerBase = (struct Device *)timer_req->tr_node.io_Device;
-    timer_open = TRUE;
 
     ETimerBase = (struct Device *)etimer_req->tr_node.io_Device;
     etimer_open = TRUE;
