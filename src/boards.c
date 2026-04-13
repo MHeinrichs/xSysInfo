@@ -153,10 +153,7 @@ void draw_boards_view(void)
     /* Draw title panel */
     draw_panel(20,  0, 600, 24, NULL);
 
-    SetAPen(rp, COLOR_TEXT);
-    SetBPen(rp, COLOR_PANEL_BG);
-    Move(rp, 200, 14);
-    Text(rp, (CONST_STRPTR)get_string(MSG_BOARDS_INFO), strlen(get_string(MSG_BOARDS_INFO)));
+    draw_text_centered(20, 14, 600, get_string(MSG_BOARDS_INFO), COLOR_TEXT);
 
     /* Draw column headers */
     y = 40;

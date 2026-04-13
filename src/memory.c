@@ -37,49 +37,38 @@ extern AppContext *app;
 const char *get_memory_type_string(UWORD attrs, APTR addr)
 {
     static char buffer[64];
-    static char buffer2[64];
+    size_t pos;
     ULONG address = (ULONG)addr;
-
-    buffer[0] = '\0';
-    buffer2[0] = '\0';
 
     //strcat crashes on a 68000/010?!?!
     /* Check for specific memory regions */
     if (attrs & MEMF_CHIP) {
-        strncpy(buffer, "CHIP RAM", sizeof(buffer) - 1);
+        pos = snprintf(buffer, sizeof(buffer), "CHIP RAM");
     } else if (address >= 0xC00000 && address < 0xD80000) {
         /* Ranger/Slow RAM area */
-        strncpy(buffer, "SLOW RAM", sizeof(buffer) - 1);
+        pos = snprintf(buffer, sizeof(buffer), "SLOW RAM");
     } else if (attrs & MEMF_FAST) {
         if (address < 0x01000000) {
-            strncpy(buffer, "FAST RAM (24bit)", sizeof(buffer) - 1);
+            pos = snprintf(buffer, sizeof(buffer), "FAST RAM (24bit)");
         } else {
-            strncpy(buffer, "FAST RAM (32bit)", sizeof(buffer) - 1);
+            pos = snprintf(buffer, sizeof(buffer), "FAST RAM (32bit)");
         }
     } else {
-        strncpy(buffer, "RAM", sizeof(buffer) - 1);
+        pos = snprintf(buffer, sizeof(buffer), "RAM");
     }
 
     if (attrs & MEMF_LOCAL) {
-        snprintf(buffer2, sizeof(buffer2), "%s, %s",
-	                 buffer, "LOCAL");
-        strncpy(buffer, buffer2, sizeof(buffer) - 1);
+        pos += snprintf(buffer + pos, sizeof(buffer) - pos, ", LOCAL");
     }
 
     if (attrs & MEMF_PUBLIC) {
-        snprintf(buffer2, sizeof(buffer2), "%s, %s",
-	                 buffer, "PUBLIC");
-        strncpy(buffer, buffer2, sizeof(buffer) - 1);
+        pos += snprintf(buffer + pos, sizeof(buffer) - pos, ", PUBLIC");
     }
     if (attrs & MEMF_KICK) {
-        snprintf(buffer2, sizeof(buffer2), "%s, %s",
-	                 buffer, "KICK");
-        strncpy(buffer, buffer2, sizeof(buffer) - 1);
+        pos += snprintf(buffer + pos, sizeof(buffer) - pos, ", KICK");
     }
     if (attrs & MEMF_24BITDMA) {
-        snprintf(buffer2, sizeof(buffer2), "%s, %s",
-	                 buffer, "24BitDMA");
-        strncpy(buffer, buffer2, sizeof(buffer) - 1);
+        pos += snprintf(buffer + pos, sizeof(buffer) - pos, ", 24BitDMA");
     }
 
     return buffer;
@@ -141,14 +130,12 @@ void enumerate_memory_regions(void)
         region->amount_free = mh->mh_Free;
         region->memListNode = mh; //to find me in the list
 
-        //see if we found the chipram
-        if(region->mem_type & MEMF_CHIP){
-            //there are 4 possibilities: 256k, 512k, 1MB or 2MB
-            //MuMove4K clips a small region from chip, which sghould be ignored
-            if(hw_info.agnus_type == AGNUS_ECS_PAL  && mh->mh_Upper >0x100000){
+        /* Detect 2MB Chip RAM variant of ECS Agnus */
+        if (region->mem_type & MEMF_CHIP) {
+            if (hw_info.agnus_type == AGNUS_ECS_PAL && mh->mh_Upper > (APTR)0x100000) {
                 hw_info.agnus_type = AGNUS_ECS_2MB_PAL;
             }
-            if(hw_info.agnus_type == AGNUS_ECS_NTSC  && mh->mh_Upper >0x100000){
+            if (hw_info.agnus_type == AGNUS_ECS_NTSC && mh->mh_Upper > (APTR)0x100000) {
                 hw_info.agnus_type = AGNUS_ECS_2MB_NTSC;
             }
         }
@@ -219,9 +206,9 @@ ULONG measure_memory_speed(ULONG index)
     /* Use a reasonable buffer size - 64K for test reads */
     buffer_size = 64 * 1024;
 
-    /* Limit to available region size */
-    if (buffer_size > region->largest_block/2) {
-        buffer_size = region->largest_block/2;
+    /* Limit to largest available block (halved for safety margin) */
+    if (buffer_size > region->largest_block / 2) {
+        buffer_size = region->largest_block / 2;
     }
 
     /* Ensure reasonable minimum size */
@@ -252,36 +239,35 @@ ULONG measure_memory_speed(ULONG index)
     Forbid();
     oldHead = (struct MemHeader *)SysBase->MemList.lh_Head;
     oldTail = (struct MemHeader *)SysBase->MemList.lh_Tail;
-    oldTailPred = (struct MemHeader *) SysBase->MemList.lh_TailPred;
-    mh = region->memListNode ;
-    if(mh){ 
-        oldSucc = (struct MemHeader *) mh->mh_Node.ln_Succ;
-        oldPred = (struct MemHeader *) mh->mh_Node.ln_Pred;
+    oldTailPred = (struct MemHeader *)SysBase->MemList.lh_TailPred;
+    mh = region->memListNode;
+    if (mh) {
+        oldSucc = (struct MemHeader *)mh->mh_Node.ln_Succ;
+        oldPred = (struct MemHeader *)mh->mh_Node.ln_Pred;
         //now start modifying the lists!
-        SysBase->MemList.lh_Head = (struct Node *) mh;
-        SysBase->MemList.lh_Tail = (struct Node *) mh;
+        SysBase->MemList.lh_Head = (struct Node *)mh;
+        SysBase->MemList.lh_Tail = (struct Node *)mh;
         SysBase->MemList.lh_TailPred = NULL;
-        mh->mh_Node.ln_Succ = (struct Node *) mh;
-        mh->mh_Node.ln_Pred = (struct Node *) mh;
+        mh->mh_Node.ln_Succ = (struct Node *)mh;
+        mh->mh_Node.ln_Pred = (struct Node *)mh;
         //AllocMem
         buffer = AllocMem(buffer_size, region->mem_type | MEMF_CLEAR);
-        //restore the old pointers 
-        SysBase->MemList.lh_Head = (struct Node *) oldHead;
-        SysBase->MemList.lh_Tail = (struct Node *) oldTail;
-        SysBase->MemList.lh_TailPred = (struct Node *) oldTailPred;
-        mh->mh_Node.ln_Succ = (struct Node *) oldSucc;        
-        mh->mh_Node.ln_Pred = (struct Node *) oldPred;        
+        //restore the old pointers
+        SysBase->MemList.lh_Head = (struct Node *)oldHead;
+        SysBase->MemList.lh_Tail = (struct Node *)oldTail;
+        SysBase->MemList.lh_TailPred = (struct Node *)oldTailPred;
+        mh->mh_Node.ln_Succ = (struct Node *)oldSucc;
+        mh->mh_Node.ln_Pred = (struct Node *)oldPred;
     }
     Permit();
 
-    if(buffer){ // we found memory
+    if (buffer) { // we found memory
         /* Use shared benchmark function (16 iterations) */
         bytes_per_sec = measure_mem_read_speed((volatile ULONG *)buffer, buffer_size, 16);
         FreeMem(buffer, buffer_size);
         region->speed_bytes_sec = bytes_per_sec;
         region->speed_measured = TRUE;
-    }
-    else{
+    } else {
         region->speed_measured = TRUE; //got no membrain : nothing to try again!
         region->speed_bytes_sec = 0;
         bytes_per_sec = 0;
@@ -292,29 +278,33 @@ ULONG measure_memory_speed(ULONG index)
 /*
  * Draw memory view
  */
-void draw_memory_view(void)
+/*
+ * Draw memory data area (info panel and navigation buttons - no title)
+ */
+static void draw_memory_data(BOOL full_redraw)
 {
     struct RastPort *rp = app->rp;
     char buffer[64];
     WORD y;
     MemoryRegion *region;
-
-    /* Draw title panel */
-    draw_panel(100, 0, 520, 24, NULL);
-
-    SetAPen(rp, COLOR_TEXT);
-    SetBPen(rp, COLOR_PANEL_BG);
-    Move(rp, 250, 14);
-    Text(rp, (CONST_STRPTR)get_string(MSG_MEMORY_INFO), strlen(get_string(MSG_MEMORY_INFO)));
+    Button *btn;
 
     if (memory_regions.count == 0) {
+        SetAPen(rp, COLOR_TEXT);
+        SetBPen(rp, COLOR_PANEL_BG);
         Move(rp, 200, 120);
         Text(rp, (CONST_STRPTR)"No memory regions found", 23);
         return;
     }
 
-    /* Draw memory info panel */
-    draw_panel(100, 28, 520, 150, NULL);
+    if (full_redraw) {
+        /* Draw memory info panel with 3D border */
+        draw_panel(100, 28, 520, 150, NULL);
+    } else {
+        /* Clear panel interior only (preserve 3D border) */
+        SetAPen(rp, COLOR_PANEL_BG);
+        RectFill(rp, 101, 29, 618, 176);
+    }
 
     /* Refresh current region data */
     refresh_memory_region(app->memory_region_index);
@@ -406,7 +396,6 @@ void draw_memory_view(void)
     draw_label_value(128, y, get_string(MSG_MEMORY_SPEED), buffer, 168);
 
     /* Draw navigation buttons */
-    Button *btn;
     btn = find_button(BTN_MEM_PREV);
     if (btn) draw_button(btn);
     btn = find_button(BTN_MEM_COUNTER);
@@ -417,6 +406,17 @@ void draw_memory_view(void)
     if (btn) draw_button(btn);
     btn = find_button(BTN_MEM_EXIT);
     if (btn) draw_button(btn);
+}
+
+void draw_memory_view(void)
+{
+    /* Draw title panel */
+    draw_panel(100, 0, 520, 24, NULL);
+
+    draw_text_centered(100, 14, 520, get_string(MSG_MEMORY_INFO), COLOR_TEXT);
+
+    /* Draw data area with full panel borders */
+    draw_memory_data(TRUE);
 }
 
 /*
@@ -450,14 +450,18 @@ void memory_view_handle_button(ButtonID id)
         case BTN_MEM_PREV:
             if (app->memory_region_index > 0) {
                 app->memory_region_index--;
-                redraw_current_view();
+                /* Only redraw data area, not the entire screen */
+                update_button_states();
+                draw_memory_data(FALSE);
             }
             break;
 
         case BTN_MEM_NEXT:
             if (app->memory_region_index < (LONG)memory_regions.count - 1) {
                 app->memory_region_index++;
-                redraw_current_view();
+                /* Only redraw data area, not the entire screen */
+                update_button_states();
+                draw_memory_data(FALSE);
             }
             break;
 

@@ -28,7 +28,6 @@ SoftwareList mmu_list;
 
 /* External references */
 extern struct ExecBase *SysBase;
-extern HardwareInfo hw_info;
 
 /* Global variables*/
 BOOL mmuLoaded = FALSE;
@@ -108,41 +107,42 @@ void enumerate_libraries(void)
          (struct Node *)lib != (struct Node *)&SysBase->LibList.lh_Tail;
          lib = (struct Library *)lib->lib_Node.ln_Succ) {
 
-        if(strcmp(lib->lib_Node.ln_Name,"68040.library") == 0){
-            if(hw_info.fpu_type == FPU_68040)
-                hw_info.fpu_enabled = TRUE;
-        }
-
-        if(strcmp(lib->lib_Node.ln_Name,"68060.library") == 0){
-            if(hw_info.fpu_type == FPU_68060)
-                hw_info.fpu_enabled = TRUE;
-        }
-
-        if(strcmp(lib->lib_Node.ln_Name,"mmu.library") == 0){
-            mmuLoaded = TRUE;
-        }
-
-        if (libraries_list.count < MAX_SOFTWARE_ENTRIES){
-            entry = &libraries_list.entries[libraries_list.count];
-
-            if (lib->lib_Node.ln_Name) {
-                if(strstr(lib->lib_Node.ln_Name,".library") != NULL){
-                    copy_base_name(entry->name, lib->lib_Node.ln_Name, sizeof(entry->name));
-                }
-                else{ //not a ".library"
-                    strncpy(entry->name, lib->lib_Node.ln_Name, sizeof(entry->name));
-                }
-            } else {
-                strncpy(entry->name, "(unknown)", sizeof(entry->name) - 1);
+        /* Detect FPU library presence (outside entry limit check) */
+        if (lib->lib_Node.ln_Name) {
+            if (strcmp(lib->lib_Node.ln_Name, "68040.library") == 0) {
+                if (hw_info.fpu_type == FPU_68040)
+                    hw_info.fpu_enabled = TRUE;
             }
-
-            entry->address = (APTR)lib;
-            entry->version = lib->lib_Version;
-            entry->revision = lib->lib_Revision;
-            entry->location = determine_mem_location((APTR)lib);
-
-            libraries_list.count++;
+            if (strcmp(lib->lib_Node.ln_Name, "68060.library") == 0) {
+                if (hw_info.fpu_type == FPU_68060)
+                    hw_info.fpu_enabled = TRUE;
+            }
+            if (strcmp(lib->lib_Node.ln_Name, "mmu.library") == 0) {
+                mmuLoaded = TRUE;
+            }
         }
+
+        if (libraries_list.count >= MAX_SOFTWARE_ENTRIES)
+            continue;
+
+        entry = &libraries_list.entries[libraries_list.count];
+
+        if (lib->lib_Node.ln_Name) {
+            if (strstr(lib->lib_Node.ln_Name, ".library") != NULL) {
+                copy_base_name(entry->name, lib->lib_Node.ln_Name, sizeof(entry->name));
+            } else { /* not a ".library" */
+                strncpy(entry->name, lib->lib_Node.ln_Name, sizeof(entry->name));
+            }
+        } else {
+            strncpy(entry->name, "(unknown)", sizeof(entry->name) - 1);
+        }
+
+        entry->address = (APTR)lib;
+        entry->version = lib->lib_Version;
+        entry->revision = lib->lib_Revision;
+        entry->location = determine_mem_location((APTR)lib);
+
+        libraries_list.count++;
     }
 
     Permit();
@@ -152,12 +152,12 @@ void enumerate_libraries(void)
     /* Insert artificial "kickstart" entry at the beginning */
     /* Insert artificial "kickstart (soft)" entry at the beginning */
     if ((libraries_list.count+1) < MAX_SOFTWARE_ENTRIES) {
-        if( hw_info.kickstart_version != hw_info.kickstart_patch_version &&
+        if (hw_info.kickstart_version != hw_info.kickstart_patch_version &&
             hw_info.kickstart_revision != hw_info.kickstart_patch_revision &&
             0 != hw_info.kickstart_patch_version &&
             0 != hw_info.kickstart_patch_revision &&
-            hw_info.kickstart_version >= 40 //softkick is possible from Kick 3.1 (v40) and newer
-        ){
+            hw_info.kickstart_version >= 40 /* softkick from Kick 3.1 (v40)+ */
+        ) {
             /* Shift all entries by 1 position */
             for (i = libraries_list.count; i > 0; i--) {
                 libraries_list.entries[i] = libraries_list.entries[i - 1];
@@ -217,15 +217,12 @@ void enumerate_devices(void)
         SoftwareEntry *entry = &devices_list.entries[devices_list.count];
 
         if (dev->dd_Library.lib_Node.ln_Name) {
-            if(strstr(dev->dd_Library.lib_Node.ln_Name,".device") != NULL){
+            if (strstr(dev->dd_Library.lib_Node.ln_Name, ".device") != NULL) {
                 copy_base_name(entry->name, dev->dd_Library.lib_Node.ln_Name,
                                sizeof(entry->name));
-            }
-            else{ //not a ".device"
+            } else { //not a ".device"
                 strncpy(entry->name, dev->dd_Library.lib_Node.ln_Name, sizeof(entry->name));
             }
-            copy_base_name(entry->name, dev->dd_Library.lib_Node.ln_Name,
-                           sizeof(entry->name));
         } else {
             strncpy(entry->name, "(unknown)", sizeof(entry->name) - 1);
         }
@@ -263,11 +260,10 @@ void enumerate_resources(void)
         SoftwareEntry *entry = &resources_list.entries[resources_list.count];
 
         if (res->lib_Node.ln_Name) {
-            if(strstr(res->lib_Node.ln_Name,".resource") != NULL){
+            if (strstr(res->lib_Node.ln_Name, ".resource") != NULL) {
                 copy_base_name(entry->name, res->lib_Node.ln_Name,
                                sizeof(entry->name));
-            }
-            else{ //not a ".resource"
+            } else { //not a ".resource"
                 strncpy(entry->name, res->lib_Node.ln_Name, sizeof(entry->name));
             }
         } else {
@@ -287,7 +283,8 @@ void enumerate_resources(void)
     sort_software_list(&resources_list);
 }
 
-void enumerate_mmu_entries(void){
+void enumerate_mmu_entries(void)
+{
     struct MinList *list;
     struct MappingNode *mn;
     SoftwareEntry *entry;
@@ -297,163 +294,176 @@ void enumerate_mmu_entries(void){
     Forbid();
 
     //is mmu.library loaded?
-    if(mmuLoaded && hw_info.mmu_enabled){
+    if (mmuLoaded && hw_info.mmu_enabled) {
         //no else: iff mmu.library is in the libraries lsit, it can load!
-        if (DOSBase=(struct DosLibrary *)OpenLibrary((CONST_STRPTR)"dos.library",37L)) {
-            if (MMUBase=(struct Library *)OpenLibrary((CONST_STRPTR)"mmu.library",40L)) {
+        if ((DOSBase = (struct DosLibrary *)OpenLibrary((CONST_STRPTR)"dos.library", 37L))) {
+            if ((MMUBase = OpenLibrary((CONST_STRPTR)"mmu.library", 40L))) {
 
                 entry = &mmu_list.entries[mmu_list.count];
-                snprintf(entry->name, sizeof(entry->name), "%s: %dkB.",get_string(MSG_MMU_SIZE),GetPageSize(NULL)/1024);    
+                snprintf(entry->name, sizeof(entry->name), "%s: %lukB.",
+                         get_string(MSG_MMU_SIZE),
+                         (unsigned long)(GetPageSize(NULL) / 1024));
                 mmu_list.count++;
                 /* Get the mapping of the default context */
-                list=GetMapping(NULL);
-                for (mn = (struct MappingNode *)(list->mlh_Head); mn->map_succ && mmu_list.count<256; mn = mn->map_succ)
+                list = GetMapping(NULL);
+                for (mn = (struct MappingNode *)(list->mlh_Head);
+                     mn->map_succ && mmu_list.count < 256;
+                     mn = mn->map_succ)
                 {
+                    size_t pos;
                     memset(buffer, 0, sizeof(buffer));
-                    snprintf(buffer, sizeof(buffer), "%08lX-%08lX", (long unsigned int)mn->map_Lower, (long unsigned int)mn->map_Higher);
+                    pos = snprintf(buffer, sizeof(buffer), "%08lx-%08lx", mn->map_Lower, mn->map_Higher);
                     if (mn->map_Properties & MAPP_WINDOW)
                     {
-                        snprintf(buffer, sizeof(buffer), "%s Window:%08lX",buffer, (long unsigned int)mn->map_un.map_UserData);
+                        pos += snprintf(buffer + pos, sizeof(buffer) - pos, " Window %08lx", ((ULONG)mn->map_un.map_UserData));
                         /* All other flags do not care then */
                     }
-                    else{
-                        if (mn->map_Properties & MAPP_WRITEPROTECTED){
-                            snprintf(buffer, sizeof(buffer), "%s WP", buffer);
+                    else {
+                        if (mn->map_Properties & MAPP_WRITEPROTECTED) {
+                            pos += snprintf(buffer + pos, sizeof(buffer) - pos, " WP");
                         }
 
-                        if (mn->map_Properties & MAPP_USED){
-                            snprintf(buffer, sizeof(buffer), "%s U", buffer);
+                        if (mn->map_Properties & MAPP_USED) {
+                            pos += snprintf(buffer + pos, sizeof(buffer) - pos, " U");
                         }
 
-                        if (mn->map_Properties & MAPP_MODIFIED){
-                            snprintf(buffer, sizeof(buffer), "%s M", buffer);
+                        if (mn->map_Properties & MAPP_MODIFIED) {
+                            pos += snprintf(buffer + pos, sizeof(buffer) - pos, " M");
                         }
 
-                        if (mn->map_Properties & MAPP_GLOBAL){
-                            snprintf(buffer, sizeof(buffer), "%s G", buffer);
+                        if (mn->map_Properties & MAPP_GLOBAL) {
+                            pos += snprintf(buffer + pos, sizeof(buffer) - pos, " G");
                         }
 
-                        if (mn->map_Properties & MAPP_TRANSLATED){
-                            snprintf(buffer, sizeof(buffer), "%s TT", buffer);
+                        if (mn->map_Properties & MAPP_TRANSLATED) {
+                            pos += snprintf(buffer + pos, sizeof(buffer) - pos, " TT");
                         }
 
-                        if (mn->map_Properties & MAPP_ROM){
-                            snprintf(buffer, sizeof(buffer), "%s ROM", buffer);
+                        if (mn->map_Properties & MAPP_ROM) {
+                            pos += snprintf(buffer + pos, sizeof(buffer) - pos, " ROM");
                         }
 
-                        if (mn->map_Properties & MAPP_USERPAGE0){
-                            snprintf(buffer, sizeof(buffer), "%s UP0", buffer);
+                        if (mn->map_Properties & MAPP_USERPAGE0) {
+                            pos += snprintf(buffer + pos, sizeof(buffer) - pos, " UP0");
                         }
 
-                        if (mn->map_Properties & MAPP_USERPAGE1){
-                            snprintf(buffer, sizeof(buffer), "%s UP1", buffer);
+                        if (mn->map_Properties & MAPP_USERPAGE1) {
+                            pos += snprintf(buffer + pos, sizeof(buffer) - pos, " UP1");
                         }
 
-                        if (mn->map_Properties & MAPP_CACHEINHIBIT){
-                            snprintf(buffer, sizeof(buffer), "%s CI", buffer);
+                        if (mn->map_Properties & MAPP_CACHEINHIBIT) {
+                            pos += snprintf(buffer + pos, sizeof(buffer) - pos, " CI");
                         }
 
-                        if (mn->map_Properties & MAPP_IMPRECISE){
-                            snprintf(buffer, sizeof(buffer), "%s IM", buffer);
+                        if (mn->map_Properties & MAPP_IMPRECISE) {
+                            pos += snprintf(buffer + pos, sizeof(buffer) - pos, " IM");
                         }
 
-                        if (mn->map_Properties & MAPP_NONSERIALIZED){
-                            snprintf(buffer, sizeof(buffer), "%s NS", buffer);
+                        if (mn->map_Properties & MAPP_NONSERIALIZED) {
+                            pos += snprintf(buffer + pos, sizeof(buffer) - pos, " NS");
                         }
 
-                        if (mn->map_Properties & MAPP_COPYBACK){
-                            snprintf(buffer, sizeof(buffer), "%s CB", buffer);
+                        if (mn->map_Properties & MAPP_COPYBACK) {
+                            pos += snprintf(buffer + pos, sizeof(buffer) - pos, " CB");
                         }
 
-                        if (mn->map_Properties & MAPP_SUPERVISORONLY){
-                            snprintf(buffer, sizeof(buffer), "%s SO", buffer);
+                        if (mn->map_Properties & MAPP_SUPERVISORONLY) {
+                            pos += snprintf(buffer + pos, sizeof(buffer) - pos, " SO");
                         }
 
-                        if (mn->map_Properties & MAPP_BLANK){
-                            snprintf(buffer, sizeof(buffer), "%s BL", buffer);
+                        if (mn->map_Properties & MAPP_BLANK) {
+                            pos += snprintf(buffer + pos, sizeof(buffer) - pos, " BL");
                         }
 
-                        if (mn->map_Properties & MAPP_SHARED){
-                            snprintf(buffer, sizeof(buffer), "%s SH", buffer);
+                        if (mn->map_Properties & MAPP_SHARED) {
+                            pos += snprintf(buffer + pos, sizeof(buffer) - pos, " SH");
                         }
 
-                        if (mn->map_Properties & MAPP_SINGLEPAGE){
-                            snprintf(buffer, sizeof(buffer), "%s SNG", buffer);
+                        if (mn->map_Properties & MAPP_SINGLEPAGE) {
+                            pos += snprintf(buffer + pos, sizeof(buffer) - pos, " SNG");
                         }
 
-                        if (mn->map_Properties & MAPP_REPAIRABLE){
-                            snprintf(buffer, sizeof(buffer), "%s RP", buffer);
+                        if (mn->map_Properties & MAPP_REPAIRABLE) {
+                            pos += snprintf(buffer + pos, sizeof(buffer) - pos, " RP");
                         }
 
-                        if (mn->map_Properties & MAPP_IO){
-                            snprintf(buffer, sizeof(buffer), "%s IO", buffer);
+                        if (mn->map_Properties & MAPP_IO) {
+                            pos += snprintf(buffer + pos, sizeof(buffer) - pos, " IO");
                         }
 
-                        if (mn->map_Properties & MAPP_USER0){
-                            snprintf(buffer, sizeof(buffer), "%s U0", buffer);
+                        if (mn->map_Properties & MAPP_USER0) {
+                            pos += snprintf(buffer + pos, sizeof(buffer) - pos, " U0");
                         }
 
-                        if (mn->map_Properties & MAPP_USER1){
-                            snprintf(buffer, sizeof(buffer), "%s U1", buffer);
+                        if (mn->map_Properties & MAPP_USER1) {
+                            pos += snprintf(buffer + pos, sizeof(buffer) - pos, " U1");
                         }
 
-                        if (mn->map_Properties & MAPP_USER2){
-                            snprintf(buffer, sizeof(buffer), "%s U2", buffer);
+                        if (mn->map_Properties & MAPP_USER2) {
+                            pos += snprintf(buffer + pos, sizeof(buffer) - pos, " U2");
                         }
 
-                        if (mn->map_Properties & MAPP_USER3){
-                            snprintf(buffer, sizeof(buffer), "%s U3", buffer);
+                        if (mn->map_Properties & MAPP_USER3) {
+                            pos += snprintf(buffer + pos, sizeof(buffer) - pos, " U3");
                         }
 
-                        if (mn->map_Properties & MAPP_INVALID){
-                            snprintf(buffer, sizeof(buffer), "%s INV:%08lX", buffer,(long unsigned int)mn->map_un.map_UserData);
+                        if (mn->map_Properties & MAPP_INVALID) {
+                            pos += snprintf(buffer + pos, sizeof(buffer) - pos, " INV %08lx", ((ULONG)mn->map_un.map_UserData));
                         }
 
-                        if (mn->map_Properties & MAPP_SWAPPED){
-                            snprintf(buffer, sizeof(buffer), "%s SW:%08lX", buffer,(long unsigned int)mn->map_un.map_UserData);
+                        if (mn->map_Properties & MAPP_SWAPPED) {
+                            pos += snprintf(buffer + pos, sizeof(buffer) - pos, " SW %08lx", ((ULONG)mn->map_un.map_UserData));
                         }
 
-                        if (mn->map_Properties & MAPP_REMAPPED){
-                            snprintf(buffer, sizeof(buffer), "%s MAP:%08lX", buffer, (long unsigned int)(mn->map_un.map_Delta + mn->map_Lower));
+                        if (mn->map_Properties & MAPP_REMAPPED) {
+                            pos += snprintf(buffer + pos, sizeof(buffer) - pos, " MAP %08lx", ((ULONG)(mn->map_un.map_Delta + mn->map_Lower)));
                         }
 
-                        if (mn->map_Properties & MAPP_BUNDLED){
-                            snprintf(buffer, sizeof(buffer), "%s BN:%08lX", buffer, (long unsigned int)mn->map_un.map_Page);
+                        if (mn->map_Properties & MAPP_BUNDLED) {
+                            pos += snprintf(buffer + pos, sizeof(buffer) - pos, " BN %08lx", ((ULONG)mn->map_un.map_Page));
                         }
 
-                        if (mn->map_Properties & MAPP_INDIRECT){
-                            snprintf(buffer, sizeof(buffer), "%s IND:%08lX", buffer, (long unsigned int)mn->map_un.map_Descriptor);
+                        if (mn->map_Properties & MAPP_INDIRECT) {
+                            pos += snprintf(buffer + pos, sizeof(buffer) - pos, " IND %08lx", ((ULONG)mn->map_un.map_Descriptor));
                         }
                     }
                     entry = &mmu_list.entries[mmu_list.count];
-                    snprintf(entry->name, sizeof(entry->name), buffer);
+                    snprintf(entry->name, sizeof(entry->name), "%s", buffer);
                     mmu_list.count++;
                 }
-                //final infos
-                if(mmu_list.count< (256-8)){
+                /* Append hint entries at end of list */
+                if (mmu_list.count < 256 - 8) {
                     entry = &mmu_list.entries[mmu_list.count];
-                    snprintf(entry->name, sizeof(entry->name), "%s",get_string(MSG_MMU_ADDRESS_HINT));    
+                    snprintf(entry->name, sizeof(entry->name), "%s",
+                             get_string(MSG_MMU_ADDRESS_HINT));
                     mmu_list.count++;
                     entry = &mmu_list.entries[mmu_list.count];
-                    snprintf(entry->name, sizeof(entry->name), "%s",get_string(MSG_MMU_FLAGS1_HINT));    
+                    snprintf(entry->name, sizeof(entry->name), "%s",
+                             get_string(MSG_MMU_FLAGS1_HINT));
                     mmu_list.count++;
                     entry = &mmu_list.entries[mmu_list.count];
-                    snprintf(entry->name, sizeof(entry->name), "%s",get_string(MSG_MMU_FLAGS2_HINT));    
+                    snprintf(entry->name, sizeof(entry->name), "%s",
+                             get_string(MSG_MMU_FLAGS2_HINT));
                     mmu_list.count++;
                     entry = &mmu_list.entries[mmu_list.count];
-                    snprintf(entry->name, sizeof(entry->name), "%s",get_string(MSG_MMU_FLAGS3_HINT));    
+                    snprintf(entry->name, sizeof(entry->name), "%s",
+                             get_string(MSG_MMU_FLAGS3_HINT));
                     mmu_list.count++;
                     entry = &mmu_list.entries[mmu_list.count];
-                    snprintf(entry->name, sizeof(entry->name), "%s",get_string(MSG_MMU_FLAGS4_HINT));    
+                    snprintf(entry->name, sizeof(entry->name), "%s",
+                             get_string(MSG_MMU_FLAGS4_HINT));
                     mmu_list.count++;
                     entry = &mmu_list.entries[mmu_list.count];
-                    snprintf(entry->name, sizeof(entry->name), "%s",get_string(MSG_MMU_FLAGS5_HINT));    
+                    snprintf(entry->name, sizeof(entry->name), "%s",
+                             get_string(MSG_MMU_FLAGS5_HINT));
                     mmu_list.count++;
                     entry = &mmu_list.entries[mmu_list.count];
-                    snprintf(entry->name, sizeof(entry->name), "%s",get_string(MSG_MMU_FLAGS6_HINT));    
+                    snprintf(entry->name, sizeof(entry->name), "%s",
+                             get_string(MSG_MMU_FLAGS6_HINT));
                     mmu_list.count++;
                     entry = &mmu_list.entries[mmu_list.count];
-                    snprintf(entry->name, sizeof(entry->name), "%s",get_string(MSG_MMU_FLAGS7_HINT));    
+                    snprintf(entry->name, sizeof(entry->name), "%s",
+                             get_string(MSG_MMU_FLAGS7_HINT));
                     mmu_list.count++;
                 }
 
@@ -461,8 +471,7 @@ void enumerate_mmu_entries(void){
             }
             CloseLibrary((struct Library *)DOSBase);
         }
-    }
-    else{
+    } else {
         SoftwareEntry *entry = &mmu_list.entries[0];
         strncpy(entry->name, "mmu.library not loaded", sizeof(entry->name) - 1);
         mmu_list.count++;

@@ -3,48 +3,18 @@
 	INCDIR  "include:"
 	INCLUDE "lvo/exec_lib.i"
 
-ResetVector			EQU $00
-INITOFFSET			EQU $02  ;Location of JMP instruction
-SysBase 			EQU $04
-BusErrorVector			EQU $08
-AdddressErrorVector		EQU $0C
+BusErrorVector			EQU $8
 IllegalInstructionVector	EQU $10
-ZeroDivideVector		EQU $14
-CHKVector			EQU $18
-TRAPccVector			EQU $1C
-PrivTrapVector			EQU $20
-TraceVector			EQU $24
-Line1010Vector			EQU $28
 Line1111Vector			EQU $2C
-Trap15Vector			EQU $BC  ;Used by Wack
-LastExceptVector		EQU $100 ;Last exception vector
-
-
 AttnFlags		EQU   296
 
 _LVOSuperVisor		EQU   -30
 
-;definitions from exec_base
-CACRF_EnableI 			EQU $1		;Enable instruction cache bit
-CACRF_FreezeI			EQU $2          ;Freeze ICache 
-CACRF_ClearI	                EQU $8          ;Clear instruction cache
-CACRF_IBE	                EQU $16         ;Instruction burst enable
-CACRF_EnableD	                EQU $256        ;68030 Enable data cache
-CACRF_FreezeD	                EQU $512        ;68030 Freeze data cache
-CACRF_ClearD	                EQU $2048       ;68030 Clear data cache
-CACRF_DBE	                EQU $4096       ;68030 Data burst enable
-CACRF_WriteAllocate             EQU $8192       ;68030 Write-Allocate mode (must always be set!)
-CACRF_EnableE                   EQU $1073741824 ;Master enable for external caches
-CACRF_CopyBack                  EQU $2147483648 ;Master enable for copyback caches
-AFB_68010	EQU $0	
-AFB_68020	EQU $1	
-AFB_68030	EQU $2	
-AFB_68040	EQU $3
-AFB_68881	EQU $4	
-AFB_68882	EQU $5
-AFB_FPU40	EQU $6	
 
-;definitions from cpu.h
+CACRB_EnableI 			EQU $1		;Enable instruction cache bit 020/30
+CACRF_EnableI			EQU $2
+
+
 ASM_CPU_68000 EQU 1
 ASM_CPU_68010 EQU 2
 ASM_CPU_68020 EQU 3
@@ -75,7 +45,7 @@ RAMSEY_CTRL EQU $DE0003
 
     SECTION Code,CODE
     MACHINE 68060
-    XDEF	_DoFlops
+	XDEF	_DoFlops
 	XDEF	_GetCPUReg
 	XDEF	_SetCPUReg
 	XDEF	_GetCPU060;
@@ -83,7 +53,6 @@ RAMSEY_CTRL EQU $DE0003
 	XDEF	_GetMMU
 	XDEF	_GetCacheBits
 	XDEF	_SetCacheBits
-	XDEF	_SetCacheBitsMasked
 	XDEF	_GetRamseyRev
 	XDEF	_GetRamseyCtrl
 
@@ -94,18 +63,18 @@ _DoFlops:
 	beq		m68881_fpu
 	cmp.l	#ASM_FPU_68040,d1		;is it 68040-code?
 	beq		m68040_fpu
-	cmp.l	#ASM_FPU_68060,d1		;is it 68060-code? 
+	cmp.l	#ASM_FPU_68060,d1		;is it 68060-code?
 	beq		m68060_fpu
 	cmp.l	#ASM_FPU_68080,d1		;is it 68080-code? (same as 68881)
 	beq		m68881_fpu
 	;not supported fpu!
 	bra 	end_fpu
 m68881_fpu:
-	MACHINE 68881	
-	fmove.x  #2,fp0 	; fb = 2 
+	MACHINE 68881
+	fmove.x  #2,fp0 	; fb = 2
 	fmove.x  #3,fp1 	; fc = 3
 	fmove.x  #4,fp2		; fd = 4
-m68881_fpu_loop: 
+m68881_fpu_loop:
 	fadd.x   fp1,fp0 	; fa = fb + fc
 	fmul.x   fp2,fp0	; fb = fa * fd
 	fsub.x   fp1,fp0	; fc = fb - fa
@@ -118,10 +87,10 @@ m68881_fpu_loop:
 	bra 	end_fpu
 m68040_fpu:
 	MACHINE 68040
-	fmove.x  #2,fp0 ; fb = 2 
+	fmove.x  #2,fp0 ; fb = 2
 	fmove.x  #3,fp1 ; fc = 3
 	fmove.x  #4,fp2	; fd = 4
-m68040_fpu_loop: 
+m68040_fpu_loop:
 	fadd.x   fp1,fp0 	; fa = fb + fc
 	fmul.x   fp2,fp0	; fb = fa * fd
 	fsub.x   fp1,fp0	; fc = fb - fa
@@ -133,11 +102,11 @@ m68040_fpu_loop:
 	dbne	 d0,m68040_fpu_loop ;loop decrement
 	bra 	 end_fpu
 m68060_fpu:
-	MACHINE 68060	
-	fmove.x  #2,fp0 ; fb = 2 
+	MACHINE 68060
+	fmove.x  #2,fp0 ; fb = 2
 	fmove.x  #3,fp1 ; fc = 3
 	fmove.x  #4,fp2	; fd = 4
-m68060_fpu_loop: 
+m68060_fpu_loop:
 	fadd.x   fp1,fp0 	; fa = fb + fc
 	fmul.x   fp2,fp0	; fb = fa * fd
 	fsub.x   fp1,fp0	; fc = fb - fa
@@ -163,7 +132,7 @@ _readreg:
 	movec	PCR,d0
 	rte
 
-_SetCPUReg: 
+_SetCPUReg:
 	;value to write is in d0 final result back in d0
 	movem.l	a5/a6,-(sp)
 	lea.l	_writereg,a5
@@ -180,7 +149,7 @@ _writereg:
 
 
 ;this method distinguishes between a 68040 and 68(LC)060
-_GetCPU060:	
+_GetCPU060:
 	movem.l	a5/a6,-(sp)
 	lea.l	_read060fpu,a5
 	move.l	$4.w,a6
@@ -190,76 +159,76 @@ _GetCPU060:
 
 _read060fpu
 
-	ori.w #$0700,sr                 ;disable interrupts
-	movem.l	 d1-d2/a0-a1,-(sp)
-	lea -$f0(a7),a7					;reserve f0-bytes room for termporary
+	ori.w	#$0700,sr               ;disable interrupts
+	movem.l	d1-d2/a0-a1,-(sp)
+	lea	-$f0(a7),a7             ;reserve f0-bytes room for temporary
 	                                ;exception vectors
-	                                	                                
-	moveq #ASM_CPU_68020,d0         ;default result is: ASM_CPU_68020
-	movec.l vbr,a0                  ;saveback VBR
-	lea illegal060(pc),a1             ;entry for Illegal/LineF
-	move.l a1,BusErrorVector(a7)           ;set it
-	move.l a1,AdddressErrorVector(a7)      ;ditto
-	move.l a1,IllegalInstructionVector(a7) ;ditto
-	move.l a1,ZeroDivideVector(a7)         ;ditto
-	move.l a1,CHKVector(a7)                ;ditto
-	move.l a1,TRAPccVector(a7)             ;ditto
-	move.l a1,PrivTrapVector(a7)           ;ditto
-	move.l a1,TraceVector(a7)              ;ditto
-	move.l a1,Line1010Vector(a7)           ;ditto
-	move.l a1,Line1111Vector(a7)           ;ditto
-	move.l a1,$34(a7)
-	move.l a1,$e0(a7)
-	move.l a1,$e4(a7)
-	move.l a1,$e8(a7)
-	lea nmi060(pc),a1
-	move.l a1,$7c(a7)               ;NMI disable
-	movec.l a7,vbr                  ;VBR temporary on stack
-	lea continue060(pc),a1            ;jump address in case of fault
-	
+
+	moveq	#ASM_CPU_68020,d0       ;default result is: ASM_CPU_68020
+	movec.l	vbr,a0                  ;saveback VBR
+	lea	illegal060(pc),a1       ;entry for Illegal/LineF
+	move.l	a1,$08(a7)              ;Bus Error
+	move.l	a1,$0c(a7)              ;Address Error
+	move.l	a1,$10(a7)              ;Illegal Instruction
+	move.l	a1,$14(a7)              ;Zero Divide
+	move.l	a1,$18(a7)              ;CHK
+	move.l	a1,$1c(a7)              ;TRAPcc
+	move.l	a1,$20(a7)              ;Privilege Violation
+	move.l	a1,$24(a7)              ;Trace
+	move.l	a1,$28(a7)              ;Line 1010
+	move.l	a1,$2c(a7)              ;Line 1111
+	move.l	a1,$34(a7)
+	move.l	a1,$e0(a7)
+	move.l	a1,$e4(a7)
+	move.l	a1,$e8(a7)
+	lea	nmi060(pc),a1
+	move.l	a1,$7c(a7)              ;NMI disable
+	movec.l	a7,vbr                  ;VBR temporary on stack
+	lea	continue060(pc),a1      ;jump address in case of fault
+
 	;the code below avoids a crash on xx060
-	;alternatively, just the moveq/movec would suffice where all other CPUs 
+	;alternatively, just the moveq/movec would suffice where all other CPUs
 	;(20/30,xx040,LC060,EC060) are pushed into the trap vector trampoline
 
 	;test for 040/60
-	movec	CACR,d1					; this will crash on 68000/010 -> crashvector
-	move.l	d1,d2					; copy
-	or.l	#CACRF_FreezeI,d2		; 020/30 only flag
-	movec	d2,CACR					; this will crash on 68000/010 -> crashvector
+	movec	CACR,d1                 ; this will crash on 68000/010 -> illegal060
+	move.l	d1,d2                   ; copy
+	or.l	#CACRF_EnableI,d2       ; 020/30 only flag
+	movec	d2,CACR                 ; this will crash on 68000/010 -> illegal060
 	movec	CACR,d2
-	movec	d1,CACR					; restore old cache state
-	btst	#CACRF_EnableI,d2		; this flag is ignored on 68040/60
+	movec	d1,CACR                 ; restore old cache state
+	btst	#CACRB_EnableI,d2       ; this flag is ignored on 68040/60
 	bne.s	no_040_60
 
-	
-	movec	PCR,d1				; this will crash 040 -> .illegal
-	swap	d1					; get upper 16 Bit
-	cmp.w	#$430,d1			; ID for full 060 (EC/LC have 0x431)
-	bne.s	no_060	        		; nope
+
+	movec	PCR,d1                  ; this will crash 040 -> illegal060
+	swap	d1                      ; get upper 16 Bit
+	cmp.w	#$430,d1                ; ID for full 060 (EC/LC have 0x431)
+	bne.s	no_060                  ; nope
 	moveq	#ASM_CPU_68060,d0
-	bra.s	continue060			;we have a 68060 with FPU
+	bra.s	continue060             ;we have a 68060 with FPU
 no_060:
-	cmp.w	#$440,d1			; ID for 68080 (Appolo core)
-	bne.s	lc_060			        ; nope
-	moveq	#ASM_CPU_68080,d0               ; we have a 68080 with FPU
-	bra.s	continue060			
+	cmp.w	#$440,d1                ; ID for 68080 (Apollo core)
+	bne.s	lc_060                  ; nope
+	moveq	#ASM_CPU_68080,d0       ; we have a 68080 with FPU
+	bra.s	continue060
 no_040_60:
-	moveq	#ASM_CPU_68020,d0	;we have a 68020/030-CPU
-        bra.s   continue060
+	moveq	#ASM_CPU_68020,d0       ;we have a 68020/030-CPU
+	bra.s	continue060
 lc_060:
-      	moveq	#ASM_CPU_68LC060,d0             
+	moveq	#ASM_CPU_68LC060,d0
 continue060:
-    movec.l a0,vbr                  ;restore VBR
-                                    ;result is in d0
-    lea $f0(a7),a7                  ;release stack
-    movem.l	(sp)+,d1-d2/a0-a1
+	movec.l	a0,vbr                  ;restore VBR
+	                                ;result is in d0
+	lea	$f0(a7),a7              ;release stack
+	movem.l	(sp)+,d1-d2/a0-a1
 nmi060:
-    rte                             ;this restores interrupts anyways
+	rte                             ;this restores interrupts anyways
 illegal060:
-    moveq #ASM_CPU_68040,d0
-    move.l a1,2(a7)
-    rte
-	
+	moveq	#ASM_CPU_68040,d0
+	move.l	a1,2(a7)
+	rte
+
 _GetVBR:
 	movem.l	a5/a6,-(sp)
 	lea.l	_readvbr,a5
@@ -273,114 +242,56 @@ _readvbr:
 	rte
 
 
-_GetCacheBits:	
+AFB_68020		EQU	1
+
+_GetCacheBits:
 	movem.l	d4/a5/a6,-(sp)
 	move.l	$4.w,a6
-        move.w	AttnFlags(a6),d4 ;test for 68020-cpu
+	move.w	AttnFlags(a6),d4
 	btst	#AFB_68020,d4
-        beq.s	gcb_exit
+	beq.s	gcb_exit
 	lea.l	_readCacheBits,a5
-	move.l	$4.w,a6
 	jsr	_LVOSupervisor(a6)
 gcb_exit:
 	movem.l	(sp)+,d4/a5/a6
 	rts
 
-_readCacheBits
-	movec	CACR,d0					
-        nop
-        rte
+_readCacheBits:
+	movec	CACR,d0
+	nop
+	rte
 
+AFB_68040		EQU	3
 
-_SetCacheBits:	
-	movem.l	d3/d4/a5/a6,-(sp)
+_SetCacheBits:				; d1: flags, d2: mask
+	movem.l	d1-d4/a5/a6,-(sp)
 	move.l	$4.w,a6
-        move.w	AttnFlags(a6),d4 ;test for 68020-cpu
+	move.w	AttnFlags(a6),d4
 	btst	#AFB_68020,d4
-        beq.s	scb_exit
+	beq.s	scb_exit
 	lea.l	_writeCacheBits,a5
 	jsr	_LVOSupervisor(a6)
 scb_exit:
-	movem.l	(sp)+,d3/d4/a5/a6
-	rts
-
-_writeCacheBits
-	ori.w #$0700,sr                 ;disable interrupts
-        move.l  d0,d3
-	movec	CACR,d0					
-        nop
-	btst	#AFB_68040,d4
-        beq.s   noFlush
-        CPUSHA  IC ;invalidate all caches
-        nop     ;some 68040 need some nops here
-        CPUSHA  DC ;invalidate all caches
-        nop     ;some 68040 need some nops here
-noFlush:
-	movec	d3,CACR
-        nop
-        rte
-
-
-_SetCacheBitsMasked:	;d1: flags d2: mask
-	movem.l	d1-d4/a5/a6,-(sp)
-	move.l	$4.w,a6
-        move.w	AttnFlags(a6),d4 ;test for 68020-cpu
-	btst	#AFB_68020,d4
-        beq.s	scbm_exit
-	lea.l	_writeCacheBitsMasked,a5
-	jsr	_LVOSupervisor(a6)
-scbm_exit:
 	movem.l	(sp)+,d1-d4/a5/a6
 	rts
 
-;d0 = result, d1 = flags, d2 = mask, D4= AttnFlags
-_writeCacheBitsMasked
-        or.w	#$0700,SR	;disable interrupts (rte enables)
-        and.l   d2,d1   ;delete bits, which to not matter
-        or.w	#CACRF_ClearD!CACRF_ClearI,d1 ; Clear data cache & clear instruction cache
-        not.l   d2      ;invert mask
-        movec	CACR,d0 				; save old value
-        nop
-        btst	#AFB_68040,d4
-	beq.s	scb_020
-        ;now modify the bits from 68040-style to 68030-style
-        ;68040: datacache is bit 31 (CACRF_CopyBack)
-        btst.l  #31,d0
-        beq.s   no_DC_040
-        and.l   #$7FFFFFFF,d0
-        or.l    #CACRF_EnableD!CACRF_DBE,d0 ;enable databurst aswell!!       
-no_DC_040        
-        ;68040: instructioncache is bit 15
-        btst.l  #15,d0
-        beq.s   scb_020
-        and.l   #$FFFF7FFF,d0
-        or.l    #CACRF_EnableI!CACRF_IBE,d0 ;enable instruction burst aswell!!
-scb_020: 
-        and.l   d0,d2   ;keep unaffected values
-        or.l    d2,d1   ; now d1 holds the desired value in 68030-style , but... hey if we have a 68040 we have to transform it back!
-        btst	#AFB_68040,d4
-	beq.s	scb_020_2 ;nope: just go on!
-        ;the 68040 has exactly two cache-bits : Data cache and Instruction cache, so test them and set them
-        btst.l  #8,d1 ;bit 8 = datacache
-        beq.s   no_DCSET_040
-        or.l    #$80000000,d1 ;set data cache        
-no_DCSET_040:
-        btst.l  #0,d1 ; bit 0 = instruction cache
-        beq.s   no_ICSET_040
-        or.l    #$8000,d1 ;set instruction cache        
-no_ICSET_040:
-        and.l   #$80008000,d1 ; mask all other bits
-        CPUSHA  IC ;invalidate all caches
-        nop     ;some 68040 need some nops here
-        CPUSHA  DC ;invalidate all caches
-        nop     ;some 68040 need some nops here
-scb_020_2:
-	movec	d1,CACR					
-        nop     ;some 68040 need some nops here	
-        rte     ;rte enables interrupts
-
-
-
+_writeCacheBits:
+	ori.w	#$0700,sr			; disable interrupts
+	movec	CACR,d0				; save old value
+	nop
+	btst	#AFB_68040,d4
+	beq.s	.noflush
+	CPUSHA	IC				; flush instruction cache
+	nop
+	CPUSHA	DC				; flush data cache
+	nop
+.noflush:
+	not.l	d2				; invert mask
+	and.l	d0,d2				; keep unaffected values
+	or.l	d2,d1
+	movec	d1,CACR
+	nop
+	rte
 
 _GetMMU:	;d0 holds the cpu type: either ASM_CPU_68020, ASM_CPU_68030 or ASM_CPU_68040
 	movem.l	a5/a6,-(sp)
@@ -405,7 +316,7 @@ _testMMU
 	cmp.l	#ASM_CPU_68LC060,d0		;is it 68LC060-code? -> same as 68040
 	beq		m68040_mmu
 	moveq #0,d0						;not supported cpu!
-	rte								
+	rte
 m68020_mmu:
 	MACHINE 68020
 	MACHINE 68851
@@ -415,7 +326,7 @@ m68020_mmu:
                                         ;exception vectors
 		;structure as follows:
         ;defvar
-        ; auto.b ec_autovectors,$f0     ;for autovectors (huh!) 
+        ; auto.b ec_autovectors,$f0     ;for autovectors (huh!)
         ; auto.l ec_tt0					;f0
         ; auto.l ec_tt1					;f4
         ; auto.l ec_tc					;f8
@@ -425,21 +336,21 @@ m68020_mmu:
         ; auto.l ec_newtc				;110
         ; auto.b ec_newroot,$20         ;114-134 root pointer with early termination
         ; auto.b ec_round,$10+4			;134-148
-        ;endvar		                                        
-                                        
+        ;endvar
+
         moveq #ASM_MMU,d0               ;default result is: YES
         movec.l vbr,a0                  ;saveback VBR
         lea .illegal(pc),a1             ;entry for Illegal/LineF
-	move.l a1,BusErrorVector(a7)           ;set it
-	move.l a1,AdddressErrorVector(a7)      ;ditto
-	move.l a1,IllegalInstructionVector(a7) ;ditto
-	move.l a1,ZeroDivideVector(a7)         ;ditto
-	move.l a1,CHKVector(a7)                ;ditto
-	move.l a1,TRAPccVector(a7)             ;ditto
-	move.l a1,PrivTrapVector(a7)           ;ditto
-	move.l a1,TraceVector(a7)              ;ditto
-	move.l a1,Line1010Vector(a7)           ;ditto
-	move.l a1,Line1111Vector(a7)           ;ditto
+        move.l a1,$08(a7)               ;Bus Error
+        move.l a1,$0c(a7)               ;Address Error
+        move.l a1,$10(a7)               ;Illegal Instruction
+        move.l a1,$14(a7)               ;Zero Divide
+        move.l a1,$18(a7)               ;CHK
+        move.l a1,$1c(a7)               ;TRAPcc
+        move.l a1,$20(a7)               ;Privilege Violation
+        move.l a1,$24(a7)               ;Trace
+        move.l a1,$28(a7)               ;Line 1010
+        move.l a1,$2c(a7)               ;Line 1111
         move.l a1,$34(a7)
         move.l a1,$e0(a7)
         move.l a1,$e4(a7)
@@ -483,7 +394,7 @@ m68020_mmu:
         moveq #0,d0
         move.l a1,2(a7)
         rte
-        
+
 m68030_mmu:
 	;first tests go with 68851-code which generate some exceptions on a "real" 68EC030
 	MACHINE 68020 pmmu
@@ -493,7 +404,7 @@ m68030_mmu:
                                         ;exception vectors
 		;structure as follows:
         ;defvar
-        ; auto.b ec_autovectors,$f0      ;for autovectors (huh!) 
+        ; auto.b ec_autovectors,$f0      ;for autovectors (huh!)
         ; auto.l ec_tt0					;f0
         ; auto.l ec_tt1					;f4
         ; auto.l ec_tc					;f8
@@ -503,21 +414,21 @@ m68030_mmu:
         ; auto.l ec_newtc				;110
         ; auto.b ec_newroot,$20         ;114-134 root pointer with early termination
         ; auto.b ec_round,$10+4			;134-148
-        ;endvar		                                        
-                                        
+        ;endvar
+
         moveq #ASM_MMU,d0               ;default result is: YES
         movec.l vbr,a0                  ;saveback VBR
         lea .illegal(pc),a1             ;entry for Illegal/LineF
-	move.l a1,BusErrorVector(a7)           ;set it
-	move.l a1,AdddressErrorVector(a7)      ;ditto
-	move.l a1,IllegalInstructionVector(a7) ;ditto
-	move.l a1,ZeroDivideVector(a7)         ;ditto
-	move.l a1,CHKVector(a7)                ;ditto
-	move.l a1,TRAPccVector(a7)             ;ditto
-	move.l a1,PrivTrapVector(a7)           ;ditto
-	move.l a1,TraceVector(a7)              ;ditto
-	move.l a1,Line1010Vector(a7)           ;ditto
-	move.l a1,Line1111Vector(a7)           ;ditto
+        move.l a1,$08(a7)               ;Bus Error
+        move.l a1,$0c(a7)               ;Address Error
+        move.l a1,$10(a7)               ;Illegal Instruction
+        move.l a1,$14(a7)               ;Zero Divide
+        move.l a1,$18(a7)               ;CHK
+        move.l a1,$1c(a7)               ;TRAPcc
+        move.l a1,$20(a7)               ;Privilege Violation
+        move.l a1,$24(a7)               ;Trace
+        move.l a1,$28(a7)               ;Line 1010
+        move.l a1,$2c(a7)               ;Line 1111
         move.l a1,$34(a7)
         move.l a1,$e0(a7)
         move.l a1,$e4(a7)
@@ -595,7 +506,7 @@ m68030_mmu:
         cmp.l d4,d3                     ;ROMBoot must have been available at AbsExecBase
         beq.s .fine
         moveq #0,d0
-.fine:        
+.fine:
         tst.l $f8(a7)                 	;Enabled ?
         bpl.s .continue                 ;continue if disabled
         pmove.d $fc(a7),crp          	;restore the urp
@@ -629,16 +540,16 @@ m68040_mmu:
                                         ;exception vectors
         movec.l vbr,a0                  ;saveback VBR
         lea .illegal(pc),a1             ;entry for Illegal/LineF
-	move.l a1,BusErrorVector(a7)           ;set it
-	move.l a1,AdddressErrorVector(a7)      ;ditto
-	move.l a1,IllegalInstructionVector(a7) ;ditto
-	move.l a1,ZeroDivideVector(a7)         ;ditto
-	move.l a1,CHKVector(a7)                ;ditto
-	move.l a1,TRAPccVector(a7)             ;ditto
-	move.l a1,PrivTrapVector(a7)           ;ditto
-	move.l a1,TraceVector(a7)              ;ditto
-	move.l a1,Line1010Vector(a7)           ;ditto
-	move.l a1,Line1111Vector(a7)           ;ditto
+        move.l a1,$08(a7)               ;Bus Error
+        move.l a1,$0c(a7)               ;Address Error
+        move.l a1,$10(a7)               ;Illegal Instruction
+        move.l a1,$14(a7)               ;Zero Divide
+        move.l a1,$18(a7)               ;CHK
+        move.l a1,$1c(a7)               ;TRAPcc
+        move.l a1,$20(a7)               ;Privilege Violation
+        move.l a1,$24(a7)               ;Trace
+        move.l a1,$28(a7)               ;Line 1010
+        move.l a1,$2c(a7)               ;Line 1111
         lea .nmi(pc),a1
         move.l a1,$7c(a7)               ;NMI disable
         movec.l a7,vbr                  ;VBR temporary on stack
@@ -691,5 +602,4 @@ _read_ramsey_ctrl:
 
 
 
-	
     END

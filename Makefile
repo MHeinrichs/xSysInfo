@@ -5,8 +5,7 @@
 
 ADATE   := $(shell date '+%-d.%-m.%Y')
 # FULL_VERSION is 42.xx-yy-dirty
-# FULL_VERSION ?= $(shell git describe --tags --dirty | sed -r 's/^release_//')
-FULL_VERSION := 0.52-rc-candidate
+FULL_VERSION ?= $(shell git describe --tags --dirty | sed -r 's/^release_//')
 PROG_VERSION := $(shell echo $(FULL_VERSION) | cut -f1 -d\.)
 PROG_REVISION := $(shell echo $(FULL_VERSION) | cut -f2 -d\.|cut -f1 -d\-)
 
@@ -14,28 +13,21 @@ CC = m68k-amigaos-gcc
 STRIP = m68k-amigaos-strip
 VASM    := vasmm68k_mot
 
-# NDK include path (override with: make NDK_INC=/your/path)
-#NDK_INC ?= /opt/amiga/m68k-amigaos/ndk-include
-NDK_INC = /mnt/c/Users/Matze/Amiga/SoftwareHacks/NDK3.2R4/Include_I
-#C_NDK_INC = /mnt/c/Users/Matze/Amiga/SoftwareHacks/NDK_3.1/INCLUDES_LIBS/INCLUDE_H
+# NDK include path (override with: make NDK_PATH=/your/path)
+NDK_PATH ?= $(shell realpath $$(dirname $$(which $(CC)))/../m68k-amigaos/ndk-include)
 
 # Include paths: our includes + identify.library reference includes
-IDENTIFY_INC = /mnt/c/Users/Matze/Amiga/SoftwareHacks/xSysInfo/3rdparty/identify/reference
+IDENTIFY_INC = 3rdparty/identify/reference
 MMU_INC = 3rdparty/mmu/reference
 
-CFLAGS = -O2 -m68000 -mtune=68020-60 -Wa,-m68881 -msoft-float -Wall -Wextra \
+CFLAGS = -O2 -m68000 -mtune=68020-60 -Wa,-m68881 -msoft-float -noixemul -Wall -Wextra \
          -I$(IDENTIFY_INC) \
          -I$(MMU_INC) \
          -DXSYSINFO_DATE="\"$(ADATE)\"" -DXSYSINFO_VERSION="\"$(FULL_VERSION)\"" \
          -DPROG_VERSION=$(PROG_VERSION) -DPROG_REVISION=$(PROG_REVISION) \
-         -DTIMEVAL_DEFINED \
-		 -mcrt=nix13
-		 #-mcrt=nix13	 		 
-		 
-ASMFLAGS = -Fhunk -esc -sc -m68020up -I $(NDK_INC)
-LDFLAGS = 	-mcrt=nix13 
-			#-mcrt=nix13
-			
+		 # -mcrt=nix13
+ASMFLAGS = -Fhunk -esc -sc -m68020up -I $(NDK_PATH)
+LDFLAGS = -noixemul
 LIBS = -lamiga -lgcc
 
 # Source files
@@ -104,7 +96,7 @@ mmu: $(FLEXCAT_BIN)
 # Catalog definitions - maps source directory to AmigaOS language name
 CATALOG_DESC = catalogs/xSysInfo.cd
 CATALOG_DIR = catalogs/build
-CATALOG_LANGS = german:deutsch french:francais turkish:tuerkce polish:polski
+CATALOG_LANGS = german:deutsch french:français turkish:türkçe polish:polski
 
 # Build all catalogs
 catalogs: $(FLEXCAT_BIN)
@@ -147,16 +139,12 @@ $(TARGET): $(OBJS) $(ASM_OBJS)
 
 src/%.o: src/%.c src/xsysinfo.h
 	@echo "  CC    $@"
-	@$(CC) $(CFLAGS) $(DEBUGFLAG) -c -o $@ $<
+	@$(CC) $(CFLAGS) -c -o $@ $<
 
 src/%.hunk: src/%.S
 	@echo "  ASM   $@"
 	@$(VASM) $(ASMFLAGS) -o $@ $<
 
-recompile:
-	@echo "  RECOMPILE"
-	@rm -f $(OBJS) $(ASM_OBJS)
-	
 clean:
 	@echo "  CLEAN"
 	@rm -f $(OBJS) $(ASM_OBJS) $(TARGET) TinySetPatch
@@ -336,12 +324,12 @@ download-libs: $(IDENTIFY_USR_LHA) $(IDENTIFY_PCI_LHA) $(OPENPCI_LHA) $(MMULIB_L
 		MuManual/Include/mmu/mmubase.h \
 		MuManual/Include/mmu/mmutags.h \
 		MuManual/Include/pragmas/mmu_pragmas.h
-	@mkdir 3rdparty/mmu/reference -p
-	@mkdir 3rdparty/mmu/reference/fd -p
-	@mkdir 3rdparty/mmu/reference/clib -p
-	@mkdir 3rdparty/mmu/reference/mmu -p
-	@mkdir 3rdparty/mmu/reference/pragmas -p
-	@mkdir 3rdparty/mmu/reference/proto -p
+	@mkdir -p 3rdparty/mmu/reference
+	@mkdir -p 3rdparty/mmu/reference/fd
+	@mkdir -p 3rdparty/mmu/reference/clib
+	@mkdir -p 3rdparty/mmu/reference/mmu
+	@mkdir -p 3rdparty/mmu/reference/pragmas
+	@mkdir -p 3rdparty/mmu/reference/proto
 	@mv MuManual/fd/mmu_lib.fd 3rdparty/mmu/reference/fd/
 	@mv MuManual/fd/mmu_resource.fd 3rdparty/mmu/reference/fd/
 	@mv MuManual/Include/clib/mmu_protos.h  3rdparty/mmu/reference/clib/
@@ -359,7 +347,7 @@ download-libs: $(IDENTIFY_USR_LHA) $(IDENTIFY_PCI_LHA) $(OPENPCI_LHA) $(MMULIB_L
 
 TinySetPatch: src/TinySetPatch.S
 	@echo "  VASM $@"
-	@$(VASM) -quiet -Fhunkexe -o $@ -nosym $< -I $(NDK_INC)
+	@$(VASM) -quiet -Fhunkexe -o $@ -nosym $< -I $(NDK_PATH)
 
 disk: $(TARGET) download-libs TinySetPatch
 	@echo "  DISK"

@@ -23,14 +23,14 @@
 #define RAMSEY_WRAP_MODE 0x4
 #define RAMSEY_SIZE 0x8
 #define RAMSEY_SKIP_MODE 0x10
-#define RAMSEY_REFESH_MODE 0x20
-#define RTC_BASE   0xDC0000 
+#define RAMSEY_REFRESH_MODE 0x20
+#define RTC_BASE   0xDC0000
 #define RTC_REG_A    0x2B
 #define RTC_REG_C   0x33
 #define RTC_REG_D   0x37
 #define RTC_REG_F   0x3F
 #define RTC_MASK   0xF //only the lower 4 bit matter!
-#define CUSTOM_BLTDDAT   0xDFF000     
+#define CUSTOM_BLTDDAT   0xDFF000
 #define CUSTOM_DMACONR   0xDFF002
 #define CUSTOM_DMACONR_MIRR   0xDAF002
 #define CUSTOM_JOY0DAT   0xDFF00A
@@ -39,7 +39,7 @@
 #define CUSTOM_JOY1DAT_MIRR  0xDAF00C
 #define CUSTOM_PAULA_ID  0xDFF016
 #define CUSTOM_DENISE_ID  0xDFF07C
-#define CUSTOM_VPOSR    0xDFF004      
+#define CUSTOM_VPOSR    0xDFF004
 #define CUSTOM_AGNUS_ID CUSTOM_VPOSR
 #define CUSTOM_AGNUS_ID_MIRR 0xDCF004
 #define GAYLE_ID 0xDE1000
@@ -218,21 +218,21 @@ typedef struct {
     /* Other chips */
     unsigned char gary_rev;         /* 0 = not present */
     unsigned char ramsey_rev;       /* 0 = not present */
-    unsigned char ramsey_ctl;       
+    unsigned char ramsey_ctl;
     unsigned char sdmac_rev;         /* 0 = not present */
     GaryType gary_type;
 
     BOOL is_A4000T;
-    
+
     BOOL ramsey_page_enabled;
     BOOL ramsey_burst_enabled;
     BOOL ramsey_wrap_enabled;
     BOOL ramsey_size_1M;
     BOOL ramsey_skip_enabled;
-	ULONG ramsey_refresh_rate;     /* 0 = ???, 1 = ???, 2 = ???, 3 = ??? */
-	
+    ULONG ramsey_refresh_rate;     /* 0 = ???, 1 = ???, 2 = ???, 3 = ??? */
+
     /* BattMemRessources (if available)*/
-	BattMemData battMemData;
+    BattMemData battMemData;
 
     /* System info */
     BOOL has_zorro_slots;

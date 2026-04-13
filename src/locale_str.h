@@ -33,7 +33,7 @@ typedef enum {
     /* Scale toggle */
     MSG_EXPAND,
     MSG_SHRINK,
-    
+
     /* Hardware labels */
     MSG_CLOCK,
     MSG_DMA_GFX,
@@ -253,9 +253,9 @@ typedef enum {
     MSG_SHARED_AMNESIA,
     MSG_TIMEOUT,
     MSG_SCAN_LUN,
-    MSG_SYC_TRANS,
+    MSG_SYNC_TRANS,
     MSG_FAST_SYNC,
-    MSG_QUEING,
+    MSG_QUEUING,
     MSG_SCSI_HOST_ID,
     MSG_LONG,
     MSG_SHORT,

@@ -5,6 +5,7 @@
  * xSysInfo - Main entry point and display management
  */
 
+#include <stdio.h>
 #include <string.h>
 
 #include <exec/execbase.h>
@@ -48,15 +49,15 @@ struct GfxBase *GfxBase = NULL;
 struct Library *IdentifyBase = NULL;
 struct Library *IconBase = NULL;
 extern struct DosLibrary *DOSBase;
-extern BenchmarkResults bench_results;
-extern HardwareInfo hw_info;
 
 /* Workbench startup message (if started from WB) */
 static struct WBStartup *wb_startup = NULL;
 
 /* Global debug flag */
 BOOL g_debug_enabled = FALSE;
-BOOL g_text_mode = FALSE;
+
+/* Text-only mode (no GUI, print results to stdout) */
+static BOOL g_text_mode = FALSE;
 
 /* Global application context */
 AppContext app_context;
@@ -69,7 +70,7 @@ struct TextAttr Topaz8Font = {
 AppContext *app = &app_context;
 
 /* Command line argument template */
-#define TEMPLATE "DEBUG/S TEXT/s"
+#define TEMPLATE "DEBUG/S"
 
 /* Argument array indices */
 enum {
@@ -89,6 +90,8 @@ static const UWORD palette[8] = {
     0x0444,     /* 7: Dark (3D button shadow) */
 };
 
+/* Default pens array for SA_Pens (use system defaults) */
+static const UWORD default_pens[] = { (UWORD)~0 };
 
 /* Forward declarations */
 static BOOL open_libraries(void);
@@ -99,8 +102,41 @@ static void main_loop(void);
 static void set_palette(void);
 static void allocate_pens(void);
 static void release_pens(void);
+static BOOL is_rtg_mode(struct Screen *screen);
 static void parse_tooltypes(void);
 
+/*
+ * Case-insensitive string compare (portable, no OS dependency)
+ */
+static int xstricmp(const char *o1, const char *o2)
+{
+    if (o1 == NULL)
+        return 1;
+    if (o2 == NULL)
+        return -1;
+    int i = 0;
+    char a, b;
+    while (o1[i] != 0 && o2[i] != 0) {
+        a = o1[i];
+        if (a >= 'A' && a <= 'Z')
+            a += 0x20;
+        b = o2[i];
+        if (b >= 'A' && b <= 'Z')
+            b += 0x20;
+        if (a != b) {
+            return a > b ? -1 : 1;
+        }
+        i++;
+    }
+    if (o1[i] == 0 && o2[i] == 0)
+        return 0;
+    if (o1[i] == 0)
+        return 1;
+    if (o2[i] == 0)
+        return -1;
+
+    return 0;
+}
 
 /*
  * Parse command line arguments
@@ -108,43 +144,14 @@ static void parse_tooltypes(void);
  */
 static BOOL parse_args(int argc, char **argv)
 {
-
-    /*
-    if (SysBase->LibNode.lib_Version > 34) //kick > 2.0?
-    {
-        struct RDArgs *rdargs;
-        LONG args[ARG_COUNT] = { 0 };
-        rdargs = ReadArgs((CONST_STRPTR)TEMPLATE, args, NULL);
-        if (!rdargs) {
-            // ReadArgs failed - but we'll continue with defaults
-            return TRUE;
+    if (argc > 1) {
+        for (int i = 1; i < argc; i++) {
+            if (xstricmp(argv[i], "debug") == 0)
+                g_debug_enabled = TRUE;
+            else if (xstricmp(argv[i], "text") == 0)
+                g_text_mode = TRUE;
         }
-
-        // Check for DEBUG switch
-        if (args[ARG_DEBUG]) {
-            g_debug_enabled = TRUE;
-        }
-        FreeArgs(rdargs);
     }
-    else
-    {
-        */
-        // at present only "debug" is recognized
-        if (argc > 1)
-        {
-            for (int i = 1; i < argc; i++)
-            {
-                if (my_stricmp(argv[i], "debug")==0)
-                {
-                    g_debug_enabled = TRUE;
-                }
-                if (my_stricmp(argv[i], "text")==0)
-                {
-                    g_text_mode = TRUE;
-                }                
-            }
-        }
-    /*}*/
     return TRUE;
 }
 
@@ -198,38 +205,6 @@ static void parse_tooltypes(void)
     CurrentDir(old_dir);
 }
 
-int my_stricmp(char *o1, char *o2)
-{
-    if (o1 == NULL)
-        return 1;
-    if (o2 == NULL)
-        return -1;
-    int i = 0;
-    char a, b;
-    while (o1[i] != 0 && o2[i] != 0)
-    {
-        a = o1[i];
-        if (a >= 0x41 && a <= 0x5A)
-            a += 0x20;
-        b = o2[i];
-        if (b >= 0x41 && b <= 0x5A)
-            b += 0x20;
-        if (a != b)
-        {
-            return a > b ? -1 : 1;
-        }
-        i++;
-    }
-    if (o1[i] == 0 && o2[i] == 0)
-        return 0; // equal!
-    if (o1[i] == 0)
-        return 1;
-    if (o2[i] == 0)
-        return -1;
-
-    return 0;
-}
-
 /*
  * Main entry point
  */
@@ -248,6 +223,7 @@ int main(int argc, char **argv)
     }
 
     debug(XSYSINFO_NAME ": Starting...\n");
+
     /* Initialize application context */
     memset(app, 0, sizeof(AppContext));
     app->current_view = VIEW_MAIN;
@@ -304,43 +280,40 @@ int main(int argc, char **argv)
         goto cleanup;
     }
 
-    if(!g_text_mode){
+    if (!g_text_mode) {
         debug(XSYSINFO_NAME ": Opening display...\n");
-        /* Open display (screen or window) */
         if (!open_display()) {
-            Printf((CONST_STRPTR)"%s\n", get_string(MSG_ERR_NO_WINDOW));
+            Printf((CONST_STRPTR)"%s\n", (LONG)get_string(MSG_ERR_NO_WINDOW));
             ret = RETURN_FAIL;
             goto cleanup;
         }
 
         debug(XSYSINFO_NAME ": Init buttons...\n");
-        /* Initialize GUI buttons */
         init_buttons();
 
         debug(XSYSINFO_NAME ": Draw screen...\n");
-        /* Draw initial view */
         redraw_current_view();
 
         debug(XSYSINFO_NAME ": Start main loop...\n");
-        /* Main event loop */
         main_loop();
-    }
-    else{
+    } else {
         char buffer[16];
+
         run_benchmarks();
 
-        printf("CPU: %s MHz:",hw_info.cpu_string);
-        if (hw_info.cpu_mhz >0) {            
+        printf("CPU: %s MHz: ", hw_info.cpu_string);
+        if (hw_info.cpu_mhz > 0) {
             format_scaled(buffer, sizeof(buffer), hw_info.cpu_mhz, TRUE);
             printf("%s\n", buffer);
         } else {
             printf("%s\n", get_string(MSG_NA));
         }
 
-        printf("MMU: %s enabled: %s\n",hw_info.mmu_string, hw_info.mmu_enabled?get_string(MSG_YES):get_string(MSG_NO));
+        printf("MMU: %s enabled: %s\n", hw_info.mmu_string,
+               hw_info.mmu_enabled ? get_string(MSG_YES) : get_string(MSG_NO));
 
-        printf("FPU: %s MHz:",hw_info.fpu_string);
-        if (hw_info.fpu_mhz >0) {
+        printf("FPU: %s MHz: ", hw_info.fpu_string);
+        if (hw_info.fpu_mhz > 0) {
             format_scaled(buffer, sizeof(buffer), hw_info.fpu_mhz, TRUE);
             printf("%s\n", buffer);
         } else {
@@ -348,61 +321,48 @@ int main(int argc, char **argv)
         }
 
         printf("Dhrystones: ");
-        if (bench_results.benchmarks_valid) {
+        if (bench_results.benchmarks_valid)
             printf("%lu\n", (unsigned long)bench_results.dhrystones);
-        } else {
-            printf("%s\n",get_string(MSG_NA));
-        }
+        else
+            printf("%s\n", get_string(MSG_NA));
+
         printf("MIPS: ");
         if (bench_results.benchmarks_valid) {
             format_scaled(buffer, sizeof(buffer), bench_results.mips, TRUE);
             printf("%s\n", buffer);
         } else {
-            printf("%s\n",get_string(MSG_NA));
+            printf("%s\n", get_string(MSG_NA));
         }
 
         printf("MFLOPS: ");
-        if (hw_info.fpu_type != FPU_NONE && bench_results.benchmarks_valid && hw_info.fpu_enabled) {
+        if (hw_info.fpu_type != FPU_NONE && bench_results.benchmarks_valid
+            && hw_info.fpu_enabled) {
             format_scaled(buffer, sizeof(buffer), bench_results.mflops, TRUE);
             printf("%s\n", buffer);
         } else {
             printf("%s\n", get_string(MSG_NA));
         }
 
-
-        /* Format CHIP speed in MB/s */
         if (bench_results.benchmarks_valid && bench_results.chip_speed > 0)
-        {
-            format_scaled(buffer, sizeof(buffer), bench_results.chip_speed / 10000, TRUE);
-        }
+            format_scaled(buffer, sizeof(buffer),
+                          bench_results.chip_speed / 10000, TRUE);
         else
-        {
             snprintf(buffer, sizeof(buffer), "%s", get_string(MSG_NA));
-        }
-        printf("Chipram speed: %s\n",buffer);
+        printf("Chip RAM speed: %s MB/s\n", buffer);
 
-
-        /* Format FAST speed in MB/s or N/A */
         if (bench_results.benchmarks_valid && bench_results.fast_speed > 0)
-        {
-            format_scaled(buffer, sizeof(buffer), bench_results.fast_speed / 10000, TRUE);
-        }
+            format_scaled(buffer, sizeof(buffer),
+                          bench_results.fast_speed / 10000, TRUE);
         else
-        {
             snprintf(buffer, sizeof(buffer), "%s", get_string(MSG_NA));
-        }
-        printf("Fastram speed: %s\n",buffer);
+        printf("Fast RAM speed: %s MB/s\n", buffer);
 
-        /* Format ROM speed in MB/s */
         if (bench_results.benchmarks_valid && bench_results.rom_speed > 0)
-        {
-            format_scaled(buffer, sizeof(buffer), bench_results.rom_speed / 10000, TRUE);
-        }
+            format_scaled(buffer, sizeof(buffer),
+                          bench_results.rom_speed / 10000, TRUE);
         else
-        {
             snprintf(buffer, sizeof(buffer), "%s", get_string(MSG_NA));
-        }
-        printf("ROM speed: %s\n",buffer);
+        printf("ROM speed: %s MB/s\n", buffer);
     }
 
 cleanup:
@@ -443,8 +403,8 @@ static BOOL open_libraries(void)
     }
 
     /* Open identify.library */
-            debug(XSYSINFO_NAME " open_libraries: trying identify.library\n");
-            IdentifyBase = OpenLibrary((CONST_STRPTR) "identify.library", MIN_IDENTIFY_VERSION);
+    debug(XSYSINFO_NAME " open_libraries: trying identify.library\n");
+    IdentifyBase = OpenLibrary((CONST_STRPTR) "identify.library", MIN_IDENTIFY_VERSION);
     /*
     if (!IdentifyBase) {
         Printf((CONST_STRPTR)"%s\n", (LONG)get_string(MSG_ERR_NO_IDENTIFY));
@@ -497,13 +457,32 @@ static void close_libraries(void)
 }
 
 /*
+ * Check if a screen is using RTG (high resolution) mode
+ */
+static BOOL is_rtg_mode(struct Screen *screen)
+{
+    if (!screen)
+        return FALSE;
+
+    /* Resolution above native chipset limits implies RTG use */
+    if (screen->Width > RTG_WIDTH_THRESHOLD ||
+        screen->Height > RTG_HEIGHT_THRESHOLD) {
+        return TRUE;
+    }
+
+    return FALSE;
+}
+
+/*
  * Open display - either a window on Workbench or a custom screen
  */
 static BOOL open_display(void)
-{    
+{
     struct NewScreen *newScreen;
     struct NewWindow *newWindow;
+    struct Screen *wb_screen;
     BOOL use_window = FALSE;
+    BOOL has_v36_intuition = (IntuitionBase->LibNode.lib_Version >= 36);
 
     /* Check display mode setting from tooltypes */
     if (app->display_mode == DISPLAY_WINDOW) {
@@ -512,22 +491,25 @@ static BOOL open_display(void)
         use_window = FALSE;
     } else {
         /* AUTO mode - detect based on RTG */
-        if (wb_startup)
-        { // started from wb
+        if (has_v36_intuition) {
+            wb_screen = LockPubScreen((CONST_STRPTR)"Workbench");
+            if (!wb_screen) {
+                wb_screen = LockPubScreen(NULL);  /* Default public screen */
+            }
+
+            if (wb_screen) {
+                use_window = is_rtg_mode(wb_screen);
+                UnlockPubScreen(NULL, wb_screen);
+            }
+        } else if (wb_startup) {
             /* Get a copy of Workbench screen to check its mode */
             struct Screen *wb_screen = (struct Screen *)AllocMem(sizeof(struct Screen), MEMF_ANY | MEMF_CLEAR);
-            GetScreenData(wb_screen, sizeof(struct Screen), WBENCHSCREEN, NULL);
-            if (wb_screen)
-            {
-                if (GetScreenData(wb_screen, sizeof(struct Screen), WBENCHSCREEN, NULL))
-                {
-
-                    // if Workbench is in RTG mode: resolution exceeds native chipset limits
+            if (wb_screen) {
+                if (GetScreenData(wb_screen, sizeof(struct Screen), WBENCHSCREEN, NULL)) {
+                    /* If Workbench is in RTG mode: resolution exceeds native chipset limits */
                     if (wb_screen->Width > RTG_WIDTH_THRESHOLD ||
-                        wb_screen->Height > RTG_HEIGHT_THRESHOLD)
-                    {
+                        wb_screen->Height > RTG_HEIGHT_THRESHOLD) {
                         use_window = TRUE;
-                        app->display_mode = DISPLAY_WINDOW;
                     }
                 }
                 FreeMem(wb_screen, sizeof(struct Screen));
@@ -544,30 +526,39 @@ static BOOL open_display(void)
         /* Open window on Workbench */
         app->use_custom_screen = FALSE;
 
-
-
+        if (has_v36_intuition) {
+            app->window = OpenWindowTags(NULL,
+                WA_Title, (ULONG)XSYSINFO_NAME " " XSYSINFO_VERSION,
+                WA_InnerWidth, SCREEN_WIDTH,
+                WA_InnerHeight, SCREEN_HEIGHT_NTSC + 10,
+                WA_IDCMP, IDCMP_CLOSEWINDOW | IDCMP_MOUSEBUTTONS |
+                          IDCMP_REFRESHWINDOW | IDCMP_VANILLAKEY |
+                          IDCMP_MOUSEMOVE | IDCMP_RAWKEY,
+                WA_Flags, WFLG_CLOSEGADGET | WFLG_DRAGBAR | WFLG_DEPTHGADGET |
+                          WFLG_ACTIVATE | WFLG_SMART_REFRESH | WFLG_GIMMEZEROZERO |
+                          WFLG_REPORTMOUSE,
+                WA_PubScreenName, (ULONG)"Workbench",
+                TAG_DONE);
+        } else {
             newWindow = (struct NewWindow *)AllocMem(sizeof(struct NewWindow), MEMF_ANY | MEMF_CLEAR);
-            if (newWindow)
-            {
-                newWindow->Title = (UBYTE *) (XSYSINFO_NAME " " XSYSINFO_VERSION);
+            if (newWindow) {
+                newWindow->Title = (UBYTE *)(XSYSINFO_NAME " " XSYSINFO_VERSION);
                 newWindow->Type = WBENCHSCREEN;
                 newWindow->Width = SCREEN_WIDTH;
-                newWindow->Height = SCREEN_HEIGHT_NTSC + 16,
-                newWindow->LeftEdge = 0;
-                newWindow->TopEdge = 0;
+                newWindow->Height = SCREEN_HEIGHT_NTSC + 16;
                 newWindow->IDCMPFlags = IDCMP_CLOSEWINDOW | IDCMP_MOUSEBUTTONS |
                         IDCMP_REFRESHWINDOW | IDCMP_VANILLAKEY |
                         IDCMP_MOUSEMOVE | IDCMP_RAWKEY;
                 newWindow->Flags = WFLG_CLOSEGADGET | WFLG_DRAGBAR | WFLG_DEPTHGADGET |
                         WFLG_ACTIVATE | WFLG_SMART_REFRESH | WFLG_GIMMEZEROZERO |
                         WFLG_REPORTMOUSE;
-                if (hw_info.kickstart_patch_version<36) {
+                if (hw_info.kickstart_patch_version < 36)
                     newWindow->BlockPen = 1;
-                }
+
                 app->window = OpenWindow(newWindow);
                 FreeMem(newWindow, sizeof(struct NewWindow));
             }
-        
+        }
 
         if (!app->window) {
             return FALSE;
@@ -575,13 +566,15 @@ static BOOL open_display(void)
 
         app->rp = app->window->RPort;
         app->screen = app->window->WScreen;
-        app->screen_height = app->screen->Height;
+        app->screen_height = app->window->Height -
+                             app->window->BorderTop -
+                             app->window->BorderBottom;
 
         /* If default screen font is larger than Topaz8, switch to Topaz8 */
-        if(app->window->IFont->tf_YSize > Topaz8Font.ta_YSize)
+        if (app->window->IFont->tf_YSize > Topaz8Font.ta_YSize)
         {
             app->tf = OpenFont(&Topaz8Font);
-            if(app->tf)
+            if (app->tf)
             {
                 SetFont(app->rp, app->tf);
             }
@@ -594,24 +587,38 @@ static BOOL open_display(void)
 
         app->screen_height = app->is_pal ? SCREEN_HEIGHT_PAL : SCREEN_HEIGHT_NTSC;
 
-
-            newScreen = (struct NewScreen *) AllocMem(sizeof(struct NewScreen), MEMF_ANY|MEMF_CLEAR);
-            if(newScreen){
+        if (has_v36_intuition) {
+            app->screen = OpenScreenTags(NULL,
+                SA_Width, SCREEN_WIDTH,
+                SA_Height, app->screen_height,
+                SA_Depth, SCREEN_DEPTH,
+                SA_Title, (ULONG)XSYSINFO_NAME " " XSYSINFO_VERSION,
+                SA_Type, CUSTOMSCREEN,
+                SA_Font, (ULONG)&Topaz8Font,
+                SA_DisplayID, HIRES_KEY,
+                SA_Pens, (ULONG)default_pens,
+                SA_ShowTitle, FALSE,
+                TAG_DONE);
+        } else {
+            newScreen = (struct NewScreen *)AllocMem(sizeof(struct NewScreen), MEMF_ANY | MEMF_CLEAR);
+            if (newScreen) {
                 newScreen->Width = SCREEN_WIDTH;
                 newScreen->Height = app->screen_height;
                 newScreen->Depth = SCREEN_DEPTH;
-                newScreen->DefaultTitle =  (UBYTE *) (XSYSINFO_NAME " " XSYSINFO_VERSION);
+                newScreen->DefaultTitle = (UBYTE *)(XSYSINFO_NAME " " XSYSINFO_VERSION);
                 newScreen->Type = CUSTOMSCREEN;
                 newScreen->Font = &Topaz8Font;
                 newScreen->ViewModes = HIRES;
                 app->screen = OpenScreen(newScreen);
-                ShowTitle(app->screen, FALSE);
+                if (app->screen) {
+                    ShowTitle(app->screen, FALSE);
+                }
                 FreeMem(newScreen, sizeof(struct NewScreen));
             }
-        
+        }
 
         if (!app->screen) {
-            Printf((CONST_STRPTR)"%s\n", get_string(MSG_ERR_NO_SCREEN));
+            Printf((CONST_STRPTR)"%s\n", (LONG)get_string(MSG_ERR_NO_SCREEN));
             return FALSE;
         }
 
@@ -619,21 +626,34 @@ static BOOL open_display(void)
         set_palette();
 
         /* Open borderless window on our screen */
-
-            newWindow = (struct NewWindow *) AllocMem(sizeof(struct NewWindow), MEMF_ANY|MEMF_CLEAR);
-            if(newWindow){
+        if (has_v36_intuition) {
+            app->window = OpenWindowTags(NULL,
+                WA_CustomScreen, (ULONG)app->screen,
+                WA_Left, 0,
+                WA_Top, 0,
+                WA_Width, SCREEN_WIDTH,
+                WA_Height, app->screen_height,
+                WA_IDCMP, IDCMP_MOUSEBUTTONS | IDCMP_VANILLAKEY | IDCMP_REFRESHWINDOW |
+                          IDCMP_MOUSEMOVE | IDCMP_RAWKEY,
+                WA_Flags, WFLG_BORDERLESS | WFLG_ACTIVATE | WFLG_BACKDROP |
+                          WFLG_RMBTRAP | WFLG_SMART_REFRESH | WFLG_REPORTMOUSE,
+                TAG_DONE);
+        } else {
+            newWindow = (struct NewWindow *)AllocMem(sizeof(struct NewWindow), MEMF_ANY | MEMF_CLEAR);
+            if (newWindow) {
                 newWindow->Type = CUSTOMSCREEN;
                 newWindow->Width = SCREEN_WIDTH;
                 newWindow->Height = app->screen_height;
                 newWindow->IDCMPFlags = IDCMP_MOUSEBUTTONS | IDCMP_VANILLAKEY | IDCMP_REFRESHWINDOW |
                             IDCMP_MOUSEMOVE | IDCMP_RAWKEY;
-                newWindow->Flags = WFLG_BORDERLESS | WFLG_ACTIVATE |
+                newWindow->Flags = WFLG_BORDERLESS | WFLG_ACTIVATE | WFLG_BACKDROP |
                             WFLG_RMBTRAP | WFLG_SMART_REFRESH | WFLG_REPORTMOUSE;
                 newWindow->Screen = app->screen;
                 app->window = OpenWindow(newWindow);
                 FreeMem(newWindow, sizeof(struct NewWindow));
             }
-        
+        }
+
         if (!app->window) {
             CloseScreen(app->screen);
             app->screen = NULL;
@@ -642,7 +662,7 @@ static BOOL open_display(void)
 
         app->rp = app->window->RPort;
     }
-    debug(XSYSINFO_NAME " open_display: allocationg pens\n");
+    debug(XSYSINFO_NAME " open_display: allocating pens\n");
 
     /* Allocate/map pens for drawing */
     allocate_pens();
@@ -652,60 +672,40 @@ static BOOL open_display(void)
 }
 
 /*
-Helper from amiga developpement kit
-*/
-
-void CloseWindowSafely(struct Window *win)
-{
-    /* we forbid here to keep out of race conditions with Intuition */
-    Forbid();
-
-    /* send back any messages for this window
-     * that have not yet been processed
-     */
-    StripIntuiMessages(win->UserPort, win);
-
-    /* clear UserPort so Intuition will not free it */
-    win->UserPort = NULL;
-
-    /* tell Intuition to stop sending more messages */
-    ModifyIDCMP(win, 0L);
-
-    /* turn multitasking back on */
-    Permit();
-
-    /* and really close the window */   
-    CloseWindow(win);
-}
-
-/* remove and reply all IntuiMessages on a port that
- * have been sent to a particular window
- * (note that we don't rely on the ln_Succ pointer
- *  of a message after we have replied it)
+ * Strip and reply all pending IntuiMessages for a window on a port.
+ *
+ * We must not rely on ln_Succ after replying a message, so we
+ * capture the successor before each ReplyMsg.
  */
-void StripIntuiMessages(struct MsgPort *mp, struct Window *win)
+static void StripIntuiMessages(struct MsgPort *mp, struct Window *win)
 {
     struct IntuiMessage *msg;
     struct Node *succ;
 
     msg = (struct IntuiMessage *)mp->mp_MsgList.lh_Head;
-
-    while (succ = msg->ExecMessage.mn_Node.ln_Succ)
-    {
-
-        if (msg->IDCMPWindow == win)
-        {
-
-            /* Intuition is about to free this message.
-             * Make sure that we have politely sent it back.
-             */
-            Remove(msg);
-
-            ReplyMsg(msg);
+    while ((succ = msg->ExecMessage.mn_Node.ln_Succ)) {
+        if (msg->IDCMPWindow == win) {
+            Remove((struct Node *)msg);
+            ReplyMsg((struct Message *)msg);
         }
-
         msg = (struct IntuiMessage *)succ;
     }
+}
+
+/*
+ * Safely close a window by first draining any unreplied IntuiMessages.
+ *
+ * Without this, closing a window that still has pending messages on its
+ * UserPort causes Intuition to access freed memory.
+ */
+static void CloseWindowSafely(struct Window *win)
+{
+    Forbid();
+    StripIntuiMessages(win->UserPort, win);
+    win->UserPort = NULL;
+    ModifyIDCMP(win, 0L);
+    Permit();
+    CloseWindow(win);
 }
 
 /*
@@ -776,18 +776,16 @@ static void allocate_pens(void)
         return;
     }
 
-    if (hw_info.kickstart_patch_version<36) {
-        /* Kick1.3: manual mapping */
+    if (hw_info.kickstart_patch_version < 36) {
+        /*
+         * Kickstart 1.3 Workbench windows are limited to the four-color
+         * Workbench palette, so map our logical pens onto those indices.
+         */
         for (i = 0; i < NUM_COLORS; i++) {
-            if(app->use_custom_screen)
-                app->pens[i] = i; 
-            else{
-                app->pens[i] = i%4; //WB in kick 1.3 has only four colors
-            }
+            app->pens[i] = i % 4;
         }
         return;
     }
-
 
     /* Workbench window mode: need to obtain matching pens */
     cm = app->screen->ViewPort.ColorMap;
@@ -828,7 +826,7 @@ static void release_pens(void)
     UWORD i;
     struct ColorMap *cm;
 
-    if (!app->pens_allocated || !app->screen || SysBase->LibNode.lib_Version<36) {
+    if (!app->pens_allocated || !app->screen || SysBase->LibNode.lib_Version <= 34) {
         return;
     }
 

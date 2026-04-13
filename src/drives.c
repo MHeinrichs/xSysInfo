@@ -19,6 +19,7 @@
 #include <proto/dos.h>
 #include <proto/graphics.h>
 #include <proto/timer.h>
+#include <clib/alib_protos.h>
 
 #include "xsysinfo.h"
 #include "drives.h"
@@ -27,8 +28,8 @@
 #include "benchmark.h"
 #include "locale_str.h"
 #include "debug.h"
-#include <limits.h>
 #include "hardware.h"
+#include <limits.h>
 
 /* Global drive list */
 DriveList drive_list;
@@ -37,7 +38,6 @@ DriveList drive_list;
 extern AppContext *app;
 extern Button buttons[];
 extern int num_buttons;
-extern BOOL timer_open;
 extern struct DosLibrary *DOSBase;
 
 /* DOS type identifiers */
@@ -143,63 +143,58 @@ static void bstr_to_cstr(BSTR bstr, char *cstr, ULONG maxlen)
 
 /* Helpers */
 static BOOL is_floppy_device(ULONG total_blocks);
-struct DosList *MyLockDosList(ULONG flags);
-struct DosList *MyNextDosEntry(struct DosList * list,ULONG flags);
-void MyUnLockDosList(ULONG flags);
+
 #define MIN_KICK_DEVICE_VERSION 36
 
-/* This is a Kick2.0/1.3 switch function of LockDosList
-*/
-struct DosList *MyLockDosList(ULONG flags){
+/*
+ * Kick 2.0/1.3 switch function for LockDosList
+ */
+static struct DosList *MyLockDosList(ULONG flags)
+{
     struct DosList *dol;
-    if(hw_info.kickstart_patch_version>=MIN_KICK_DEVICE_VERSION){
+    if (hw_info.kickstart_patch_version >= MIN_KICK_DEVICE_VERSION) {
         dol = (struct DosList *)LockDosList(flags);
-    }
-    else{
+    } else {
         Forbid();
         dol = (struct DosList *)BADDR(((struct DosInfo *)BADDR(DOSBase->dl_Root->rn_Info))->di_DevInfo);
     }
     return dol;
 }
 
-/* This is a Kick2.0/1.3 switch function of UnLockDosList
-*/
-void MyUnLockDosList(ULONG flags){
-    if(hw_info.kickstart_patch_version>=MIN_KICK_DEVICE_VERSION){
+/*
+ * Kick 2.0/1.3 switch function for UnLockDosList
+ */
+static void MyUnLockDosList(ULONG flags)
+{
+    if (hw_info.kickstart_patch_version >= MIN_KICK_DEVICE_VERSION) {
         UnLockDosList(flags);
-    }
-    else{
+    } else {
         Permit();
     }
 }
 
-/* This is a Kick2.0/1.3 switch function of NextDosEntry
-*/
-struct DosList *MyNextDosEntry(struct DosList *list, ULONG flags)
+/*
+ * Kick 2.0/1.3 switch function for NextDosEntry
+ */
+static struct DosList *MyNextDosEntry(struct DosList *list, ULONG flags)
 {
     struct DosList *dol;
-    if (hw_info.kickstart_patch_version >= MIN_KICK_DEVICE_VERSION)
-    {
+    if (hw_info.kickstart_patch_version >= MIN_KICK_DEVICE_VERSION) {
         dol = (struct DosList *)NextDosEntry(list, flags);
-    }
-    else
-    {
-        //convert LockDosList-Flags to DosList type flags
-        if(flags == LDF_DEVICES){
+    } else {
+        /* Convert LockDosList flags to DosList type flags */
+        if (flags == LDF_DEVICES) {
             flags = DLT_DEVICE;
-        }
-        else if(flags == LDF_VOLUMES){
+        } else if (flags == LDF_VOLUMES) {
             flags = DLT_VOLUME;
         }
-        dol = (struct DosList *) BADDR(list->dol_Next); //skip the given entry itself
-        while (dol)
-        {
-            if (dol->dol_Type == flags)
-            {
+        dol = (struct DosList *)BADDR(list->dol_Next);
+        while (dol) {
+            if ((ULONG)dol->dol_Type == flags) {
                 break;
             }
-            dol = (struct DosList *) BADDR(dol->dol_Next);
-        } 
+            dol = (struct DosList *)BADDR(dol->dol_Next);
+        }
     }
 
     return dol;
@@ -214,10 +209,10 @@ static void scan_dos_list(void)
     char buffer[32];
 
     debug("  drives: Locking DosList...\n");
-    dol = (struct DosList *)MyLockDosList(LDF_DEVICES | LDF_READ);
+    dol = MyLockDosList(LDF_DEVICES | LDF_READ);
     debug("  drives: DosList locked\n");
 
-    while ((dol = (struct DosList *)MyNextDosEntry(dol, LDF_DEVICES)) != NULL) {
+    while ((dol = MyNextDosEntry(dol, LDF_DEVICES)) != NULL) {
         if (drive_list.count >= MAX_DRIVES) break;
         buffer[0] = '\0';
         DriveInfo *drive = &drive_list.drives[drive_list.count];
@@ -225,13 +220,10 @@ static void scan_dos_list(void)
 
         /* Get device name */
         bstr_to_cstr(dol->dol_Name, buffer, sizeof(buffer) - 2);
-        //strcat crashes on a 68000/010?!?!        
-        //strcat(drive->device_name, ":");
         snprintf(drive->device_name, sizeof(drive->device_name), "%s:",
-	                 buffer);
+                     buffer);
 
-
-        debug("  drives: Found device '%s'\n", drive->device_name);
+        debug("  drives: Found device '%s'\n", (LONG)drive->device_name);
 
         /* Try to get startup info */
         if (dol->dol_misc.dol_handler.dol_Startup) {
@@ -298,15 +290,13 @@ static void match_volumes_to_drives(void)
 
     /* First, collect task pointers for each device */
     memset(dev_tasks, 0, sizeof(dev_tasks));
-    dev_dol = (struct DosList *)MyLockDosList(LDF_DEVICES | LDF_READ);
-    while ((dev_dol = (struct DosList *)MyNextDosEntry(dev_dol, LDF_DEVICES)) != NULL) {
+    dev_dol = MyLockDosList(LDF_DEVICES | LDF_READ);
+    while ((dev_dol = MyNextDosEntry(dev_dol, LDF_DEVICES)) != NULL) {
         char buffer[32];
-        char dev_name[32];
+        char dev_name[34];
         bstr_to_cstr(dev_dol->dol_Name, buffer, sizeof(buffer) - 2);
-        //strcat crashes on a 68000/010?!?!
-        //strcat(dev_name, ":");
         snprintf(dev_name, sizeof(dev_name), "%s:",
-	                 buffer);
+                     buffer);
 
         /* Find matching drive in our list */
         for (i = 0; i < drive_list.count; i++) {
@@ -320,8 +310,8 @@ static void match_volumes_to_drives(void)
 
     /* Now scan volumes and match by task pointer */
     debug("  drives: Looking up volume names...\n");
-    dol = (struct DosList *)MyLockDosList(LDF_VOLUMES | LDF_READ);
-    while ((dol = (struct DosList *)MyNextDosEntry(dol, LDF_VOLUMES)) != NULL) {
+    dol = MyLockDosList(LDF_VOLUMES | LDF_READ);
+    while ((dol = MyNextDosEntry(dol, LDF_VOLUMES)) != NULL) {
         struct MsgPort *vol_task = dol->dol_Task;
 
         if (!vol_task) continue;
@@ -333,8 +323,8 @@ static void match_volumes_to_drives(void)
                              sizeof(drive_list.drives[i].volume_name));
                 drive_list.drives[i].disk_state = DISK_OK;
                 debug("  drives: Matched volume '%s' to device '%s'\n",
-                      drive_list.drives[i].volume_name,
-                      drive_list.drives[i].device_name);
+                      (LONG)drive_list.drives[i].volume_name,
+                      (LONG)drive_list.drives[i].device_name);
                 break;
             }
         }
@@ -367,10 +357,10 @@ static void query_drive_details(void)
         /* Skip clearly invalid entries */
         if (!drive->is_valid && !has_volume) continue;
 
-        debug("  drives: Trying Info() on '%s'\n", drive->device_name);
+        debug("  drives: Trying Info() on '%s'\n", (LONG)drive->device_name);
         lock = Lock((CONST_STRPTR)drive->device_name, ACCESS_READ);
         if (!lock) {
-            debug("  drives: Lock failed on '%s'\n", drive->device_name);
+            debug("  drives: Lock failed on '%s'\n", (LONG)drive->device_name);
             if (drive->disk_state == DISK_OK) {
                 drive->disk_state = DISK_NO_DISK;
             }
@@ -413,7 +403,7 @@ static void query_drive_details(void)
 
             drive->is_valid = TRUE;
         } else {
-            debug("  drives: Info() failed on '%s'\n", drive->device_name);
+            debug("  drives: Info() failed on '%s'\n", (LONG)drive->device_name);
         }
 
         UnLock(lock);
@@ -437,8 +427,8 @@ static void check_scsi_support_all(void)
         drive->scsi_supported = check_scsi_direct_support(
             drive->handler_name, drive->unit_number);
         debug("  drives: SCSI support for %s: %s\n",
-              drive->handler_name,
-              (drive->scsi_supported ? get_string(MSG_YES) : get_string(MSG_NO)));
+              (LONG)drive->handler_name,
+              (LONG)(drive->scsi_supported ? get_string(MSG_YES) : get_string(MSG_NO)));
     }
 }
 
@@ -467,7 +457,7 @@ void enumerate_drives(void)
     /* Fourth pass: Check SCSI support */
     check_scsi_support_all();
 
-    debug("  drives: Enumeration complete, found %d drives\n", (LONG)drive_list.count);
+    debug("  drives: Enumeration complete, found %ld drives\n", (LONG)drive_list.count);
 }
 
 /*
@@ -519,7 +509,7 @@ BOOL check_disk_present(ULONG index)
     }
 
     /* Create message port */
-    port = (struct MsgPort *)CreatePort(NULL,0);
+    port = (struct MsgPort *)CreatePort(NULL, 0);
     if (!port) {
         return FALSE;
     }
@@ -561,9 +551,9 @@ BOOL check_disk_present(ULONG index)
     DeleteExtIO((struct IORequest *)io);
     DeletePort(port);
 
-    debug("  drives: TD_CHANGESTATE on %s unit %lu: disk %ls\n",
-          drive->handler_name, drive->unit_number,
-          (disk_present ? "present" : "not present"));
+    debug("  drives: TD_CHANGESTATE on %s unit %lu: disk %s\n",
+          (LONG)drive->handler_name, (LONG)drive->unit_number,
+          (LONG)(disk_present ? "present" : "not present"));
 
     return disk_present;
 }
@@ -581,7 +571,9 @@ ULONG measure_drive_speed(ULONG index)
     ULONG buffer_size = 0;
     ULONG block_size;
     ULONG total_read = 0;
-    uint64_t  elapsed;
+    ULONG E_Freq;
+    struct EClockVal start, end;
+    uint64_t elapsed;
     ULONG bytes_per_sec = 0;
     ULONG num_reads;
     ULONG read_offset;
@@ -590,7 +582,7 @@ ULONG measure_drive_speed(ULONG index)
     BYTE error;
     BOOL is_floppy;
 
-    if (!timer_open) return 0;
+    if (!benchmark_timer_available()) return 0;
 
     if (index >= (ULONG)drive_list.count) {
         debug("  drives: Invalid drive index %lu (count=%lu)\n",
@@ -603,7 +595,7 @@ ULONG measure_drive_speed(ULONG index)
     /* Check if we have device info */
     if (!drive->handler_name[0]) {
         debug("  drives: No handler name for speed test on %s\n",
-              drive->device_name);
+              (LONG)drive->device_name);
         /* Mark as measured with 0 speed so user sees it was attempted */
         drive->speed_measured = TRUE;
         drive->speed_bytes_sec = 0;
@@ -627,27 +619,27 @@ ULONG measure_drive_speed(ULONG index)
     if (block_size > 1) buffer_size -= buffer_size % block_size;
 
     /* Create message port */
-    port = (struct MsgPort *)CreatePort(NULL,0);
+    port = CreateMsgPort();
     if (!port) {
         debug("  drives: Failed to create message port\n");
         goto cleanup;
     }
 
     /* Create I/O request */
-    io = (struct IOStdReq *)CreateExtIO(port, sizeof(struct IOStdReq));
+    io = (struct IOStdReq *)CreateIORequest(port, sizeof(struct IOStdReq));
     if (!io) {
         debug("  drives: Failed to create IO request\n");
         goto cleanup;
     }
 
     /* Open the device */
-    debug("  drives: Opening device '%s' unit %lu\n",
-          drive->handler_name, drive->unit_number);
+    debug("  drives: Opening device '%s' unit %ld\n",
+          (LONG)drive->handler_name, (LONG)drive->unit_number);
     error = OpenDevice((CONST_STRPTR)drive->handler_name, drive->unit_number,
                        (struct IORequest *)io, 0);
     if (error != 0) {
-        debug("  drives: Failed to open device %s unit %lu (error %lu)\n",
-              drive->handler_name, drive->unit_number, (ULONG)error);
+        debug("  drives: Failed to open device %s unit %ld (error %ld)\n",
+              (LONG)drive->handler_name, (LONG)drive->unit_number, (LONG)error);
         goto cleanup;
     }
     device_opened = TRUE;
@@ -684,9 +676,9 @@ ULONG measure_drive_speed(ULONG index)
 
     read_offset = (ULONG)read_offset_bytes;
 
-    debug("  drives: Speed test on %s unit %lu, %lu reads of %lu bytes at offset %lu\n",
-          drive->handler_name, drive->unit_number,
-          (ULONG)num_reads, (ULONG)buffer_size, (ULONG)read_offset);
+    debug("  drives: Speed test on %s unit %ld, %ld reads of %ld bytes at offset %ld\n",
+          (LONG)drive->handler_name, (LONG)drive->unit_number,
+          (LONG)num_reads, (LONG)buffer_size, (LONG)read_offset);
 
     /* Warm up floppy by doing an untimed read to get the head on track */
     if (is_floppy) {
@@ -697,12 +689,12 @@ ULONG measure_drive_speed(ULONG index)
 
         error = DoIO((struct IORequest *)io);
         if (error != 0) {
-            debug("  drives: Warm-up read error %lu (ignoring)\n", (ULONG)error);
+            debug("  drives: Warm-up read error %ld (ignoring)\n", (LONG)error);
         }
     }
 
     /* Get start time */
-    StartStopWatch();
+    E_Freq = read_benchmark_clock(&start);
     Forbid();
 
     /* Perform reads */
@@ -714,7 +706,7 @@ ULONG measure_drive_speed(ULONG index)
 
         error = DoIO((struct IORequest *)io);
         if (error != 0) {
-            debug("  drives: Read error %d at iteration %d\n", (LONG)error, (LONG)i);
+            debug("  drives: Read error %ld at iteration %ld\n", (LONG)error, (LONG)i);
             break;
         }
         total_read += io->io_Actual;
@@ -722,9 +714,10 @@ ULONG measure_drive_speed(ULONG index)
 
     /* Get end time */
     Permit();
-    EndStopWatch();
+    E_Freq = read_benchmark_clock(&end);
+
     /* Calculate speed */
-    elapsed = Clock_Diff_in_ms();
+    elapsed = EClock_Diff_in_ms(&start, &end, E_Freq);
 
     if (elapsed > 0 && total_read > 0) {
         /* Timer ticks are in microseconds */
@@ -736,7 +729,7 @@ ULONG measure_drive_speed(ULONG index)
         drive->speed_measured = FALSE;
     }
 
-    debug("  drives: Read %d bytes in %d us = %d bytes/sec\n",
+    debug("  drives: Read %ld bytes in %ld us = %ld bytes/sec\n",
           (LONG)total_read, (LONG)elapsed, (LONG)bytes_per_sec);
 
 cleanup:
@@ -745,8 +738,8 @@ cleanup:
         CloseDevice((struct IORequest *)io);
         WaitTOF();
     }
-    if (io) DeleteExtIO((struct IORequest *)io);
-    if (port) DeletePort(port);
+    if (io) DeleteIORequest((struct IORequest *)io);
+    if (port) DeleteMsgPort(port);
 
     if (!device_opened) {
         /* If we failed to open or allocate, ensure marked as failed */
@@ -758,9 +751,9 @@ cleanup:
 }
 
 /*
- * Draw drives view
+ * Draw drives data area (buttons, info panel, action buttons - no title)
  */
-void draw_drives_view(void)
+static void draw_drives_data(BOOL full_redraw)
 {
     struct RastPort *rp = app->rp;
     WORD y;
@@ -768,14 +761,6 @@ void draw_drives_view(void)
     char buffer[64];
     Button *btn;
     int i;
-
-    /* Draw title panel */
-    draw_panel(100, 0, 520, 24, NULL);
-
-    SetAPen(rp, COLOR_TEXT);
-    SetBPen(rp, COLOR_PANEL_BG);
-    Move(rp, 250, 14);
-    Text(rp, (CONST_STRPTR)get_string(MSG_DRIVES_INFO), strlen(get_string(MSG_DRIVES_INFO)));
 
     /* Draw drive selection buttons on left */
     for (i = 0; i < num_buttons; i++) {
@@ -787,8 +772,14 @@ void draw_drives_view(void)
         }
     }
 
-    /* Draw drive info panel on right */
-    draw_panel(100, 28, 520, 152, NULL);
+    if (full_redraw) {
+        /* Draw drive info panel with 3D border */
+        draw_panel(100, 28, 520, 152, NULL);
+    } else {
+        /* Clear panel interior only (preserve 3D border) */
+        SetAPen(rp, COLOR_PANEL_BG);
+        RectFill(rp, 101, 29, 618, 178);
+    }
 
     if (app->selected_drive < 0 || app->selected_drive >= (LONG)drive_list.count) {
         SetAPen(rp, COLOR_TEXT);
@@ -922,6 +913,20 @@ void draw_drives_view(void)
 }
 
 /*
+ * Draw drives view
+ */
+void draw_drives_view(void)
+{
+    /* Draw title panel */
+    draw_panel(100, 0, 520, 24, NULL);
+
+    draw_text_centered(100, 14, 520, get_string(MSG_DRIVES_INFO), COLOR_TEXT);
+
+    /* Draw data area with full panel borders */
+    draw_drives_data(TRUE);
+}
+
+/*
  * Update buttons for Drives view
  */
 void drives_view_update_buttons(void)
@@ -992,7 +997,9 @@ void drives_view_handle_button(ButtonID id)
                 app->selected_drive = drive_index;
                 /* Check if disk is present when selecting a drive */
                 check_disk_present(drive_index);
-                redraw_current_view();
+                /* Only redraw data area, not the entire screen */
+                update_button_states();
+                draw_drives_data(FALSE);
             }
             break;
     }

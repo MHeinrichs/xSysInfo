@@ -19,7 +19,7 @@ typedef struct {
     BOOL long_timeout;
     BOOL scan_luns;
     BOOL sync_transfer;
-    BOOL fast_sync_ransfer;
+    BOOL fast_sync_transfer;
     BOOL tagged_queuing;
     unsigned char scsi_id;
 } BattMemData;

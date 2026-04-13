@@ -141,7 +141,6 @@ static ScsiAnsiVersion convert_ansi_version(UBYTE version)
     }
 }
 
-
 /*
  * Check if a device supports SCSI direct commands
  * Returns TRUE if the device responds to HD_SCSICMD or NSCMD_TD_SCSI
@@ -161,7 +160,7 @@ BOOL check_scsi_direct_support(const char *handler_name, ULONG unit_number)
     }
 
     /* Create message port */
-    port = (struct MsgPort *) CreatePort(NULL,0);
+    port = (struct MsgPort *)CreatePort(NULL, 0);
     if (!port) {
         return FALSE;
     }
@@ -240,9 +239,9 @@ static BOOL scsi_inquiry(int target, int lun,
     memset(inquiry_data, 0, sizeof(struct SCSIInquiryData));
 
 
-    if ((mp = (struct MsgPort *)CreatePort(NULL,0)) == NULL) return FALSE;
+    if ((mp = (struct MsgPort *)CreatePort(NULL, 0)) == NULL) return FALSE;
 
-    if ((io = (struct IOStdReq *)CreateExtIO(mp,sizeof(struct IOStdReq))) == NULL) {
+    if ((io = (struct IOStdReq *)CreateExtIO(mp, sizeof(struct IOStdReq))) == NULL) {
         DeletePort(mp);
         return FALSE;
     }
@@ -311,9 +310,9 @@ static BOOL scsi_read_capacity(int target, int lun,
     BYTE error;
     ULONG unit;
 
-    if ((mp = (struct MsgPort *)CreatePort(NULL,0)) == NULL) return FALSE;
+    if ((mp = (struct MsgPort *)CreatePort(NULL, 0)) == NULL) return FALSE;
 
-    if ((io = (struct IOStdReq *)CreateExtIO(mp,sizeof(struct IOStdReq))) == NULL) {
+    if ((io = (struct IOStdReq *)CreateExtIO(mp, sizeof(struct IOStdReq))) == NULL) {
         DeletePort(mp);
         return FALSE;
     }
@@ -400,10 +399,10 @@ void scan_scsi_devices(const char *handler_name, ULONG base_unit)
     strncpy(scsi_device_list.device_name, handler_name,
             sizeof(scsi_device_list.device_name) - 1);
 
-    debug("  scsi: Scanning SCSI devices on %s\n", handler_name);
+    debug("  scsi: Scanning SCSI devices on %s\n", (LONG)handler_name);
 
     /* Create message port */
-    port = (struct MsgPort *)CreatePort(NULL,0);
+    port = (struct MsgPort *)CreatePort(NULL, 0);
     if (!port) {
         debug("  scsi: Failed to create message port\n");
         return;
@@ -478,7 +477,7 @@ void scan_scsi_devices(const char *handler_name, ULONG base_unit)
                     scsi_device_list.count++;
 
                     debug("  scsi: Found device ID %d: %s %s\n",
-                          (LONG)target, dev->manufacturer, dev->model);
+                          (LONG)target, (LONG)dev->manufacturer, (LONG)dev->model);
 
                     if (scsi_device_list.count >= MAX_SCSI_DEVICES) {
                         break;
@@ -530,10 +529,7 @@ void draw_scsi_view(void)
     /* Draw title panel */
     draw_panel(20, 0, 600, 24, NULL);
 
-    SetAPen(rp, COLOR_TEXT);
-    SetBPen(rp, COLOR_PANEL_BG);
-    Move(rp, 250, 14);
-    Text(rp, (CONST_STRPTR)get_string(MSG_SCSI_INFO), strlen(get_string(MSG_SCSI_INFO)));
+    draw_text_centered(20, 14, 600, get_string(MSG_SCSI_INFO), COLOR_TEXT);
 
     /* Draw column headers */
     draw_panel(20, 28, 600, 16, NULL);

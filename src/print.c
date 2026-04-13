@@ -35,7 +35,7 @@ extern BoardList board_list;
 extern DriveList drive_list;
 
 /* Helper macro for writing to file */
-#define WRITE_LINE(fh, str) Write(fh, (const char *)str,strlen((const char *)str)); Write(fh, (const char *)"\n",1)
+#define WRITE_LINE(fh, str) Write(fh, (const char *)str, strlen((const char *)str)); Write(fh, (const char *)"\n", 1)
 
 /*
  * Write a formatted line to file
@@ -57,20 +57,20 @@ static void write_formatted(BPTR fh, const char *format, ...)
  */
 void export_header(BPTR fh)
 {
-    char date_str[32]; date_str[0] ='\n';
-    char time_str[32]; time_str[0] ='\n';
-    #ifndef __KICK13__
-        struct DateTime dt;
+    char date_str[32]; date_str[0] = '\0';
+    char time_str[32]; time_str[0] = '\0';
+#ifndef __KICK13__
+    struct DateTime dt;
 
-        DateStamp(&dt.dat_Stamp);
-        dt.dat_Format = FORMAT_DOS;
-        dt.dat_Flags = 0;
-        dt.dat_StrDay = NULL;
-        dt.dat_StrDate = (STRPTR)date_str;
-        dt.dat_StrTime = (STRPTR)time_str;
+    DateStamp(&dt.dat_Stamp);
+    dt.dat_Format = FORMAT_DOS;
+    dt.dat_Flags = 0;
+    dt.dat_StrDay = NULL;
+    dt.dat_StrDate = (STRPTR)date_str;
+    dt.dat_StrTime = (STRPTR)time_str;
 
-        DateToStr(&dt);
-    #endif
+    DateToStr(&dt);
+#endif
 
     WRITE_LINE(fh, "================================================================================");
     WRITE_LINE(fh, "                    " XSYSINFO_NAME " " XSYSINFO_VERSION " System Report");
@@ -86,8 +86,9 @@ void export_hardware(BPTR fh)
 {
     char buffer[74];
 
-    WRITE_LINE(fh, "=== INTERNAL HARDWARE MODES ===");
+    WRITE_LINE(fh, "=== HARDWARE INFORMATION ===");
     WRITE_LINE(fh, "");
+
     write_formatted(fh, "%-16s %s", "Clock:", hw_info.clock_string);
 
     /* DMA/Gfx */
@@ -109,6 +110,14 @@ void export_hardware(BPTR fh)
         snprintf(buffer, sizeof(buffer), "%s",
                  get_string(MSG_AGNUS_OCS_FAT_PAL));
         break;
+    case AGNUS_ECS_NTSC:
+        snprintf(buffer, sizeof(buffer), "%s",
+                 get_string(MSG_AGNUS_ECS_NTSC));
+        break;
+    case AGNUS_ECS_PAL:
+        snprintf(buffer, sizeof(buffer), "%s",
+                 get_string(MSG_AGNUS_ECS_PAL));
+        break;
     case AGNUS_ECS_2MB_NTSC:
         snprintf(buffer, sizeof(buffer), "%s",
                  get_string(MSG_AGNUS_ECS_2MB_NTSC));
@@ -116,14 +125,6 @@ void export_hardware(BPTR fh)
     case AGNUS_ECS_2MB_PAL:
         snprintf(buffer, sizeof(buffer), "%s",
                  get_string(MSG_AGNUS_ECS_2MB_PAL));
-        break;
-    case AGNUS_ECS_NTSC:
-        snprintf(buffer, sizeof(buffer), "%s",
-             get_string(MSG_AGNUS_ECS_NTSC));
-        break;
-    case AGNUS_ECS_PAL:
-        snprintf(buffer, sizeof(buffer), "%s",
-            get_string(MSG_AGNUS_ECS_PAL));
         break;
     case AGNUS_ECS_B_NTSC:
         snprintf(buffer, sizeof(buffer), "%s",
