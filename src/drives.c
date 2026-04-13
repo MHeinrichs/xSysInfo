@@ -38,7 +38,6 @@ DriveList drive_list;
 extern AppContext *app;
 extern Button buttons[];
 extern int num_buttons;
-extern struct Device *ETimerBase;
 extern struct DosLibrary *DOSBase;
 
 /* DOS type identifiers */
@@ -583,7 +582,7 @@ ULONG measure_drive_speed(ULONG index)
     BYTE error;
     BOOL is_floppy;
 
-    if (!ETimerBase) return 0;
+    if (!benchmark_timer_available()) return 0;
 
     if (index >= (ULONG)drive_list.count) {
         debug("  drives: Invalid drive index %lu (count=%lu)\n",
@@ -695,7 +694,7 @@ ULONG measure_drive_speed(ULONG index)
     }
 
     /* Get start time */
-    E_Freq = ReadEClock(&start);
+    E_Freq = read_benchmark_clock(&start);
     Forbid();
 
     /* Perform reads */
@@ -715,7 +714,7 @@ ULONG measure_drive_speed(ULONG index)
 
     /* Get end time */
     Permit();
-    E_Freq = ReadEClock(&end);
+    E_Freq = read_benchmark_clock(&end);
 
     /* Calculate speed */
     elapsed = EClock_Diff_in_ms(&start, &end, E_Freq);

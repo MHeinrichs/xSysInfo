@@ -83,6 +83,8 @@ ULONG get_max_dhrystones(void);  /* Returns max of all systems including "You" *
 /* Timer functions for benchmarking */
 BOOL init_timer(void);
 void cleanup_timer(void);
+BOOL benchmark_timer_available(void);
+ULONG read_benchmark_clock(struct EClockVal *val);
 uint64_t get_timer_ticks(void);    /* Returns ticks (1/1000000 sec precision) */
 void get_timer(struct timeval *tv);    /* Returns result in provided timeval-structure */
 void wait_ticks(ULONG ticks);
