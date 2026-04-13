@@ -767,10 +767,21 @@ static void allocate_pens(void)
 
     app->pens_allocated = FALSE;
 
-    if (app->use_custom_screen || hw_info.kickstart_patch_version < 36) {
+    if (app->use_custom_screen) {
         /* Custom screen: we control the palette, use direct indices */
         for (i = 0; i < NUM_COLORS; i++) {
             app->pens[i] = i;
+        }
+        return;
+    }
+
+    if (hw_info.kickstart_patch_version < 36) {
+        /*
+         * Kickstart 1.3 Workbench windows are limited to the four-color
+         * Workbench palette, so map our logical pens onto those indices.
+         */
+        for (i = 0; i < NUM_COLORS; i++) {
+            app->pens[i] = i % 4;
         }
         return;
     }
