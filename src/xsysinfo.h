@@ -184,6 +184,5 @@ const char *get_location_string(MemoryLocation loc);
 void format_size(ULONG bytes, char *buffer, ULONG bufsize);
 void format_hex(ULONG value, char *buffer, ULONG bufsize);
 void format_scaled(char *buffer, size_t size, ULONG value_x100, BOOL round);
-int my_stricmp(char * o1, char * o2);
 
 #endif /* XSYSINFO_H */
