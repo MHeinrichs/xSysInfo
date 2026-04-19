@@ -347,7 +347,7 @@ download-libs: $(IDENTIFY_USR_LHA) $(IDENTIFY_PCI_LHA) $(OPENPCI_LHA) $(MMULIB_L
 
 TinySetPatch: src/TinySetPatch.S
 	@echo "  VASM $@"
-	@$(VASM) -quiet -Fhunkexe -o $@ -nosym $< -I $(NDK_PATH)
+	@$(VASM) -quiet -Fhunkexe -m68020up -o $@ -nosym $< -I $(NDK_PATH)
 
 disk: $(TARGET) download-libs TinySetPatch
 	@echo "  DISK"
