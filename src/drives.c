@@ -1963,6 +1963,10 @@ void draw_drives_view(void)
  */
 void drives_view_update_buttons(void)
 {
+    /* Button labels must outlive this function; keep the full device names
+     * in drive_list for device access. Mark labels longer than eight
+     * characters with '..' instead of displaying a different device name. */
+    static char drive_labels[DRIVES_PER_PAGE][9];
     BOOL scsi_enabled = FALSE;
     BOOL speed_enabled = FALSE;
     ULONG i, first;
@@ -1977,8 +1981,14 @@ void drives_view_update_buttons(void)
 
     for (i = first;
          i < drive_list.count && i < first + DRIVES_PER_PAGE; i++) {
+        const char *label = drive_list.drives[i].device_name;
+        if (strlen(label) > 8) {
+            snprintf(drive_labels[i - first], sizeof(drive_labels[0]),
+                     "%.6s..", label);
+            label = drive_labels[i - first];
+        }
         add_button(10, y, 70, 12,
-                   drive_list.drives[i].device_name,
+                   label,
                    (ButtonID)(BTN_DRV_DRIVE_BASE + i), TRUE);
         y += 14;
     }
