@@ -66,6 +66,8 @@ struct Library *MMUBase;
 extern struct ExecBase *SysBase;
 extern struct GfxBase *GfxBase;
 
+static void probe_agnus_alias(void);
+
 /*
  * Main hardware detection function
  */
@@ -100,6 +102,8 @@ BOOL detect_hardware(void)
     detect_native_graphics();
     debug("  hw: Detecting system chips...\n");
     detect_system_chips();
+    if (g_debug_enabled)
+        probe_agnus_alias();
     debug("  hw: Detecting clock...\n");
     detect_clock();
     debug("  hw: Detecting batt mem resources...\n");
@@ -1000,6 +1004,108 @@ void detect_chipset(void)
                 break;
         }
     }
+}
+
+/*
+ * Experimental ECS address-decoding check, reported only in DEBUG output.
+ * A 1 MB Agnus may mirror the lower megabyte into the upper one. This
+ * measures that alias, not the chip's part number or installed RAM size.
+ *
+ * Use an owned buffer instead of WhichAmiga's writes to addresses 0/4.
+ * The existing bus-error guard is 68000-only. Restricting the probe to
+ * that CPU also avoids CPU caches and MMU translations of either address;
+ * a missing mmu.library or remap-table entry would not establish that on
+ * an accelerator. Do not disable an MMU to perform this diagnostic.
+ */
+static void probe_agnus_alias(void)
+{
+    static const UBYTE pattern[8] = {
+        0x3c, 0xa5, 0x96, 0x69, 0x5a, 0xc3, 0x87, 0x78
+    };
+    volatile UBYTE *buffer;
+    ULONG address;
+    UBYTE samples[2][sizeof(pattern)];
+    ULONG pass, i, matches = 0;
+    BOOL fault = FALSE, changed = FALSE;
+
+    switch (hw_info.agnus_type) {
+        case AGNUS_ECS_PAL:
+        case AGNUS_ECS_NTSC:
+        case AGNUS_ECS_B_PAL:
+        case AGNUS_ECS_B_NTSC:
+        case AGNUS_ECS_2MB_PAL:
+        case AGNUS_ECS_2MB_NTSC:
+            break;
+        default:
+            return;
+    }
+
+    if (hw_info.cpu_type != CPU_68000 || hw_info.mmu_type != MMU_NONE) {
+        debug("    Agnus alias: skipped (probe requires a plain 68000)\n");
+        return;
+    }
+
+    buffer = AllocMem(sizeof(pattern), MEMF_CHIP);
+    if (!buffer) {
+        debug("    Agnus alias: inconclusive (no Chip RAM buffer)\n");
+        return;
+    }
+    address = (ULONG)buffer;
+    /* Exclude the first 32 KB and keep the entire buffer below 1 MB. */
+    if (address < 0x8000 || address > 0x100000 - sizeof(pattern)) {
+        debug("    Agnus alias: skipped (buffer $%08lx outside probe range)\n",
+              address);
+        FreeMem((APTR)buffer, sizeof(pattern));
+        return;
+    }
+
+    debug("    Agnus alias: buffer $%08lx, reading $%08lx\n",
+          address, address + 0x100000);
+    for (pass = 0; pass < 2; pass++) {
+        BOOL match = TRUE;
+        UBYTE mask = pass ? 0xff : 0;
+
+        /* No OS calls that can wait while the exception vectors are hooked. */
+        Disable();
+        for (i = 0; i < sizeof(pattern); i++)
+            buffer[i] = pattern[i] ^ mask;
+        for (i = 0; i < sizeof(pattern); i++) {
+            if (berr_probe_byte(address + 0x100000 + i,
+                                &samples[pass][i]) != 0) {
+                fault = TRUE;
+                break;
+            }
+            if (samples[pass][i] != (UBYTE)(pattern[i] ^ mask))
+                match = FALSE;
+        }
+        for (i = 0; i < sizeof(pattern); i++) {
+            if (buffer[i] != (UBYTE)(pattern[i] ^ mask))
+                changed = TRUE;
+        }
+        Enable();
+
+        if (fault || changed)
+            break;
+        if (match)
+            matches++;
+        debug("    Agnus alias: pass %lu%s, upper bytes", pass + 1,
+              pass ? " (inverted pattern)" : "");
+        for (i = 0; i < sizeof(pattern); i++)
+            debug(" %02lx", (ULONG)samples[pass][i]);
+        debug("\n");
+    }
+    FreeMem((APTR)buffer, sizeof(pattern));
+
+    if (fault)
+        debug("    Agnus alias: inconclusive (upper address faulted)\n");
+    else if (changed)
+        debug("    Agnus alias: inconclusive (buffer verification failed)\n");
+    else if (matches == 2)
+        debug("    Agnus alias: mirrored with both patterns\n");
+    else if (matches == 0)
+        debug("    Agnus alias: no mirror observed with either pattern\n");
+    else
+        debug("    Agnus alias: inconclusive (patterns disagree)\n");
 }
 
 /* Only access these registers on positively identified hardware. The ID
