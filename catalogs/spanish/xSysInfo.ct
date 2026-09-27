@@ -926,3 +926,20 @@ Verif.paridad
 MSG_NCR_DOUBLER
 Duplic. reloj
 ;
+;
+; Additional hardware details
+MSG_CHIP_ID
+ID del chip
+;
+MSG_PCMCIA_CARD
+Tarj. PCMCIA
+;
+MSG_PCMCIA_SLOT
+Ranura PCMCIA
+;
+MSG_PCMCIA_ACCESS
+Tiempo acceso
+;
+MSG_AKIKO_C2P
+C2P (SO)
+;

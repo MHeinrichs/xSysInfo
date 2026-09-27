@@ -235,6 +235,12 @@ typedef struct {
     PaulaType paula_type;
     UWORD paula_rev;
 
+    BOOL akiko_present;
+    ULONG akiko_id;
+    BOOL akiko_c2p_enabled;
+    BOOL gayle_pcmcia_valid;
+    UBYTE gayle_pcmcia_status, gayle_pcmcia_config;
+
     /* Clock */
     ClockType clock_type;
     char clock_string[32];

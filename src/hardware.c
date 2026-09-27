@@ -1001,6 +1001,31 @@ void detect_chipset(void)
     }
 }
 
+/* Only access these registers on positively identified hardware. The ID
+ * and PCMCIA status/configuration reads do not acknowledge interrupts. */
+static void detect_additional_chips(void)
+{
+    if (hw_info.gary_type == GAYLE &&
+        (hw_info.gary_rev == 0xd0 || hw_info.gary_rev == 0xd1)) {
+        hw_info.gayle_pcmcia_status = *(volatile UBYTE *)0xda8000;
+        hw_info.gayle_pcmcia_config = *(volatile UBYTE *)0xdab000;
+        hw_info.gayle_pcmcia_valid = TRUE;
+        debug("    Gayle: ID $%02lx, PCMCIA status $%02lx, config $%02lx\n",
+              (ULONG)hw_info.gary_rev, (ULONG)hw_info.gayle_pcmcia_status,
+              (ULONG)hw_info.gayle_pcmcia_config);
+    }
+    if (hw_info.amiga_model_id == IDSYS_CD32 ||
+        (GfxBase->LibNode.lib_Version >= 40 &&
+         (ULONG)GfxBase->ChunkyToPlanarPtr == 0xb80038)) {
+        hw_info.akiko_id = *(volatile ULONG *)0xb80000;
+        hw_info.akiko_present = (hw_info.akiko_id & 0xffff) == 0xcafe;
+        hw_info.akiko_c2p_enabled = GfxBase->LibNode.lib_Version >= 40 &&
+                                   (ULONG)GfxBase->ChunkyToPlanarPtr == 0xb80038;
+        debug("    Akiko: ID $%08lx, graphics C2P %ld\n",
+              hw_info.akiko_id, (LONG)hw_info.akiko_c2p_enabled);
+    }
+}
+
 /*
  * Detect RTC clock chip
  */
@@ -1634,6 +1659,7 @@ void detect_system_chips(void)
     detect_ramsey();
     debug("    systemchips: Detecting SDMAC...\n");
     detect_sdmac();
+    detect_additional_chips();
 
 
     debug("    systemchips: Detecting bus system...\n");

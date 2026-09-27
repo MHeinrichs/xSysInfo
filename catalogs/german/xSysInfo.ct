@@ -925,3 +925,20 @@ Paritätspr.
 MSG_NCR_DOUBLER
 Taktverdoppl.
 ;
+;
+; Additional hardware details
+MSG_CHIP_ID
+Chip-ID
+;
+MSG_PCMCIA_CARD
+PCMCIA-Karte
+;
+MSG_PCMCIA_SLOT
+PCMCIA-Slot
+;
+MSG_PCMCIA_ACCESS
+Zugriffszeit
+;
+MSG_AKIKO_C2P
+C2P (OS)
+;

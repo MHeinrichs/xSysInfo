@@ -925,3 +925,20 @@ Vérif. parité
 MSG_NCR_DOUBLER
 Doubleur
 ;
+;
+; Additional hardware details
+MSG_CHIP_ID
+ID puce
+;
+MSG_PCMCIA_CARD
+Carte PCMCIA
+;
+MSG_PCMCIA_SLOT
+Port PCMCIA
+;
+MSG_PCMCIA_ACCESS
+Temps accès
+;
+MSG_AKIKO_C2P
+C2P (OS)
+;

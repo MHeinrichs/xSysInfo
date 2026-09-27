@@ -879,3 +879,20 @@ Verif. parid.
 MSG_NCR_DOUBLER
 Duplic. clock
 ;
+;
+; Additional hardware details
+MSG_CHIP_ID
+ID do chip
+;
+MSG_PCMCIA_CARD
+Cartão PCMCIA
+;
+MSG_PCMCIA_SLOT
+Slot PCMCIA
+;
+MSG_PCMCIA_ACCESS
+Tempo acesso
+;
+MSG_AKIKO_C2P
+C2P (SO)
+;

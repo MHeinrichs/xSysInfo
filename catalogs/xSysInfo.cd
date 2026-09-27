@@ -926,3 +926,20 @@ Parity check
 MSG_NCR_DOUBLER (//13)
 Clock doubler
 ;
+;
+; Additional hardware details
+MSG_CHIP_ID (//)
+Chip ID
+;
+MSG_PCMCIA_CARD (//)
+PCMCIA card
+;
+MSG_PCMCIA_SLOT (//)
+PCMCIA slot
+;
+MSG_PCMCIA_ACCESS (//)
+Access time
+;
+MSG_AKIKO_C2P (//)
+C2P (OS)
+;

@@ -359,6 +359,11 @@ static const char *default_strings[MSG_COUNT] = {
     /* MSG_NCR_WIDTH */             "Data width",
     /* MSG_NCR_PARITY */            "Parity check",
     /* MSG_NCR_DOUBLER */           "Clock doubler",
+    /* MSG_CHIP_ID */ "Chip ID",
+    /* MSG_PCMCIA_CARD */ "PCMCIA card",
+    /* MSG_PCMCIA_SLOT */ "PCMCIA slot",
+    /* MSG_PCMCIA_ACCESS */ "Access time",
+    /* MSG_AKIKO_C2P */ "C2P (OS)",
 };
 
 /* Get string by ID - uses catalog if available, falls back to English */

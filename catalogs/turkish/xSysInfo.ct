@@ -925,3 +925,20 @@ Eþlik kontr.
 MSG_NCR_DOUBLER
 Saat katlama
 ;
+;
+; Additional hardware details
+MSG_CHIP_ID
+Yonga ID
+;
+MSG_PCMCIA_CARD
+PCMCIA kart
+;
+MSG_PCMCIA_SLOT
+PCMCIA yuva
+;
+MSG_PCMCIA_ACCESS
+Eriþim süresi
+;
+MSG_AKIKO_C2P
+C2P (OS)
+;

@@ -925,3 +925,20 @@ Paritásell.
 MSG_NCR_DOUBLER
 Órajelduplázó
 ;
+;
+; Additional hardware details
+MSG_CHIP_ID
+Chip ID
+;
+MSG_PCMCIA_CARD
+PCMCIA kártya
+;
+MSG_PCMCIA_SLOT
+PCMCIA hely
+;
+MSG_PCMCIA_ACCESS
+Elérési idõ
+;
+MSG_AKIKO_C2P
+C2P (OS)
+;

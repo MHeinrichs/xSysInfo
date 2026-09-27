@@ -925,3 +925,20 @@ Ctrl. parità
 MSG_NCR_DOUBLER
 Raddoppio clk
 ;
+;
+; Additional hardware details
+MSG_CHIP_ID
+ID chip
+;
+MSG_PCMCIA_CARD
+Scheda PCMCIA
+;
+MSG_PCMCIA_SLOT
+Slot PCMCIA
+;
+MSG_PCMCIA_ACCESS
+Tempo accesso
+;
+MSG_AKIKO_C2P
+C2P (OS)
+;

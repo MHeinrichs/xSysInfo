@@ -346,6 +346,11 @@ typedef enum {
     MSG_NCR_WIDTH,
     MSG_NCR_PARITY,
     MSG_NCR_DOUBLER,
+    MSG_CHIP_ID,
+    MSG_PCMCIA_CARD,
+    MSG_PCMCIA_SLOT,
+    MSG_PCMCIA_ACCESS,
+    MSG_AKIKO_C2P,
     MSG_COUNT  /* Total number of strings */
 } LocaleStringID;
 
