@@ -1431,6 +1431,9 @@ static void draw_software_overview(void)
                              value, 100, SOFTWARE_PANEL_X + SOFTWARE_PANEL_W - 4);
         y += TEXT_LINE_HEIGHT;
     }
+    if (hw_info.ppc_runtime[0])
+        draw_label_value_max(SOFTWARE_PANEL_X + 4, y, get_string(MSG_PPC_RUNTIME),
+                             hw_info.ppc_runtime, 100, SOFTWARE_PANEL_X + SOFTWARE_PANEL_W - 4);
 }
 
 /* Erase unused parts of a text field, preserving its foreground pen. */
@@ -2342,6 +2345,21 @@ static void build_hardware_rows(void)
         hardware_row(0,
                          get_string(MSG_MMU), buffer, 80);
 
+        if (hw_info.ppc_present) {
+            char clock[16] = "";
+            hardware_group++;
+            if (hw_info.ppc_mhz) {
+                clock[0] = ' ';
+                format_scaled(clock + 1, sizeof(clock) - 1, hw_info.ppc_mhz, FALSE);
+            }
+            snprintf(buffer, sizeof(buffer), "%s%s", hw_info.ppc_string, clock);
+            hardware_row(0, "PPC/MHz", buffer, 80);
+            snprintf(buffer, sizeof(buffer), "$%04lX", hw_info.ppc_revision);
+            hardware_row(0, get_string(MSG_PPC_REVISION), buffer, 80);
+            if (hw_info.ppc_bus_mhz) format_scaled(buffer, sizeof(buffer), hw_info.ppc_bus_mhz, FALSE);
+            else copy_string(buffer, get_string(MSG_NA), sizeof(buffer));
+            hardware_row(0, get_string(MSG_PPC_BUS), buffer, 80);
+        }
         hardware_group++;
         format_mmu_address(buffer, sizeof(buffer), hw_info.vbr);
         hardware_row(0,

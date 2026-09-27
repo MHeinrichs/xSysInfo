@@ -84,6 +84,7 @@ BOOL detect_hardware(void)
     else {
         debug("  hw: Emu68-System detected...\n");
     }
+    detect_ppc();
     debug("  hw: Detecting FPU...\n");
     detect_fpu();
     debug("  hw: Detecting MMU...\n");

@@ -942,3 +942,12 @@ Czas dostêpu
 MSG_AKIKO_C2P
 C2P (OS)
 ;
+MSG_PPC_REVISION
+Rewizja PPC
+;
+MSG_PPC_BUS
+Szyna PPC MHz
+;
+MSG_PPC_RUNTIME
+System PPC
+;

@@ -896,3 +896,12 @@ Tempo acesso
 MSG_AKIKO_C2P
 C2P (SO)
 ;
+MSG_PPC_REVISION
+Revisão PPC
+;
+MSG_PPC_BUS
+Bus PPC MHz
+;
+MSG_PPC_RUNTIME
+Sistema PPC
+;

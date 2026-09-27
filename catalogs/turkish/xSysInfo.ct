@@ -942,3 +942,12 @@ Eriþim süresi
 MSG_AKIKO_C2P
 C2P (OS)
 ;
+MSG_PPC_REVISION
+PPC revizyon
+;
+MSG_PPC_BUS
+PPC veri MHz
+;
+MSG_PPC_RUNTIME
+PPC sistemi
+;

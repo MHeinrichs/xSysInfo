@@ -364,6 +364,9 @@ static const char *default_strings[MSG_COUNT] = {
     /* MSG_PCMCIA_SLOT */ "PCMCIA slot",
     /* MSG_PCMCIA_ACCESS */ "Access time",
     /* MSG_AKIKO_C2P */ "C2P (OS)",
+    /* MSG_PPC_REVISION */ "PPC revision",
+    /* MSG_PPC_BUS */ "PPC bus MHz",
+    /* MSG_PPC_RUNTIME */ "PPC runtime",
 };
 
 /* Get string by ID - uses catalog if available, falls back to English */

@@ -943,3 +943,12 @@ Access time
 MSG_AKIKO_C2P (//)
 C2P (OS)
 ;
+MSG_PPC_REVISION (//)
+PPC revision
+;
+MSG_PPC_BUS (//)
+PPC bus MHz
+;
+MSG_PPC_RUNTIME (//)
+PPC runtime
+;

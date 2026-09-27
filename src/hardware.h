@@ -195,6 +195,11 @@ typedef struct {
     ULONG bus_mhz;          /* Measured motherboard MHz * 100; 0 unavailable */
     char cpu_string[32];
 
+    /* PPC information supplied by a running PowerUP/WarpOS kernel. */
+    BOOL ppc_present;
+    ULONG ppc_revision, ppc_mhz, ppc_bus_mhz;
+    char ppc_string[24], ppc_runtime[48];
+
     /* FPU */
     FPUType fpu_type;
     BOOL fpu_enabled;
@@ -310,6 +315,7 @@ void refresh_cache_status(void);
 BOOL detect_emu68_systems(void);
 void detect_amiga_model(void);
 void detect_cpu(void);
+void detect_ppc(void);
 void detect_fpu(void);
 struct Library *open_mmu_library(void);
 void detect_mmu(void);

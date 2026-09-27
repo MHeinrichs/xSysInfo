@@ -351,6 +351,9 @@ typedef enum {
     MSG_PCMCIA_SLOT,
     MSG_PCMCIA_ACCESS,
     MSG_AKIKO_C2P,
+    MSG_PPC_REVISION,
+    MSG_PPC_BUS,
+    MSG_PPC_RUNTIME,
     MSG_COUNT  /* Total number of strings */
 } LocaleStringID;
 
