@@ -155,91 +155,91 @@ MSG_REF_YOU
 Você
 ;
 MSG_START_ADDRESS
-ENDEREÇO INICIAL
+Endereço inicial
 ;
 MSG_END_ADDRESS
-ENDEREÇO FINAL
+Endereço final
 ;
 MSG_TOTAL_SIZE
-TAMANHO TOTAL
+Tamanho total
 ;
 MSG_MEMORY_TYPE
-TIPO DE MEMÓRIA
+Tipo de memória
 ;
 MSG_PRIORITY
-PRIORIDADE
+Prioridade
 ;
 MSG_LOWER_BOUND
-LIMITE INFERIOR
+Limite inferior
 ;
 MSG_UPPER_BOUND
-LIMITE SUPERIOR
+Limite superior
 ;
 MSG_FIRST_ADDRESS
-PRIMEIRO ENDEREÇO
+Primeiro endereço
 ;
 MSG_AMOUNT_FREE
-QUANTIDADE LIVRE
+Quantidade livre
 ;
 MSG_LARGEST_BLOCK
-MAIOR BLOCO
+Maior bloco
 ;
 MSG_NUM_CHUNKS
-NÚMERO DE BLOCOS
+Número de blocos
 ;
 MSG_NODE_NAME
-NOME DO NÓ
+Nome do nó
 ;
 MSG_MEMORY_SPEED
-VELOCIDADE DA MEMÓRIA
+Velocidade da memória
 ;
 MSG_DISK_ERRORS
-NÚMERO DE ERROS DE DISCO
+Número de erros de disco
 ;
 MSG_UNIT_NUMBER
-NÚMERO DE UNIDADE
+Número de unidade
 ;
 MSG_DISK_STATE
-ESTADO DO DISCO
+Estado do disco
 ;
 MSG_TOTAL_BLOCKS
-NÚMERO TOTAL DE BLOCOS
+Número total de blocos
 ;
 MSG_BLOCKS_USED
-TOTAL DE BLOCOS UTILIZADOS
+Total de blocos utilizados
 ;
 MSG_BYTES_PER_BLOCK
-BYTES POR BLOCO
+Bytes por bloco
 ;
 MSG_DISK_TYPE
-TIPO DE UNIDADE/DISCO
+Tipo de unidade/disco
 ;
 MSG_VOLUME_NAME
-NOME DO VOLUME
+Nome do volume
 ;
 MSG_DEVICE_NAME
-NOME DO DISPOSITIVO
+Nome do dispositivo
 ;
 MSG_SURFACES
-SUPERFÍCIES
+Superfícies
 ;
 MSG_SECTORS_PER_SIDE
-SECTORES POR LADO
+Sectores por lado
 ;
 MSG_RESERVED_BLOCKS
-BLOCOS RESERVADOS
+Blocos reservados
 ;
 MSG_LOWEST_CYLINDER
-CILINDRO MAIS BAIXO
+Cilindro mais baixo
 ;
 MSG_HIGHEST_CYLINDER
-CILINDRO MAIS ALTO
+Cilindro mais alto
 ;
 MSG_NUM_BUFFERS
-NÚMERO DE BUFFERS
+Número de buffers
 ;
 MSG_SPEED
-VELOCIDADE DA UNIDADE
+Velocidade da unidade
 ;
 MSG_DRIVES_NO_DRIVES_FOUND
 Nenhuma unidade encontrada.

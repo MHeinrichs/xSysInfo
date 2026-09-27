@@ -171,93 +171,93 @@ Te
 ; Memory view labels
 ;
 MSG_START_ADDRESS
-KEZDÖCÍM
+Kezdöcím
 ;
 MSG_END_ADDRESS
-VÉGCÍM
+Végcím
 ;
 MSG_TOTAL_SIZE
-TELJES MÉRET
+Teljes méret
 ;
 MSG_MEMORY_TYPE
-MEMÓRIATÍPUS
+Memóriatípus
 ;
 MSG_PRIORITY
-PRIORITÁS
+Prioritás
 ;
 MSG_LOWER_BOUND
-ALSÓ HATÁR
+Alsó határ
 ;
 MSG_UPPER_BOUND
-FELSÖ HATÁR
+Felsö határ
 ;
 MSG_FIRST_ADDRESS
-ELSÖ CIM
+Elsö cim
 ;
 MSG_AMOUNT_FREE
-SZABAD MEMÓRIA
+Szabad memória
 ;
 MSG_LARGEST_BLOCK
-LEGNAGYOBB BLOKK
+Legnagyobb blokk
 ;
 MSG_NUM_CHUNKS
-BLOKKSZÁM
+Blokkszám
 ;
 MSG_NODE_NAME
-CSOMÓPONTNÉV
+Csomópontnév
 ;
 MSG_MEMORY_SPEED
-MEMÓRIA SEBESSÉG
+Memória sebesség
 ;
 ; Drives view labels
 ;
 MSG_DISK_ERRORS
-LEMEZHIBÁK SZÁMA
+Lemezhibák száma
 ;
 MSG_UNIT_NUMBER
-EGYSÉG SZÁMA
+Egység száma
 ;
 MSG_DISK_STATE
-LEMEZÁLLAPOT
+Lemezállapot
 ;
 MSG_TOTAL_BLOCKS
-BLOKKOK ÖSSZESEN
+Blokkok összesen
 ;
 MSG_BLOCKS_USED
-HASZNÁLT BLOKKOK
+Használt blokkok
 ;
 MSG_BYTES_PER_BLOCK
-BÁJTOK BLOKKONKÉNT
+Bájtok blokkonként
 ;
 MSG_DISK_TYPE
-MEGHAJTÓTÍPUS
+Meghajtótípus
 ;
 MSG_VOLUME_NAME
-KÖTETNÉV
+Kötetnév
 ;
 MSG_DEVICE_NAME
-ESZKÖZNÉV
+Eszköznév
 ;
 MSG_SURFACES
-FELÜLETEK
+Felületek
 ;
 MSG_SECTORS_PER_SIDE
-SZEKTOROK OLDALANKÉNT
+Szektorok oldalanként
 ;
 MSG_RESERVED_BLOCKS
-FENNTARTOTT BLOKKOK
+Fenntartott blokkok
 ;
 MSG_LOWEST_CYLINDER
-ALSÓ CILINDER
+Alsó cilinder
 ;
 MSG_HIGHEST_CYLINDER
-FELSÖ CILINDER
+Felsö cilinder
 ;
 MSG_NUM_BUFFERS
-PUFFEREK SZÁMA
+Pufferek száma
 ;
 MSG_SPEED
-MEGHAJTÓ SEBESSÉGE
+Meghajtó sebessége
 ;
 MSG_DRIVES_NO_DRIVES_FOUND
 Nem találhatók meghajtók.

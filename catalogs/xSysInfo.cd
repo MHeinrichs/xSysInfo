@@ -169,93 +169,93 @@ You
 ; Memory view labels
 ;
 MSG_START_ADDRESS (//)
-START ADDRESS
+Start address
 ;
 MSG_END_ADDRESS (//)
-END ADDRESS
+End address
 ;
 MSG_TOTAL_SIZE (//)
-TOTAL SIZE
+Total size
 ;
 MSG_MEMORY_TYPE (//)
-MEMORY TYPE
+Memory type
 ;
 MSG_PRIORITY (//)
-PRIORITY
+Priority
 ;
 MSG_LOWER_BOUND (//)
-LOWER BOUND
+Lower bound
 ;
 MSG_UPPER_BOUND (//)
-UPPER BOUND
+Upper bound
 ;
 MSG_FIRST_ADDRESS (//)
-FIRST ADDRESS
+First address
 ;
 MSG_AMOUNT_FREE (//)
-AMOUNT FREE
+Amount free
 ;
 MSG_LARGEST_BLOCK (//)
-LARGEST BLOCK
+Largest block
 ;
 MSG_NUM_CHUNKS (//)
-NUMBER OF CHUNKS
+Number of chunks
 ;
 MSG_NODE_NAME (//)
-NODE NAME
+Node name
 ;
 MSG_MEMORY_SPEED (//)
-MEMORY SPEED
+Memory speed
 ;
 ; Drives view labels
 ;
 MSG_DISK_ERRORS (//)
-NUMBER OF DISK ERRORS
+Number of disk errors
 ;
 MSG_UNIT_NUMBER (//)
-UNIT NUMBER
+Unit number
 ;
 MSG_DISK_STATE (//)
-DISK STATE
+Disk state
 ;
 MSG_TOTAL_BLOCKS (//)
-TOTAL NUMBER OF BLOCKS
+Total number of blocks
 ;
 MSG_BLOCKS_USED (//)
-TOTAL BLOCKS USED
+Total blocks used
 ;
 MSG_BYTES_PER_BLOCK (//)
-BLOCK SIZE
+Block size
 ;
 MSG_DISK_TYPE (//)
-DRIVE/DISK TYPE
+Drive/disk type
 ;
 MSG_VOLUME_NAME (//)
-VOLUME NAME
+Volume name
 ;
 MSG_DEVICE_NAME (//)
-DEVICE NAME
+Device name
 ;
 MSG_SURFACES (//)
-SURFACES
+Surfaces
 ;
 MSG_SECTORS_PER_SIDE (//)
-SECTORS PER SIDE
+Sectors per side
 ;
 MSG_RESERVED_BLOCKS (//)
-RESERVED BLOCKS
+Reserved blocks
 ;
 MSG_LOWEST_CYLINDER (//)
-LOWEST CYLINDER
+Lowest cylinder
 ;
 MSG_HIGHEST_CYLINDER (//)
-HIGHEST CYLINDER
+Highest cylinder
 ;
 MSG_NUM_BUFFERS (//)
-NUMBER OF BUFFERS
+Number of buffers
 ;
 MSG_SPEED (//)
-DRIVE SPEED
+Drive speed
 ;
 MSG_DRIVES_NO_DRIVES_FOUND (//)
 No drives found.

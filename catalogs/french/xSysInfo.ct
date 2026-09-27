@@ -171,93 +171,93 @@ Vous
 ; Memory view labels
 ;
 MSG_START_ADDRESS
-ADRESSE DEBUT
+Adresse debut
 ;
 MSG_END_ADDRESS
-ADRESSE FIN
+Adresse fin
 ;
 MSG_TOTAL_SIZE
-TAILLE TOTALE
+Taille totale
 ;
 MSG_MEMORY_TYPE
-TYPE DE MEMOIRE
+Type de memoire
 ;
 MSG_PRIORITY
-PRIORITE
+Priorite
 ;
 MSG_LOWER_BOUND
-LIMITE BASSE
+Limite basse
 ;
 MSG_UPPER_BOUND
-LIMITE HAUTE
+Limite haute
 ;
 MSG_FIRST_ADDRESS
-PREMIERE ADRESSE
+Premiere adresse
 ;
 MSG_AMOUNT_FREE
-ESPACE LIBRE
+Espace libre
 ;
 MSG_LARGEST_BLOCK
-PLUS GRAND BLOC
+Plus grand bloc
 ;
 MSG_NUM_CHUNKS
-NOMBRE DE FRAGMENTS
+Nombre de fragments
 ;
 MSG_NODE_NAME
-NOM DU NOEUD
+Nom du noeud
 ;
 MSG_MEMORY_SPEED
-VITESSE MEMOIRE
+Vitesse memoire
 ;
 ; Drives view labels
 ;
 MSG_DISK_ERRORS
-NOMBRE D'ERREURS DISQUE
+Nombre d'erreurs disque
 ;
 MSG_UNIT_NUMBER
-NUMERO D'UNITE
+Numero d'unite
 ;
 MSG_DISK_STATE
-ETAT DU DISQUE
+Etat du disque
 ;
 MSG_TOTAL_BLOCKS
-NOMBRE TOTAL DE BLOCS
+Nombre total de blocs
 ;
 MSG_BLOCKS_USED
-BLOCS UTILISES
+Blocs utilises
 ;
 MSG_BYTES_PER_BLOCK
-OCTETS PAR BLOC
+Octets par bloc
 ;
 MSG_DISK_TYPE
-TYPE LECTEUR/DISQUE
+Type lecteur/disque
 ;
 MSG_VOLUME_NAME
-NOM DU VOLUME
+Nom du volume
 ;
 MSG_DEVICE_NAME
-NOM DU PERIPHERIQUE
+Nom du peripherique
 ;
 MSG_SURFACES
-SURFACES
+Surfaces
 ;
 MSG_SECTORS_PER_SIDE
-SECTEURS PAR FACE
+Secteurs par face
 ;
 MSG_RESERVED_BLOCKS
-BLOCS RESERVES
+Blocs reserves
 ;
 MSG_LOWEST_CYLINDER
-CYLINDRE LE PLUS BAS
+Cylindre le plus bas
 ;
 MSG_HIGHEST_CYLINDER
-CYLINDRE LE PLUS HAUT
+Cylindre le plus haut
 ;
 MSG_NUM_BUFFERS
-NOMBRE DE TAMPONS
+Nombre de tampons
 ;
 MSG_SPEED
-VITESSE LECTEUR
+Vitesse lecteur
 ;
 MSG_DRIVES_NO_DRIVES_FOUND
 Aucun lecteur trouve.
