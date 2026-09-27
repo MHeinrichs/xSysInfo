@@ -11,6 +11,9 @@
 
 #include <exec/execbase.h>
 #include <exec/memory.h>
+#include <devices/input.h>
+#include <devices/inputevent.h>
+#include <clib/alib_protos.h>
 #include <intuition/intuition.h>
 #include <intuition/intuitionbase.h>
 #include <intuition/screens.h>
@@ -144,6 +147,7 @@ typedef CONST_STRPTR IconString;
 static BOOL open_libraries(const char *program_name);
 static void close_libraries(void);
 static BOOL open_display(void);
+static void center_mouse_pointer(void);
 static void close_display(void);
 static void main_loop(void);
 static void set_palette(void);
@@ -510,6 +514,8 @@ int main(int argc, char **argv)
             }
         }
 
+        center_mouse_pointer();
+
         if (scsi_error) {
             show_status_overlay(scsi_error);
             Delay(150);
@@ -753,9 +759,48 @@ static BOOL is_rtg_mode(struct Screen *screen)
     return FALSE;
 }
 
-/*
- * Open display - either a window on Workbench or a custom screen
- */
+/* Move away from the fullscreen close corner once the display is ready. */
+static void center_mouse_pointer(void)
+{
+    struct MsgPort *port = CreatePort(NULL, 0);
+    struct IOStdReq *io;
+    struct InputEvent event;
+    struct IEPointerPixel position;
+    struct Screen *screen = app->screen;
+
+    if (!port) return;
+    io = CreateStdIO(port);
+    if (io) {
+        if (OpenDevice((CONST_STRPTR)"input.device", 0, (struct IORequest *)io, 0) == 0) {
+            memset(&event, 0, sizeof(event));
+            event.ie_Code = IECODE_NOBUTTON;
+            if (IntuitionBase->LibNode.lib_Version >= 36) {
+                position.iepp_Screen = screen;
+                position.iepp_Position.X = screen->Width / 2;
+                position.iepp_Position.Y = screen->Height / 2;
+                event.ie_Class = IECLASS_NEWPOINTERPOS;
+                event.ie_SubClass = IESUBCLASS_PIXEL;
+                event.ie_EventAddress = &position;
+            } else {
+                /* The old event uses low-resolution, non-interlaced coordinates. */
+                event.ie_Class = IECLASS_POINTERPOS;
+                event.ie_X = (screen->LeftEdge + screen->Width / 2) /
+                             ((screen->ViewPort.Modes & HIRES) ? 2 : 1);
+                event.ie_Y = (screen->TopEdge + screen->Height / 2) /
+                             ((screen->ViewPort.Modes & LACE) ? 2 : 1);
+            }
+            io->io_Command = IND_WRITEEVENT;
+            io->io_Data = &event;
+            io->io_Length = sizeof(event);
+            DoIO((struct IORequest *)io);
+            CloseDevice((struct IORequest *)io);
+        }
+        DeleteStdIO(io);
+    }
+    DeletePort(port);
+}
+
+/* Open a window on Workbench or a custom screen. */
 static BOOL open_display(void)
 {
     struct NewScreen *newScreen;
