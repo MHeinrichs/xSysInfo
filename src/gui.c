@@ -2429,7 +2429,8 @@ static void build_hardware_rows(void)
         hardware_group++;
         if (hw_info.ramsey_rev) {
             format_ramsey_rev_string(buffer, sizeof(buffer));
-            hardware_row(0, get_string(MSG_RAM_CONTROLLER), buffer, HARDWARE_CHIPSET_VALUE_OFFSET);
+            hardware_row(0, get_string(MSG_RAM_CONTROLLER), buffer, HARDWARE_OVERVIEW_VALUE_OFFSET);
+            hardware_group++;
             /* Ramsey status */
             hardware_row(0,
                              get_string(MSG_RAMSEY_CTRL), NULL, 120);
