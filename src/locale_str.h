@@ -354,6 +354,7 @@ typedef enum {
     MSG_PPC_REVISION,
     MSG_PPC_BUS,
     MSG_PPC_RUNTIME,
+    MSG_HARDWARE_SCSI,
     MSG_COUNT  /* Total number of strings */
 } LocaleStringID;
 

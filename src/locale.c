@@ -367,6 +367,7 @@ static const char *default_strings[MSG_COUNT] = {
     /* MSG_PPC_REVISION */ "PPC revision",
     /* MSG_PPC_BUS */ "PPC bus MHz",
     /* MSG_PPC_RUNTIME */ "PPC runtime",
+    /* MSG_HARDWARE_SCSI */ "SCSI",
 };
 
 /* Get string by ID - uses catalog if available, falls back to English */

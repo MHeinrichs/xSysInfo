@@ -264,6 +264,8 @@ static const char *get_hardware_page_label(void)
             return get_string(MSG_HARDWARE_CPU);
         case HARDWARE_EXT:
             return get_string(MSG_HARDWARE_EXT);
+        case HARDWARE_SCSI:
+            return get_string(MSG_HARDWARE_SCSI);
         case HARDWARE_CLOCK:
             return get_string(MSG_HARDWARE_CLOCK);
         case HARDWARE_STD:
@@ -439,6 +441,9 @@ void main_view_handle_button(ButtonID id)
             hardware_page = 0;
             app->hardware_type =
                 (app->hardware_type + 1) % HARDWARE_COUNT;
+            if (app->hardware_type == HARDWARE_SCSI &&
+                !hw_info.sdmac_present && hw_info.ncr_type == NCR_NONE)
+                app->hardware_type = HARDWARE_CLOCK;
             update_hardware_text();
             break;
 
@@ -2470,7 +2475,7 @@ static void build_hardware_rows(void)
                              get_string(MSG_RAMSEY_REFRESH), buffer, 110);
 
         }
-        hardware_group++;
+    } else if (app->hardware_type == HARDWARE_SCSI) {
         if (hw_info.sdmac_present || hw_info.ncr_type != NCR_NONE) {
             format_dma_string(buffer, sizeof(buffer));
             hardware_row(0, get_string(MSG_DMA_CHIP), buffer, HARDWARE_CHIPSET_VALUE_OFFSET);

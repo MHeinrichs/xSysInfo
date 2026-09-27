@@ -952,3 +952,6 @@ PPC bus MHz
 MSG_PPC_RUNTIME (//)
 PPC runtime
 ;
+MSG_HARDWARE_SCSI (//9)
+SCSI
+;

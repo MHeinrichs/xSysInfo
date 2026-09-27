@@ -110,6 +110,7 @@ typedef enum {
     HARDWARE_STD,
     HARDWARE_CPU,
     HARDWARE_EXT,
+    HARDWARE_SCSI,
     HARDWARE_CLOCK,
     HARDWARE_COUNT
 } HardwareType;
