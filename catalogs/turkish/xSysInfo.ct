@@ -632,9 +632,6 @@ Fat Gary
 MSG_GARY_UNKNOWN
 Bilinmiyor
 ;
-MSG_EXT_INFO
-A3000/4000 icin ek bilgi
-;
 MSG_NV_RAM
 NV-RAM (BattMem):
 ;

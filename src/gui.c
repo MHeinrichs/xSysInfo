@@ -2318,9 +2318,6 @@ static void draw_hardware_panel_contents(void)
                              CACHE_BTN_X - 4);
         draw_cache_buttons();
     } else if (app->hardware_type == HARDWARE_EXT) {
-        draw_label_value(HARDWARE_PANEL_X + 4, y,
-                         get_string(MSG_EXT_INFO), NULL, 120);
-        y += 8;
         /* Ramsey */
         format_ramsey_rev_string(buffer, sizeof(buffer));
         draw_label_value(HARDWARE_PANEL_X + 4, y,

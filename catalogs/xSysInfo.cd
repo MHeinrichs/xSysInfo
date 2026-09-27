@@ -630,10 +630,8 @@ Fat Gary
 MSG_GARY_UNKNOWN (//)
 Unknown
 ;
-MSG_EXT_INFO (//)
-Extended info for A3000/4000
-;
-MSG_NV_RAM (//)
+; ID 193 is retired; preserve IDs used by existing catalogs.
+MSG_NV_RAM (194//)
 NV-RAM (BattMem):
 ;
 MSG_AMNESIA (//)

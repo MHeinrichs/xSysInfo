@@ -251,8 +251,8 @@ typedef enum {
     MSG_GAYLE,
     MSG_FAT_GARY,
     MSG_GARY_UNKNOWN,
-    MSG_EXT_INFO,
-    MSG_NV_RAM,
+    /* ID 193 is retired; preserve IDs used by existing catalogs. */
+    MSG_NV_RAM = 194,
     MSG_AMNESIA,
     MSG_SHARED_AMNESIA,
     MSG_TIMEOUT,
