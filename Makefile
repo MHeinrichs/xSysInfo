@@ -90,6 +90,8 @@ STACK = Stack
 STACK_SRC = src/Stack.c
 STACK_OBJ = src/Stack.o
 STACK_CFLAGS = $(filter-out -flto%,$(CFLAGS)) -fno-lto
+LOADING_LOADER = xSysInfoLoader
+LOADING_CFLAGS = -Os -m68000 -noixemul -Wall -Wextra
 
 OBJS = $(SRCS:.c=.o)
 
@@ -119,7 +121,7 @@ $(VERSION_STAMP): FORCE_VERSION
 		'$(PROG_VERSION)' '$(PROG_REVISION)' > $@.tmp
 	@if cmp -s $@.tmp $@; then rm -f $@.tmp; else mv -f $@.tmp $@; fi
 
-$(OBJS) $(STACK_OBJ): $(VERSION_STAMP)
+$(OBJS) $(STACK_OBJ) src/loading.o: $(VERSION_STAMP)
 
 # FlexCat build - only when binary doesn't exist
 $(FLEXCAT_BIN):
@@ -230,6 +232,15 @@ $(STACK_OBJ): $(STACK_SRC)
 	@echo "  CC    $@"
 	@$(CC) $(STACK_CFLAGS) -c -o $@ $<
 
+src/loading.o: src/loading.c src/loading.h Makefile
+	@echo "  CC    $@"
+	@$(CC) $(LOADING_CFLAGS) -DXSYSINFO_VERSION='"$(FULL_VERSION)"' -c -o $@ $<
+
+$(LOADING_LOADER): src/loading.o
+	@echo "  LINK  $@"
+	@$(CC) -nostartfiles -noixemul -o $@ $^ -lamiga
+	@$(STRIP) $@
+
 $(OBJS): src/%.o: src/%.c src/xsysinfo.h src/debug.h $(IDENTIFY_HEADERS) $(MMU_HEADERS)
 	@echo "  CC    $@"
 	@$(CC) $(CFLAGS) -c -o $@ $<
@@ -243,6 +254,7 @@ src/benchmark.o: src/dhry.h
 src/probeclock.o src/benchmark.o src/wdprobe.o: src/probeclock.h
 src/probeclock.o: src/hardware.h src/cpu.h
 src/drives.o src/print.o src/main.o src/gui.o: src/drives.h
+src/main.o: src/loading.h
 
 $(ASM_OBJS): src/%.o: src/%.S
 	@echo "  ASM   $@"
@@ -250,7 +262,9 @@ $(ASM_OBJS): src/%.o: src/%.S
 
 clean:
 	@echo "  CLEAN"
-	@rm -f $(OBJS) $(ASM_OBJS) $(STACK_OBJ) $(TARGET) TinySetPatch $(STACK)
+	@rm -f $(OBJS) $(ASM_OBJS) $(STACK_OBJ) src/loading.o \
+		$(TARGET) TinySetPatch $(STACK) \
+		$(LOADING_LOADER)
 	@rm -rf $(CATALOG_DIR)
 	@rm -rf $(PCI_BUILD_DIR) $(IDENTIFY_BUILD_DIR)
 	@rm -f $(VERSION_STAMP)
@@ -446,7 +460,8 @@ TinySetPatch: $(TINYSETPATCH_SRC) $(TINYSETPATCH_DIR)/Makefile Makefile
 		VASM=$(VASM) NDK_PATH="$(NDK_PATH)"
 	@cp $(TINYSETPATCH_BIN) $@
 
-disk: $(TARGET) download-libs identify-library $(PCI_DB) TinySetPatch $(STACK)
+disk: $(TARGET) download-libs identify-library $(PCI_DB) TinySetPatch $(STACK) \
+	$(LOADING_LOADER)
 	@echo "  DISK"
 	@xdftool $(DISK) format "$(DISK_TITLE)"
 	@xdftool $(DISK) write $(TARGET) $(TARGET)
@@ -464,6 +479,7 @@ disk: $(TARGET) download-libs identify-library $(PCI_DB) TinySetPatch $(STACK)
 	@xdftool $(DISK) makedir C
 	@xdftool $(DISK) write $(STACK) C/Stack
 	@xdftool $(DISK) write TinySetPatch C/TinySetPatch
+	@xdftool $(DISK) write $(LOADING_LOADER) C/$(LOADING_LOADER)
 	@xdftool $(DISK) boot install
 	@xdftool $(DISK) info
 	@ln -sf $(DISK) xsysinfo.adf

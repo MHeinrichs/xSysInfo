@@ -44,6 +44,7 @@
 #include "which.h"
 #include "locale_str.h"
 #include "debug.h"
+#include "loading.h"
 
 /* Amiga version string for the Version command */
 __attribute__((used))
@@ -476,6 +477,39 @@ int main(int argc, char **argv)
         debug(XSYSINFO_NAME ": Draw screen...\n");
         redraw_current_view();
 
+        /* The GUI is ready to replace the boot floppy's loading screen. */
+        {
+            struct Task *scroller;
+            Forbid();
+            scroller = FindTask((CONST_STRPTR)LOADING_TASK_NAME);
+            Permit();
+            if (scroller && app->use_custom_screen) {
+                ScreenToFront(app->screen);
+                /* Let Intuition install the new display before the loader
+                 * closes its screen and rebuilds the merged Copper list. */
+                WaitTOF();
+                WaitTOF();
+            }
+            Forbid();
+            scroller = FindTask((CONST_STRPTR)LOADING_TASK_NAME);
+            if (scroller)
+                Signal(scroller, SIGBREAKF_CTRL_C);
+            Permit();
+            if (scroller && app->use_custom_screen) {
+                unsigned int frame;
+                for (frame = 0; frame < 100; ++frame) {
+                    Forbid();
+                    scroller = FindTask((CONST_STRPTR)LOADING_TASK_NAME);
+                    Permit();
+                    if (!scroller)
+                        break;
+                    ScreenToFront(app->screen);
+                    WaitTOF();
+                }
+                ScreenToFront(app->screen);
+            }
+        }
+
         if (scsi_error) {
             show_status_overlay(scsi_error);
             Delay(150);
@@ -729,7 +763,12 @@ static BOOL open_display(void)
     struct Screen *wb_screen;
     BOOL use_window = FALSE;
     BOOL has_v36_intuition = (IntuitionBase->LibNode.lib_Version >= 36);
+    BOOL loader_running;
     ULONG display_id = HIRES_KEY;
+
+    Forbid();
+    loader_running = FindTask((CONST_STRPTR)LOADING_TASK_NAME) != NULL;
+    Permit();
 
     /* Check display mode setting from tooltypes */
     if (app->display_mode == DISPLAY_WINDOW) {
@@ -857,6 +896,7 @@ static BOOL open_display(void)
                 SA_DisplayID, display_id,
                 SA_Pens, (ULONG)default_pens,
                 SA_ShowTitle, FALSE,
+                SA_Behind, loader_running,
                 TAG_DONE);
         } else {
             newScreen = (struct NewScreen *)AllocMem(sizeof(struct NewScreen), MEMF_ANY | MEMF_CLEAR);
@@ -865,7 +905,8 @@ static BOOL open_display(void)
                 newScreen->Height = app->screen_height;
                 newScreen->Depth = SCREEN_DEPTH;
                 newScreen->DefaultTitle = (UBYTE *)(XSYSINFO_NAME " " XSYSINFO_VERSION);
-                newScreen->Type = CUSTOMSCREEN;
+                newScreen->Type = CUSTOMSCREEN |
+                                  (loader_running ? SCREENBEHIND : 0);
                 newScreen->Font = &Topaz8Font;
                 newScreen->ViewModes = HIRES;
                 app->screen = OpenScreen(newScreen);
