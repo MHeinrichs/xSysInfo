@@ -1133,8 +1133,16 @@ void detect_clock(void)
  */
 void detect_batt_mem(void)
 {
-    hw_info.battMemData.available = openBattMem();
+    /* The OKI MSM6242 has no user RAM. A resource alone does not prove
+     * that the detected RTC provides battery-backed configuration RAM. */
+    hw_info.battMemData.available = FALSE;
     hw_info.battMemData.valid_data = FALSE;
+
+    if (hw_info.clock_type != CLOCK_RP5C01 &&
+        hw_info.clock_type != CLOCK_MK48T02)
+        return;
+
+    hw_info.battMemData.available = openBattMem();
 
     if (hw_info.battMemData.available) {
         hw_info.battMemData.valid_data = readBattMem(&hw_info.battMemData);
