@@ -1290,7 +1290,6 @@ static void main_loop(void)
                     switch (code) {
                         case 'q':
                         case 'Q':
-                        case 0x1B:  /* Escape */
                             if (app->current_view == VIEW_MAIN) {
                                 app->running = FALSE;
                             } else {
