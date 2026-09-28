@@ -35,9 +35,13 @@ IDENTIFY_INC = 3rdparty/identify/reference
 MMU_INC = $(MMU_DIR)/Include
 IDENTIFY_BUILD_DIR = build/identify
 IDENTIFY_LIBRARY = $(IDENTIFY_BUILD_DIR)/identify.library_000
+IDENTIFY_RELEASE_BUILD_DIR = build/identify-release
+IDENTIFY_RELEASE_SOURCES = src include reference locale distribution docs \
+                          makefile update-pci.py LICENSE.txt README.md
+MUI_INC ?= $(abspath $(NDK_PATH)/../include)
 OPENPCI_DIR = $(DOWNLOAD_DIR)/openpci68k
 OPENPCI_INC = $(OPENPCI_DIR)/Include
-OPENPCI_SDK_FILES = $(addprefix $(OPENPCI_INC)/libraries/,openpci.i pcitags.i pcimemory.i)
+OPENPCI_SDK_FILES = $(addprefix $(OPENPCI_INC)/libraries/,openpci.i pcitags.i pcimemory.i openpci.h)
 
 # Identify embeds a small WarpUP routine, assembled even in its 68000 build.
 VASM_PPC_REV = 291f6f08226c8843711e1319864526e6cd57ce06
@@ -104,7 +108,7 @@ ASM_OBJS = $(ASM_SRCS:.S=.o)
 
 TARGET = xSysInfo
 
-.PHONY: all clean identify identify-library mmu catalogs lha TinySetPatch
+.PHONY: all clean identify identify-library identify-release mmu catalogs lha TinySetPatch
 
 # FlexCat uses the Unix target on both Linux and macOS.
 FLEXCAT_BIN = 3rdparty/flexcat/src/bin_unix/flexcat
@@ -267,7 +271,7 @@ clean:
 		$(TARGET) TinySetPatch $(STACK) \
 		$(LOADING_LOADER)
 	@rm -rf $(CATALOG_DIR)
-	@rm -rf $(PCI_BUILD_DIR) $(IDENTIFY_BUILD_DIR)
+	@rm -rf $(PCI_BUILD_DIR) $(IDENTIFY_BUILD_DIR) $(IDENTIFY_RELEASE_BUILD_DIR)
 	@rm -f $(VERSION_STAMP)
 	@rm -f xsysinfo-*.lha
 	@$(MAKE) -s -C 3rdparty/flexcat clean
@@ -442,6 +446,20 @@ identify-library: $(FLEXCAT_BIN) $(MMU_SDK_FILES) $(OPENPCI_SDK_FILES) $(PCI_IDS
 		AMIGA_INCLUDES="$(abspath $(MMU_INC)) $(abspath $(OPENPCI_INC))" \
 		PATH="$(dir $(VASM_PPC)):$(dir $(abspath $(FLEXCAT_BIN))):$(PATH)" \
 		"$(abspath $(IDENTIFY_LIBRARY))"
+
+# Identify's release target cleans before building and modifies generated
+# source files. Use a private copy and serialize its clean/all prerequisites.
+identify-release: $(FLEXCAT_BIN) $(MMU_SDK_FILES) $(OPENPCI_SDK_FILES) $(PCI_IDS) $(VASM_PPC)
+	@echo "  BUILD Identify release packages"
+	@rm -rf $(IDENTIFY_RELEASE_BUILD_DIR)
+	@mkdir -p $(IDENTIFY_RELEASE_BUILD_DIR)/pciids
+	@cp -R $(addprefix 3rdparty/identify/,$(IDENTIFY_RELEASE_SOURCES)) $(IDENTIFY_RELEASE_BUILD_DIR)/
+	@cp $(PCI_IDS) $(IDENTIFY_RELEASE_BUILD_DIR)/pciids/
+	@$(MAKE) -s -j1 -C $(IDENTIFY_RELEASE_BUILD_DIR) \
+		NDK_I="$(NDK_PATH)" NDK_H="$(NDK_PATH)" NDK_LIB="$(NDK_LIB_PATH)" \
+		AMIGA_INCLUDES="$(abspath $(MMU_INC)) $(abspath $(OPENPCI_INC)) $(MUI_INC)" \
+		PATH="$(dir $(VASM_PPC)):$(dir $(abspath $(FLEXCAT_BIN))):$(PATH)" \
+		release
 
 # Download and prepare libraries and developer files.
 download-libs: $(OPENPCI_LHA) $(MMU_LIBS) $(MMU_SDK_FILES)

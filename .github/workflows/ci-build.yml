@@ -22,7 +22,7 @@ jobs:
       run: git config --global --add safe.directory '*'
 
     - name: Building all targets
-      run: make all
+      run: make all identify-release
 
     - name: Archive CI artifacts
       uses: actions/upload-artifact@v4
@@ -49,3 +49,10 @@ jobs:
       with:
           name: ${{ steps.lha.outputs.filename }}
           path: ${{ github.workspace }}/${{ steps.lha.outputs.filename }}
+
+    - name: Archive CI artifacts (Identify)
+      uses: actions/upload-artifact@v4
+      with:
+          name: Identify
+          path: build/identify-release/release/Identify*.lha
+          if-no-files-found: error

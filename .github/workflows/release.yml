@@ -26,7 +26,7 @@ jobs:
         run: git config --global --add safe.directory '*'
 
       - name: Build all artifacts
-        run: make all
+        run: make all identify-release
 
       - name: Upload release artifacts
         uses: actions/upload-artifact@v4
@@ -36,6 +36,7 @@ jobs:
             xSysInfo
             xsysinfo-*.adf
             xsysinfo-*.lha
+            build/identify-release/release/Identify*.lha
           if-no-files-found: error
 
   release:
@@ -63,3 +64,4 @@ jobs:
             artifacts/xSysInfo
             artifacts/xsysinfo-*.adf
             artifacts/xsysinfo-*.lha
+            artifacts/build/identify-release/release/Identify*.lha
