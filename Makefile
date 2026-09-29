@@ -199,7 +199,7 @@ LHA_NAME = xsysinfo-$(FULL_VERSION).lha
 LHA_DIR = xSysInfo-$(FULL_VERSION)
 LHA_OPTS := $(shell if lha 2>&1 | grep 'archive-kanji-code' | grep -q 'latin1'; then echo '--system-kanji-code=utf8 --archive-kanji-code=latin1'; fi)
 
-lha: $(TARGET) TinySetPatch identify-library catalogs xSysInfo.readme
+lha: $(TARGET) TinySetPatch identify-library catalogs xSysInfo.readme docs/Install docs/Install.info
 	@echo "  LHA   $(LHA_NAME)"
 	@rm -rf $(LHA_DIR)
 	@mkdir -p $(LHA_DIR)
@@ -209,6 +209,10 @@ lha: $(TARGET) TinySetPatch identify-library catalogs xSysInfo.readme
 		'{ sub(/\[VERSION\]/, version); print }' \
 		xSysInfo.readme > $(LHA_DIR)/readme.txt
 	@cp docs/xSysInfo.info $(LHA_DIR)/
+	@awk -v version="$(FULL_VERSION)" \
+		'{ gsub(/\[VERSION\]/, version); print }' \
+		docs/Install > $(LHA_DIR)/Install
+	@cp docs/Install.info $(LHA_DIR)/
 	@cp LICENSE $(LHA_DIR)/
 	@cp 3rdparty/identify/LICENSE.txt $(LHA_DIR)/Identify.LICENSE
 	@mkdir -p $(LHA_DIR)/Libs

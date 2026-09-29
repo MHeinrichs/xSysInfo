@@ -1,0 +1,113 @@
+; xSysInfo hard-disk installation, using the standard Amiga Installer.
+
+(set @app-name "xSysInfo")
+(welcome
+    "Install xSysInfo [VERSION], its translations, and identify.library.\n\n"
+    "Close xSysInfo before updating an existing installation."
+)
+
+; Novice mode normally suppresses questions, including replacement prompts.
+(if (= @user-level 0) (user 1))
+
+(if (exists "Work:" (noreq))
+    (set @default-dest "Work:xSysInfo")
+    (if (exists "SYS:Utilities")
+        (set @default-dest "SYS:Utilities/xSysInfo")
+        (set @default-dest "SYS:Tools/xSysInfo")
+    )
+)
+
+; Installer returns only the major version and revision from a $VER tag.
+(procedure version-text
+    (if version
+        (cat (/ version 65536) "." (BITAND version 65535))
+        "unknown"
+    )
+)
+
+; Ask even for equal versions: the bundled Identify may include additional
+; fixes without changing its upstream version number.
+(procedure replace-file
+    (
+        (set version (getversion source-file))
+        (set new-version (version-text))
+        (set version (getversion dest-file))
+        (set old-version (version-text))
+        (askbool
+            (prompt dest-file " already exists.\n\n"
+                "Installed version: " old-version "\n"
+                "Bundled version: " new-version "\n\n"
+                "Replace the installed file?"
+            )
+            (help
+                "Replace installs the bundled file, even if its version is\n"
+                "the same or older. Keep leaves your installed file intact.\n\n"
+                "Versions above show major.revision only. xSysInfo patch\n"
+                "and development suffixes are not reported by Installer.\n"
+                "The bundled xSysInfo build is [VERSION]."
+            )
+            (choices "Replace" "Keep")
+            (default 0)
+        )
+    )
+)
+
+(set @default-dest
+    (askdir
+        (prompt "Select the xSysInfo installation drawer.\n\n"
+            "For an update, select the drawer containing your existing xSysInfo.")
+        (help "The program and its Catalogs drawer will be installed here.\n"
+            "You can enter a new drawer name on your hard disk.")
+        (default @default-dest)
+        (newpath)
+    )
+)
+
+(set source-file "xSysInfo")
+(set dest-file (tackon @default-dest "xSysInfo"))
+(set install-program 1)
+(if (exists dest-file)
+    (
+        (if (= (expandpath source-file) (expandpath dest-file))
+            (abort "Choose an installation drawer different from this package drawer.")
+        )
+        (set install-program (replace-file))
+    )
+)
+
+(set source-file "Libs/identify.library")
+(set dest-file "LIBS:identify.library")
+(set install-identify 1)
+(if (exists dest-file)
+    (set install-identify (replace-file))
+)
+
+(if install-program
+    (
+        (if (NOT (exists (pathonly @default-dest)))
+            (makedir (pathonly @default-dest) (infos))
+        )
+        (makedir @default-dest (infos))
+        (copyfiles (source "xSysInfo") (dest @default-dest))
+        ; Keep the user's tooltypes and icon position when upgrading.
+        (if (NOT (exists (tackon @default-dest "xSysInfo.info")))
+            (copyfiles (source "xSysInfo.info") (dest @default-dest))
+        )
+        (copyfiles (source "Catalogs")
+            (dest (tackon @default-dest "Catalogs")) (all))
+        (copyfiles (source "") (dest @default-dest)
+            (choices "readme.txt" "LICENSE" "Identify.LICENSE"))
+    )
+)
+
+(if install-identify
+    (copyfiles (source "Libs/identify.library") (dest "LIBS:"))
+)
+
+(complete 100)
+(if install-identify
+    (exit "Installation complete.\n\n"
+        "Restart your Amiga before running xSysInfo if an older\n"
+        "identify.library is still loaded in memory.")
+    (exit "Installation complete.")
+)
