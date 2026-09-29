@@ -199,7 +199,7 @@ LHA_NAME = xsysinfo-$(FULL_VERSION).lha
 LHA_DIR = xSysInfo-$(FULL_VERSION)
 LHA_OPTS := $(shell if lha 2>&1 | grep 'archive-kanji-code' | grep -q 'latin1'; then echo '--system-kanji-code=utf8 --archive-kanji-code=latin1'; fi)
 
-lha: $(TARGET) TinySetPatch catalogs xSysInfo.readme
+lha: $(TARGET) TinySetPatch identify-library catalogs xSysInfo.readme
 	@echo "  LHA   $(LHA_NAME)"
 	@rm -rf $(LHA_DIR)
 	@mkdir -p $(LHA_DIR)
@@ -210,11 +210,16 @@ lha: $(TARGET) TinySetPatch catalogs xSysInfo.readme
 		xSysInfo.readme > $(LHA_DIR)/readme.txt
 	@cp docs/xSysInfo.info $(LHA_DIR)/
 	@cp LICENSE $(LHA_DIR)/
+	@cp 3rdparty/identify/LICENSE.txt $(LHA_DIR)/Identify.LICENSE
+	@mkdir -p $(LHA_DIR)/Libs
+	@cp $(IDENTIFY_LIBRARY) $(LHA_DIR)/Libs/identify.library
 	@for catalog in $(CATALOG_DIR)/*/xSysInfo.catalog; do \
 		lang=$$(basename $$(dirname "$$catalog")); \
-		cp "$$catalog" "$(LHA_DIR)/xSysInfo_$$lang.catalog"; \
+		mkdir -p "$(LHA_DIR)/Catalogs/$$lang"; \
+		cp "$$catalog" "$(LHA_DIR)/Catalogs/$$lang/xSysInfo.catalog"; \
 	done
 	@cp docs/dir.info $(LHA_DIR).info
+	@rm -f $(LHA_NAME)
 	@lha aqo5 $(LHA_OPTS) $(LHA_NAME) $(LHA_DIR) $(LHA_DIR).info
 	@rm -rf $(LHA_DIR) $(LHA_DIR).info
 	@echo "Created $(LHA_NAME)"
