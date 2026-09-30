@@ -87,7 +87,17 @@
         (if (NOT (exists (pathonly @default-dest)))
             (makedir (pathonly @default-dest) (infos))
         )
-        (makedir @default-dest (infos))
+        (makedir @default-dest)
+        ; Use the package drawer's own icon, even if the drawer was renamed.
+        (set source-drawer-icon (cat (pathonly (expandpath "xSysInfo")) ".info"))
+        (if (NOT (exists (cat @default-dest ".info")))
+            (if (exists source-drawer-icon)
+                (copyfiles (source source-drawer-icon)
+                    (dest (pathonly @default-dest))
+                    (newname (cat (fileonly @default-dest) ".info")))
+                (makedir @default-dest (infos))
+            )
+        )
         (copyfiles (source "xSysInfo") (dest @default-dest))
         ; Keep the user's tooltypes and icon position when upgrading.
         (if (NOT (exists (tackon @default-dest "xSysInfo.info")))
@@ -97,6 +107,10 @@
             (dest (tackon @default-dest "Catalogs")) (all))
         (copyfiles (source "") (dest @default-dest)
             (choices "readme.txt" "LICENSE" "Identify.LICENSE"))
+        ; Preserve a customized reader and icon position on upgrades.
+        (if (NOT (exists (tackon @default-dest "readme.txt.info")))
+            (copyfiles (source "readme.txt.info") (dest @default-dest))
+        )
     )
 )
 
