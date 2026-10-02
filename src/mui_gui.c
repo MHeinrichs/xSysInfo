@@ -58,6 +58,7 @@
 
 #define MUI_MIN_VERSION 11      /* MUI 3.8 */
 #define NUM_SPEED_ROWS  (NUM_REFERENCE_SYSTEMS + 1)   /* "You" first */
+#define INFO_COLUMN_SPACING 12
 
 struct Library *MUIMasterBase = NULL;
 
@@ -204,6 +205,7 @@ static void add_child(Object *group, Object *child)
 static Object *make_value(void)
 {
     return TextObject,
+        MUIA_Text_PreParse, (ULONG)(MUIX_L MUIX_PH),
         MUIA_Text_Contents, (ULONG)"",
     End;
 }
@@ -225,6 +227,7 @@ static Object *make_info_group(const char *title, const LocaleStringID *rows,
 
     group = MUI_NewObject(MUIC_Group,
         MUIA_Group_Columns, 2,
+        MUIA_Group_HorizSpacing, INFO_COLUMN_SPACING,
         MUIA_Group_VertSpacing, 1,
         title ? MUIA_Frame : TAG_IGNORE, MUIV_Frame_Group,
         title ? MUIA_FrameTitle : TAG_IGNORE, (ULONG)title,
@@ -536,6 +539,7 @@ static Object *make_software_page(void)
 
     overview = MUI_NewObject(MUIC_Group,
         MUIA_Group_Columns, 2,
+        MUIA_Group_HorizSpacing, INFO_COLUMN_SPACING,
         MUIA_Group_VertSpacing, 1,
         GroupFrame,
         TAG_DONE);
@@ -599,13 +603,19 @@ static void make_hardware_row(const HardwareInfoRow *row, void *data)
         build_failed = TRUE;
         return;
     }
-    if (!page->section || page->group != row->group) {
+    if (!page->section) {
         page->section = ColGroup(2),
+            MUIA_Group_HorizSpacing, INFO_COLUMN_SPACING,
             MUIA_Group_VertSpacing, 1,
         End;
-        page->group = row->group;
         add_child(page->root, page->section);
+    } else if (page->group != row->group) {
+        /* Keep section breaks inside one grid so every value starts at
+         * the same column, even when sections have different labels. */
+        add_child(page->section, VSpace(4));
+        add_child(page->section, VSpace(4));
     }
+    page->group = row->group;
     add_child(page->section, MUI_MakeObject(MUIO_Label,
                                            (ULONG)row->label, 0));
     if (row->control != CACHE_NONE) {
@@ -715,10 +725,7 @@ static Object *make_speed_page(void)
             text = speed_labels[i - 1];
         }
 
-        speed_factors[i] = TextObject,
-            MUIA_Text_PreParse, (ULONG)"\33r",
-            MUIA_Text_Contents, (ULONG)"",
-        End;
+        speed_factors[i] = make_value();
         if (i == 0 && you_gauge_class) {
             speed_gauges[i] = NewObjectA(you_gauge_class->mcc_Class, NULL,
                                          gauge_tags);
@@ -754,6 +761,7 @@ static Object *make_speed_page(void)
 
     results = ColGroup(6),
         GroupFrameT((ULONG)get_string(MSG_RESULTS_TITLE)),
+        MUIA_Group_HorizSpacing, INFO_COLUMN_SPACING,
         MUIA_Group_VertSpacing, 1,
         Child, MUI_MakeObject(MUIO_Label, (ULONG)get_string(MSG_DHRYSTONES), 0),
         Child, dhrystones_value = make_value(),
