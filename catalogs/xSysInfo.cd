@@ -955,3 +955,88 @@ PPC runtime
 MSG_HARDWARE_SCSI (//9)
 SCSI
 ;
+; General titles, actions and list headings
+MSG_SOFTWARE_TITLE (//)
+Software
+;
+MSG_HARDWARE_TITLE (//)
+Hardware
+;
+MSG_CHIPSET_TITLE (//)
+Chipset
+;
+MSG_SPEED_TITLE (//)
+Speed
+;
+MSG_MEMORY_TITLE (//)
+Memory
+;
+MSG_DRIVES_TITLE (//)
+Drives
+;
+MSG_BOARDS_TITLE (//)
+Boards
+;
+MSG_PROJECT_MENU (//)
+Project
+;
+MSG_ABOUT (//)
+About...
+;
+MSG_ABOUT_MUI (//)
+About MUI...
+;
+MSG_RUN_BENCHMARKS (//)
+Run benchmarks
+;
+MSG_SAVE_REPORT (//)
+Save report...
+;
+MSG_QUIT (//)
+Quit
+;
+MSG_SETTINGS_MENU (//)
+Settings
+;
+MSG_MUI_SETTINGS (//)
+MUI...
+;
+MSG_MEASURE_SPEED (//)
+Measure speed
+;
+MSG_SCSI_DEVICES (//)
+SCSI devices...
+;
+MSG_CLOSE (//)
+Close
+;
+MSG_RESULTS_TITLE (//)
+Results
+;
+MSG_NAME (//)
+Name
+;
+MSG_LOCATION (//)
+Location
+;
+MSG_ADDRESS (//)
+Address
+;
+MSG_VERSION (//)
+Version
+;
+MSG_SIZE (//)
+Size
+;
+MSG_DRIVE (//)
+Drive
+;
+MSG_VOLUME (//)
+Volume
+;
+MSG_REPORT_SAVED (//)
+Report saved to %s
+;
+MSG_REPORT_SAVE_FAILED (//)
+Could not save report
+;

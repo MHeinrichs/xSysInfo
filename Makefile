@@ -186,14 +186,15 @@ CATALOG_LANGS = german:deutsch french:français italian:italiano \
 		turkish:türkçe polish:polski portuguese:português \
 		hungarian:magyar spanish:español
 
-# Build all catalogs
+# Build all catalogs. FlexCat returns 5 for warnings, including untranslated
+# new messages; those entries use the built-in English fallback at runtime.
 catalogs: $(FLEXCAT_BIN)
-	@for mapping in $(CATALOG_LANGS); do \
+	@set -e; for mapping in $(CATALOG_LANGS); do \
 		src=$${mapping%%:*}; \
 		lang=$${mapping##*:}; \
 		mkdir -p "$(CATALOG_DIR)/$$lang"; \
 		echo "  CATALOG $$lang"; \
-		$(FLEXCAT_BIN) $(CATALOG_DESC) "catalogs/$$src/xSysInfo.ct" CATALOG "$(CATALOG_DIR)/$$lang/xSysInfo.catalog"; \
+		$(FLEXCAT_BIN) $(CATALOG_DESC) "catalogs/$$src/xSysInfo.ct" CATALOG "$(CATALOG_DIR)/$$lang/xSysInfo.catalog" || test $$? -eq 5; \
 	done
 
 # LHA archive creation

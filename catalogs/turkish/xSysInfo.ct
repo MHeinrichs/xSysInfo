@@ -954,3 +954,88 @@ PPC sistemi
 MSG_HARDWARE_SCSI
 SCSI
 ;
+; General titles, actions and list headings
+MSG_SOFTWARE_TITLE
+Yazýlým
+;
+MSG_HARDWARE_TITLE
+Donaným
+;
+MSG_CHIPSET_TITLE
+Yonga seti
+;
+MSG_SPEED_TITLE
+Hýz
+;
+MSG_MEMORY_TITLE
+Bellek
+;
+MSG_DRIVES_TITLE
+Sürücüler
+;
+MSG_BOARDS_TITLE
+Kartlar
+;
+MSG_PROJECT_MENU
+Proje
+;
+MSG_ABOUT
+Hakkýnda...
+;
+MSG_ABOUT_MUI
+MUI hakkýnda...
+;
+MSG_RUN_BENCHMARKS
+Performans testlerini çalýþtýr
+;
+MSG_SAVE_REPORT
+Raporu kaydet...
+;
+MSG_QUIT
+Çýkýþ
+;
+MSG_SETTINGS_MENU
+Ayarlar
+;
+MSG_MUI_SETTINGS
+MUI...
+;
+MSG_MEASURE_SPEED
+Hýzý ölç
+;
+MSG_SCSI_DEVICES
+SCSI aygýtlarý...
+;
+MSG_CLOSE
+Kapat
+;
+MSG_RESULTS_TITLE
+Sonuçlar
+;
+MSG_NAME
+Ad
+;
+MSG_LOCATION
+Konum
+;
+MSG_ADDRESS
+Adres
+;
+MSG_VERSION
+Sürüm
+;
+MSG_SIZE
+Boyut
+;
+MSG_DRIVE
+Sürücü
+;
+MSG_VOLUME
+Birim
+;
+MSG_REPORT_SAVED
+Rapor %s konumuna kaydedildi
+;
+MSG_REPORT_SAVE_FAILED
+Rapor kaydedilemedi
+;

@@ -954,3 +954,88 @@ System PPC
 MSG_HARDWARE_SCSI
 SCSI
 ;
+; General titles, actions and list headings
+MSG_SOFTWARE_TITLE
+Oprogramowanie
+;
+MSG_HARDWARE_TITLE
+Sprzêt
+;
+MSG_CHIPSET_TITLE
+Chipset
+;
+MSG_SPEED_TITLE
+Szybko¶æ
+;
+MSG_MEMORY_TITLE
+Pamiêæ
+;
+MSG_DRIVES_TITLE
+Napêdy
+;
+MSG_BOARDS_TITLE
+Karty
+;
+MSG_PROJECT_MENU
+Projekt
+;
+MSG_ABOUT
+O programie...
+;
+MSG_ABOUT_MUI
+O MUI...
+;
+MSG_RUN_BENCHMARKS
+Uruchom testy
+;
+MSG_SAVE_REPORT
+Zapisz raport...
+;
+MSG_QUIT
+Zakoñcz
+;
+MSG_SETTINGS_MENU
+Ustawienia
+;
+MSG_MUI_SETTINGS
+MUI...
+;
+MSG_MEASURE_SPEED
+Zmierz szybko¶æ
+;
+MSG_SCSI_DEVICES
+Urz±dzenia SCSI...
+;
+MSG_CLOSE
+Zamknij
+;
+MSG_RESULTS_TITLE
+Wyniki
+;
+MSG_NAME
+Nazwa
+;
+MSG_LOCATION
+Lokalizacja
+;
+MSG_ADDRESS
+Adres
+;
+MSG_VERSION
+Wersja
+;
+MSG_SIZE
+Rozmiar
+;
+MSG_DRIVE
+Napêd
+;
+MSG_VOLUME
+Wolumen
+;
+MSG_REPORT_SAVED
+Raport zapisano w %s
+;
+MSG_REPORT_SAVE_FAILED
+Nie mo¿na zapisaæ raportu
+;

@@ -954,3 +954,88 @@ Sistema PPC
 MSG_HARDWARE_SCSI
 SCSI
 ;
+; General titles, actions and list headings
+MSG_SOFTWARE_TITLE
+Software
+;
+MSG_HARDWARE_TITLE
+Hardware
+;
+MSG_CHIPSET_TITLE
+Chipset
+;
+MSG_SPEED_TITLE
+Velocità
+;
+MSG_MEMORY_TITLE
+Memoria
+;
+MSG_DRIVES_TITLE
+Unità
+;
+MSG_BOARDS_TITLE
+Schede
+;
+MSG_PROJECT_MENU
+Progetto
+;
+MSG_ABOUT
+Informazioni...
+;
+MSG_ABOUT_MUI
+Informazioni su MUI...
+;
+MSG_RUN_BENCHMARKS
+Avvia benchmark
+;
+MSG_SAVE_REPORT
+Salva rapporto...
+;
+MSG_QUIT
+Esci
+;
+MSG_SETTINGS_MENU
+Impostazioni
+;
+MSG_MUI_SETTINGS
+MUI...
+;
+MSG_MEASURE_SPEED
+Misura velocità
+;
+MSG_SCSI_DEVICES
+Dispositivi SCSI...
+;
+MSG_CLOSE
+Chiudi
+;
+MSG_RESULTS_TITLE
+Risultati
+;
+MSG_NAME
+Nome
+;
+MSG_LOCATION
+Posizione
+;
+MSG_ADDRESS
+Indirizzo
+;
+MSG_VERSION
+Versione
+;
+MSG_SIZE
+Dimensione
+;
+MSG_DRIVE
+Unità
+;
+MSG_VOLUME
+Volume
+;
+MSG_REPORT_SAVED
+Rapporto salvato in %s
+;
+MSG_REPORT_SAVE_FAILED
+Impossibile salvare il rapporto
+;
