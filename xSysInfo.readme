@@ -40,6 +40,8 @@ without a leading dash.
           WhichAmiga 1.3.3 text format to Shell output.
   DARK    Use the dark blue palette in the graphical interface.
           The default is the gray palette.
+  MUI     Use the MUI interface if MUI 3.8 or newer is installed;
+          otherwise the regular graphical interface opens.
   DEBUG   Enable diagnostic output. Debugging is off by default.
   SCSI    Check the A3000 WD SCSI controller at startup. Disabled by
           default; see below before enabling it.
@@ -100,6 +102,18 @@ If controller restoration fails, xSysInfo displays an error and exits
 with code 20 without enumerating drives, running further benchmarks or
 writing a report. Reboot before accessing disks in that case.
 
+MUI interface:
+With the MUI option or the DISPLAY=mui ToolType, xSysInfo shows the
+same information in a resizable MUI window with register pages for
+Software, Hardware, Speed, Memory, Drives, and Boards. Hardware has
+Overview, CPU, Chipset, SCSI, and Clock tabs. The Clock page shows the
+battery-backed clock live.
+CPU caches are switched with checkmarks, SCSI devices open in their
+own window, and Project/Save report asks for a file name.
+MUI libraries must be installed separately. The floppy uses a classic-only
+executable; the normal build and LHA include MUI support by default.
+Build without MUI support using make MUI=0.
+
 Workbench icon ToolTypes:
 These settings come from the program's icon when xSysInfo starts from
 Workbench. Edit the icon's ToolTypes, with one entry per line.
@@ -116,6 +130,8 @@ The supplied icon contains DISPLAY=auto, plus disabled examples
   DISPLAY=screen  Open a separate screen with system defaults.
   DISPLAY=pal     Open a separate PAL HIRES screen (640 x 256).
   DISPLAY=ntsc    Open a separate NTSC HIRES screen (640 x 200).
+  DISPLAY=mui     Use the MUI interface. Falls back to DISPLAY=auto
+                  when MUI is not installed.
   DARK            Use the dark blue palette. Omit this entry to use the
                   default gray palette.
   DEBUG           Enable diagnostic output. Omit this entry to leave

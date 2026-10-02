@@ -89,6 +89,15 @@ SRCS = src/main.c \
        src/which.c \
        src/locale.c
 
+# Runtime selection remains opt-in. MUI=0 omits the frontend completely.
+MUI ?= 1
+ifeq ($(MUI),1)
+SRCS += src/mui_gui.c
+src/main.o: CFLAGS += -DXSYSINFO_MUI
+src/mui_gui.o: CFLAGS += -I$(MUI_INC)
+endif
+MUI_STAMP = build/mui-config
+
 ASM_SRCS = src/cpu.S src/berr_trap.S
 TINYSETPATCH_DIR = 3rdparty/TinySetPatch
 TINYSETPATCH_SRC = $(TINYSETPATCH_DIR)/TinySetPatch.S
@@ -109,6 +118,9 @@ DHRY_LINK_SCRIPT = src/dhrystone.ld
 ASM_OBJS = $(ASM_SRCS:.S=.o)
 
 TARGET = xSysInfo
+CLASSIC_MAIN_OBJ = build/main-classic.o
+DISK_TARGET = build/xSysInfo-floppy
+DISK_OBJS = $(filter-out src/main.o src/mui_gui.o,$(OBJS)) $(CLASSIC_MAIN_OBJ)
 
 .PHONY: all clean identify identify-library identify-release mmu catalogs lha TinySetPatch
 
@@ -128,7 +140,14 @@ $(VERSION_STAMP): FORCE_VERSION
 		'$(PROG_VERSION)' '$(PROG_REVISION)' > $@.tmp
 	@if cmp -s $@.tmp $@; then rm -f $@.tmp; else mv -f $@.tmp $@; fi
 
-$(OBJS) $(STACK_OBJ) src/loading.o: $(VERSION_STAMP)
+$(OBJS) $(CLASSIC_MAIN_OBJ) $(STACK_OBJ) src/loading.o: $(VERSION_STAMP)
+
+$(MUI_STAMP): FORCE_VERSION
+	@mkdir -p $(dir $@)
+	@printf '%s\n' '$(MUI)' > $@.tmp
+	@if cmp -s $@.tmp $@; then rm -f $@.tmp; else mv -f $@.tmp $@; fi
+
+src/main.o $(TARGET): $(MUI_STAMP)
 
 # FlexCat build - only when binary doesn't exist
 $(FLEXCAT_BIN):
@@ -234,6 +253,18 @@ lha: $(TARGET) TinySetPatch identify-library catalogs xSysInfo.readme docs/Insta
 	@rm -rf $(LHA_DIR) $(LHA_DIR).info
 	@echo "Created $(LHA_NAME)"
 
+# The floppy never ships MUI libraries. Link a separate classic executable
+# without changing the normal build or racing with LHA packaging under -j.
+$(DISK_TARGET): $(DISK_OBJS) $(ASM_OBJS) $(DHRY_LINK_SCRIPT)
+	@echo "  LINK  $@"
+	@$(CC) $(LDFLAGS) -Wl,-T,$(DHRY_LINK_SCRIPT) -o $@ $(DISK_OBJS) $(ASM_OBJS) $(LIBS)
+	@$(STRIP) $@
+
+$(CLASSIC_MAIN_OBJ): src/main.c $(IDENTIFY_HEADERS) $(MMU_HEADERS) src/battmem.h src/debug.h
+	@mkdir -p $(dir $@)
+	@echo "  CC    $@"
+	@$(CC) $(CFLAGS) -UXSYSINFO_MUI -c -o $@ $<
+
 $(TARGET): $(OBJS) $(ASM_OBJS) $(DHRY_LINK_SCRIPT)
 	@echo "  LINK  $@"
 	@$(CC) $(LDFLAGS) -Wl,-T,$(DHRY_LINK_SCRIPT) -o $@ $(OBJS) $(ASM_OBJS) $(LIBS)
@@ -273,8 +304,8 @@ $(DHRY_OBJS): src/dhry.h Makefile
 src/benchmark.o: src/dhry.h
 src/probeclock.o src/benchmark.o src/wdprobe.o: src/probeclock.h
 src/probeclock.o: src/hardware.h src/cpu.h
-src/drives.o src/print.o src/main.o src/gui.o: src/drives.h
-src/main.o: src/loading.h
+src/drives.o src/print.o src/main.o $(CLASSIC_MAIN_OBJ) src/gui.o: src/drives.h
+src/main.o $(CLASSIC_MAIN_OBJ): src/loading.h
 
 $(ASM_OBJS): src/%.o: src/%.S
 	@echo "  ASM   $@"
@@ -287,26 +318,28 @@ clean:
 		$(LOADING_LOADER)
 	@rm -rf $(CATALOG_DIR)
 	@rm -rf $(PCI_BUILD_DIR) $(IDENTIFY_BUILD_DIR) $(IDENTIFY_RELEASE_BUILD_DIR)
-	@rm -f $(VERSION_STAMP)
+	@rm -f $(VERSION_STAMP) $(MUI_STAMP) src/mui_gui.o $(CLASSIC_MAIN_OBJ) $(DISK_TARGET)
 	@rm -f xsysinfo-*.lha
 	@$(MAKE) -s -C 3rdparty/flexcat clean
 	@$(MAKE) -s -C 3rdparty/identify clean
 	@rm -rf $(MMU_DIR) $(DOWNLOAD_DIR)/MMULib
 
 # Dependencies
-src/gui.o src/format.o: src/format.h src/cache.h
-src/main.o src/display.o: src/display.h
+src/gui.o src/format.o src/mui_gui.o: src/format.h src/cache.h
+src/main.o $(CLASSIC_MAIN_OBJ) src/display.o src/mui_gui.o: src/display.h
 src/display.o: src/loading.h
+src/main.o $(CLASSIC_MAIN_OBJ) src/mui_gui.o: src/mui_gui.h
 src/format.o: src/hardware.h src/software.h src/memory.h src/benchmark.h src/clock.h src/wdprobe.h src/locale_str.h
+src/mui_gui.o: src/hardware.h src/software.h src/memory.h src/drives.h src/boards.h src/scsi.h src/benchmark.h src/clock.h src/print.h src/locale_str.h
 $(OBJS): src/battmem.h
-src/main.o src/gui.o: src/clock.h
+src/main.o $(CLASSIC_MAIN_OBJ) src/gui.o: src/clock.h
 src/clock.o: src/clock.c src/clock.h src/hardware.h
-src/main.o: src/main.c src/xsysinfo.h src/gui.h src/hardware.h src/which.h src/software.h src/memory.h src/boards.h src/benchmark.h src/busclock.h src/locale_str.h
+src/main.o $(CLASSIC_MAIN_OBJ): src/main.c src/xsysinfo.h src/gui.h src/hardware.h src/which.h src/software.h src/memory.h src/boards.h src/benchmark.h src/busclock.h src/locale_str.h
 src/gui.o: src/gui.c src/bayer-16x16.c src/xsysinfo.h src/gui.h src/hardware.h src/benchmark.h src/software.h src/memory.h src/locale_str.h
 src/hardware.o: src/hardware.c src/xsysinfo.h src/hardware.h src/benchmark.h
 src/ppc.o: src/hardware.h
 src/wdprobe.o: src/wdprobe.c src/wdprobe.h src/hardware.h src/locale_str.h
-src/main.o src/gui.o src/hardware.o src/print.o: src/wdprobe.h
+src/main.o $(CLASSIC_MAIN_OBJ) src/gui.o src/hardware.o src/print.o: src/wdprobe.h
 src/benchmark.o: src/benchmark.c src/xsysinfo.h src/benchmark.h src/hardware.h
 src/busclock.o: src/busclock.c src/busclock.h src/hardware.h src/cpu.h src/debug.h
 src/memory.o: src/memory.c src/xsysinfo.h src/memory.h src/hardware.h src/locale_str.h
@@ -499,11 +532,11 @@ TinySetPatch: $(TINYSETPATCH_SRC) $(TINYSETPATCH_DIR)/Makefile Makefile
 		VASM=$(VASM) NDK_PATH="$(NDK_PATH)"
 	@cp $(TINYSETPATCH_BIN) $@
 
-disk: $(TARGET) download-libs identify-library $(PCI_DB) TinySetPatch $(STACK) \
+disk: $(DISK_TARGET) download-libs identify-library $(PCI_DB) TinySetPatch $(STACK) \
 	$(LOADING_LOADER)
 	@echo "  DISK"
 	@xdftool $(DISK) format "$(DISK_TITLE)"
-	@xdftool $(DISK) write $(TARGET) $(TARGET)
+	@xdftool $(DISK) write $(DISK_TARGET) $(TARGET)
 	@xdftool $(DISK) write docs/$(TARGET).info $(TARGET).info
 	@xdftool $(DISK) write docs/Disk.info Disk.info
 	@xdftool $(DISK) makedir Libs

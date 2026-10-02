@@ -49,6 +49,9 @@
 #include "debug.h"
 #include "loading.h"
 #include "display.h"
+#ifdef XSYSINFO_MUI
+#include "mui_gui.h"
+#endif
 
 /* Amiga version string for the Version command */
 __attribute__((used))
@@ -82,6 +85,7 @@ static BOOL g_dark_mode = FALSE;
 
 /* Optional WD SCSI controller check, enabled only by SCSI. */
 static BOOL g_scsi_check = FALSE;
+static BOOL g_mui_mode = FALSE;
 
 /* Global application context */
 AppContext app_context;
@@ -94,7 +98,7 @@ struct TextAttr Topaz8Font = {
 AppContext *app = &app_context;
 
 /* Command line argument template */
-#define TEMPLATE "DEBUG/S,BRIEF/S,FULL/S,WHICH/S,DARK/S,SCSI/S"
+#define TEMPLATE "DEBUG/S,BRIEF/S,FULL/S,WHICH/S,DARK/S,SCSI/S,MUI/S"
 
 /* Argument array indices */
 enum {
@@ -104,6 +108,7 @@ enum {
     ARG_WHICH,
     ARG_DARK,
     ARG_SCSI,
+    ARG_MUI,
     ARG_COUNT
 };
 
@@ -235,6 +240,8 @@ static BOOL parse_args(int argc, char **argv)
                 g_dark_mode = TRUE;
             else if (xstricmp(argv[i], "scsi") == 0)
                 g_scsi_check = TRUE;
+            else if (xstricmp(argv[i], "mui") == 0)
+                g_mui_mode = TRUE;
         }
     }
     return TRUE;
@@ -275,6 +282,8 @@ static void parse_tooltypes(void)
                 app->display_mode = DISPLAY_PAL;
             } else if (match_icon_toolvalue(value, ICON_STR("NTSC"))) {
                 app->display_mode = DISPLAY_NTSC;
+            } else if (match_icon_toolvalue(value, ICON_STR("MUI"))) {
+                g_mui_mode = TRUE;
             }
         }
 
@@ -469,6 +478,17 @@ int main(int argc, char **argv)
             ret = RETURN_FAIL;
         }
     } else if (!g_brief_mode) {
+        if (g_mui_mode) {
+#ifdef XSYSINFO_MUI
+            debug(XSYSINFO_NAME ": Opening MUI interface...\n");
+            if (mui_gui_run(version_string, scsi_error))
+                goto cleanup;
+#else
+            debug(XSYSINFO_NAME ": MUI support is not included in this executable\n");
+#endif
+            debug(XSYSINFO_NAME ": Falling back to the classic interface\n");
+        }
+
         debug(XSYSINFO_NAME ": Opening display...\n");
         if (!open_display()) {
             Printf((CONST_STRPTR)"%s\n", (LONG)get_string(MSG_ERR_NO_WINDOW));

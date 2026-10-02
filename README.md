@@ -73,6 +73,7 @@ without a leading dash.
 | `FULL` | Run CPU, memory, and drive benchmarks and write the complete text report to Shell output. |
 | `WHICH` | Write a column-aligned system report compatible with the WhichAmiga 1.3.3 text format to Shell output. |
 | `DARK` | Use the dark blue palette in the graphical interface. The default is the gray palette. |
+| `MUI` | Use the MUI interface if MUI 3.8 or newer is installed; otherwise the regular graphical interface opens. |
 | `DEBUG` | Enable diagnostic output. Debugging is off by default. |
 | `SCSI` | Check the A3000 WD SCSI controller at startup. Disabled by default; see below before enabling it. |
 
@@ -139,6 +140,41 @@ serial numbers; hexadecimal values use the Amiga-style `$` prefix.
 PCI boards continue to show their device class in the serial column.
 The selected mode is remembered until xSysInfo exits.
 
+### MUI interface
+
+Start xSysInfo with the `MUI` option or the `DISPLAY=mui` ToolType to
+use a resizable MUI window instead of the SysInfo-style display. The
+same information is organized on six register pages: **Software**,
+**Hardware**, **Speed**, **Memory**, **Drives**, and **Boards**. Hardware
+contains **Overview**, **CPU**, **Chipset**, **SCSI**, and **Clock** pages.
+The Clock page shows the battery-backed clock live. CPU caches use
+checkmarks, the SCSI device list opens in its own window, and **Project > Save report...**
+writes the text report to a file chosen in an ASL requester.
+
+The MUI interface needs MUI 3.8 (muimaster.library V11) or newer at
+runtime. Without it, xSysInfo opens the regular interface. The MUI code
+is built by default; build without it using `make MUI=0`. Switching this
+option rebuilds the affected code without requiring `make clean`. The build
+needs the MUI developer headers (`MUI_INC` can override their location).
+The floppy target always uses a separate classic-only executable to save
+space, while the normal executable and LHA follow the `MUI` build option.
+MUI runtime libraries are not bundled in either artifact.
+Use `xSysInfo DEBUG MUI` to diagnose fallback: it reports whether MUI support
+was omitted from the executable, the library could not be opened, or MUI
+could not create its application or open its window.
+
+Both frontends share hardware rows, visibility rules, software overview
+values, and speed scaling through `src/format.c`. Add hardware fields there;
+the classic UI retains its pagination and MUI supplies scrollable groups.
+Widget creation, drawing, and event handling stay in the respective frontend.
+`src/display.c` handles the loading-screen handoff after either UI opens.
+
+Catalog identifiers describe the text's purpose, independently of the UI.
+Short page titles have a `_TITLE` suffix when they differ from existing
+headings; identical labels reuse existing identifiers. New IDs are appended
+so installed catalogs remain compatible. Missing entries in older catalogs
+use built-in English text.
+
 Dark mode, enabled with `xSysInfo DARK`:
 
 ![xSysInfo in dark mode](docs/xsysinfo-dark.png)
@@ -158,6 +194,7 @@ and `(SCSI)`.
 | `DISPLAY=screen` | Open a separate screen with system defaults. |
 | `DISPLAY=pal` | Open a separate PAL HIRES screen (640 × 256). |
 | `DISPLAY=ntsc` | Open a separate NTSC HIRES screen (640 × 200). |
+| `DISPLAY=mui` | Use the MUI interface. Falls back to `DISPLAY=auto` when MUI is not installed. |
 | `DARK` | Use the dark blue palette. Omit this entry to use the default gray palette. |
 | `DEBUG` | Enable diagnostic output. Omit this entry to leave debugging off. |
 | `SCSI` | Run the optional WD SCSI controller check at startup, as described above. Disabled by default. |

@@ -24,6 +24,11 @@ jobs:
     - name: Building all targets
       run: make all identify-release
 
+    - name: Check incremental frontend selection
+      run: |
+        make MUI=0 xSysInfo
+        make MUI=1 xSysInfo
+
     - name: Archive CI artifacts
       uses: actions/upload-artifact@v4
       with:
