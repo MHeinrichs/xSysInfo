@@ -1,0 +1,33 @@
+// SPDX-License-Identifier: BSD-2-Clause
+// SPDX-FileCopyrightText: 2026 xSysInfo contributors
+#ifndef FORMAT_H
+#define FORMAT_H
+
+#include "xsysinfo.h"
+#include "locale_str.h"
+#include "cache.h"
+
+#define MAX_HARDWARE_INFO_ROWS 64
+#define SOFTWARE_OVERVIEW_MAX_ROWS 7
+
+/* Values are valid only during the visitor call. Groups keep related rows
+ * together; detail marks subordinate fields. Frontends choose the layout. */
+typedef struct {
+    const char *label;
+    const char *value; /* NULL for headings and cache controls */
+    UWORD group;
+    BOOL detail;
+    CacheSetting control;
+} HardwareInfoRow;
+
+typedef void (*HardwareRowVisitor)(const HardwareInfoRow *row, void *data);
+void visit_hardware_rows(HardwareType page, HardwareRowVisitor visit,
+                         void *data);
+void format_clock_values(char values[2][24]);
+ULONG software_overview_count(void);
+LocaleStringID software_overview_label(ULONG row);
+const char *format_software_overview_value(ULONG row, char *buffer, size_t size);
+ULONG speed_scale_max(BarScale scale);
+ULONG scale_speed_value(ULONG value, ULONG max_value, ULONG extent,
+                        BarScale scale);
+#endif

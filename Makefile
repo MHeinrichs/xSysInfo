@@ -67,6 +67,8 @@ LIBS = -lamiga -lgcc
 # Source files
 SRCS = src/main.c \
        src/gui.c \
+       src/format.c \
+       src/display.c \
        src/battmem.c \
        src/hardware.c \
        src/ppc.c \
@@ -291,6 +293,10 @@ clean:
 	@rm -rf $(MMU_DIR) $(DOWNLOAD_DIR)/MMULib
 
 # Dependencies
+src/gui.o src/format.o: src/format.h src/cache.h
+src/main.o src/display.o: src/display.h
+src/display.o: src/loading.h
+src/format.o: src/hardware.h src/software.h src/memory.h src/benchmark.h src/clock.h src/wdprobe.h src/locale_str.h
 $(OBJS): src/battmem.h
 src/main.o src/gui.o: src/clock.h
 src/clock.o: src/clock.c src/clock.h src/hardware.h

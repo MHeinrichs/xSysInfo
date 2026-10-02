@@ -129,4 +129,7 @@ const char *get_filesystem_string(FilesystemType fs);
 FilesystemType identify_filesystem(ULONG dos_type);
 const char *drive_read_cmd_name(UWORD command);
 
+BOOL drive_has_media_evidence(const DriveInfo *drive);
+void format_drive_speed(const DriveInfo *drive, char *buffer, size_t size);
+
 #endif /* DRIVES_H */

@@ -60,4 +60,6 @@ ULONG measure_memory_speed(ULONG index);
 /* Draw memory view */
 void draw_memory_view(void);
 
+void format_memory_speed(const MemoryRegion *region, char *buffer, size_t size);
+
 #endif /* MEMORY_H */

@@ -531,7 +531,7 @@ void scan_scsi_devices(const char *handler_name, ULONG base_unit)
 /*
  * Format size as MB/GB string, or "?" if unknown
  */
-static void format_size_mb(ULONG size_mb, char *buffer, ULONG bufsize)
+void format_size_mb(ULONG size_mb, char *buffer, ULONG bufsize)
 {
     if (size_mb > 0) {
         if (size_mb > 1024) {

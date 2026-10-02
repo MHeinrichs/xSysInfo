@@ -24,6 +24,7 @@
 
 #include "xsysinfo.h"
 #include "gui.h"
+#include "format.h"
 #include "hardware.h"
 #include "wdprobe.h"
 #include "benchmark.h"
@@ -55,7 +56,7 @@ extern struct GfxBase *GfxBase;
 Button buttons[MAX_BUTTONS];
 int num_buttons = 0;
 
-#define MAX_HARDWARE_ROWS 64
+#define MAX_HARDWARE_ROWS MAX_HARDWARE_INFO_ROWS
 typedef struct {
     const char *label;
     char value[80];
@@ -64,7 +65,7 @@ typedef struct {
     ButtonID control;
 } HardwareRow;
 static HardwareRow hardware_rows[MAX_HARDWARE_ROWS];
-static WORD hardware_row_count, hardware_group, hardware_page, hardware_pages;
+static WORD hardware_row_count, hardware_page, hardware_pages;
 
 #define CACHE_BTN_X (HARDWARE_PANEL_X + 226)
 #define CACHE_BTN_W 32
@@ -137,28 +138,6 @@ static const char *get_hardware_page_label(void);
 static void refresh_hardware_benchmark_rows(void);
 static void build_hardware_rows(void);
 static void add_hardware_buttons(void);
-static void format_clock_values(char values[2][24]);
-static void format_cpu_value(char *buffer, size_t size);
-static void format_fpu_value(char *buffer, size_t size);
-static void format_mmu_value(char *buffer, size_t size);
-static void format_mmu_address(char *buffer, size_t size, ULONG address);
-
-void format_scaled(char *buffer, size_t size, ULONG value_x100, BOOL round)
-{
-    ULONG integer_part = value_x100 / 100;
-    ULONG frac_part = value_x100 % 100;
-    if (round && integer_part >= 100) {
-        /* Round up if fractional part >= 0.5 */
-        if (frac_part >= 50) {
-            integer_part++;
-        }
-        snprintf(buffer, size, "%lu", (unsigned long)integer_part);
-    } else {
-        snprintf(buffer, size, "%lu.%02lu",
-                 (unsigned long)integer_part,
-                 (unsigned long)frac_part);
-    }
-}
 
 void TightText(struct RastPort *rp, int x, int y, CONST_STRPTR str, int charGap, int spaceWidth)
 {
@@ -281,7 +260,6 @@ static void set_button_enabled(ButtonID id, BOOL enabled)
         btn->enabled = enabled;
     }
 }
-
 
 /*
  * Set button pressed state and redraw it
@@ -1106,45 +1084,9 @@ void draw_label_value(WORD x, WORD y, const char *label, const char *value, WORD
     draw_label_value_max(x, y, label, value, offset, SCREEN_WIDTH - 4);
 }
 
-/* Rows own their values because most callers reuse a formatting buffer. */
-static void hardware_row(WORD indent, const char *label, const char *value,
-                         WORD offset)
-{
-    HardwareRow *row;
-    if (hardware_row_count >= MAX_HARDWARE_ROWS) return;
-    row = &hardware_rows[hardware_row_count++];
-    memset(row, 0, sizeof(*row));
-    row->label = label;
-    row->has_value = value != NULL;
-    copy_string(row->value, value ? value : "", sizeof(row->value));
-    row->indent = indent;
-    row->offset = offset;
-    row->height = app->rp->TxHeight;
-    row->group = hardware_group;
-}
-
 static BOOL hardware_cache_enabled(ButtonID id)
 {
-    switch (id) {
-        case BTN_ICACHE: return hw_info.icache_enabled;
-        case BTN_DCACHE: return hw_info.dcache_enabled;
-        case BTN_IBURST: return hw_info.iburst_enabled;
-        case BTN_DBURST: return hw_info.dburst_enabled;
-        case BTN_CBACK: return hw_info.copyback_enabled;
-        case BTN_SUPER_SCALAR: return hw_info.super_scalar_enabled;
-        default: return FALSE;
-    }
-}
-
-static void hardware_cache_row(LocaleStringID label, ButtonID id, BOOL present)
-{
-    HardwareRow *row;
-    if (!present || hardware_row_count >= MAX_HARDWARE_ROWS) return;
-    hardware_row(0, get_string(label), NULL, 0);
-    row = &hardware_rows[hardware_row_count - 1];
-    row->control = id;
-    row->height = app->rp->TxHeight + 3;
-    copy_string(row->value, get_string(hardware_cache_enabled(id) ? MSG_BTN_ON : MSG_BTN_OFF), sizeof(row->value));
+    return cache_setting_enabled(id - BTN_ICACHE + CACHE_ICACHE);
 }
 
 /* Keep sections on one page when they fit. Oversized sections may span pages. */
@@ -1261,78 +1203,10 @@ static void draw_hardware_panel_contents(void)
     }
 }
 
-static void format_cpu_value(char *buffer, size_t size)
-{
-    char mhz_buf[16] = "";
-
-    if (hw_info.cpu_mhz > 0) {
-        mhz_buf[0] = ' ';
-        format_scaled(mhz_buf + 1, sizeof(mhz_buf) - 1,
-                      hw_info.cpu_mhz, FALSE);
-    }
-
-    if (hw_info.cpu_revision[0] != '\0' &&
-        strcmp(hw_info.cpu_revision, "N/A") != 0) {
-        snprintf(buffer, size, "%s (%s)%s",
-                 hw_info.cpu_string, hw_info.cpu_revision, mhz_buf);
-    } else {
-        snprintf(buffer, size, "%s%s", hw_info.cpu_string, mhz_buf);
-    }
-}
-
-static void format_fpu_value(char *buffer, size_t size)
-{
-    if (hw_info.fpu_type != FPU_NONE && !hw_info.fpu_enabled) {
-        snprintf(buffer, size, "%s (%s)",
-                 hw_info.fpu_string, get_string(MSG_OFF));
-    } else if (hw_info.fpu_type != FPU_NONE &&
-               hw_info.fpu_type != FPU_UNKNOWN && hw_info.fpu_mhz > 0) {
-        char mhz_buf[16];
-
-        format_scaled(mhz_buf, sizeof(mhz_buf), hw_info.fpu_mhz, FALSE);
-        snprintf(buffer, size, "%s %s", hw_info.fpu_string, mhz_buf);
-    } else {
-        snprintf(buffer, size, "%s", hw_info.fpu_string);
-    }
-}
-
 static void refresh_hardware_benchmark_rows(void)
 {
     if (app->current_view == VIEW_MAIN)
         update_hardware_text();
-}
-
-static void format_mmu_value(char *buffer, size_t size)
-{
-    char mmu_value[sizeof(hw_info.mmu_string)];
-    const char *uncertainty = strstr(hw_info.mmu_string, " (");
-
-    /* detect_mmu() adds a localized uncertainty suffix; keep it compact here. */
-    if (uncertainty) {
-        snprintf(mmu_value, sizeof(mmu_value), "%.*s?",
-                 (int)(uncertainty - hw_info.mmu_string), hw_info.mmu_string);
-    } else {
-        copy_string(mmu_value, hw_info.mmu_string, sizeof(mmu_value));
-    }
-
-    if (hw_info.mmu_enabled) {
-        snprintf(buffer, size, "%s (%s)",
-                 mmu_value, get_string(MSG_IN_USE));
-    } else {
-        copy_string(buffer, mmu_value, size);
-    }
-}
-
-static void format_mmu_address(char *buffer, size_t size, ULONG address)
-{
-    APTR phys = mmu_physical_address((APTR)address);
-
-    if (phys != (APTR)address) {
-        snprintf(buffer, size, "$%08lX ->%s", (unsigned long)address,
-                 get_location_string(determine_mem_location(phys)));
-    } else {
-        snprintf(buffer, size, "$%08lX", (unsigned long)address);
-    }
 }
 
 /*
@@ -1379,66 +1253,18 @@ static void update_hardware_text(void)
 
 static void draw_software_overview(void)
 {
-    static const LocaleStringID labels[] = {
-        MSG_OPERATING_SYSTEM, MSG_ROM, MSG_ACTIVE_ROM,
-        MSG_WORKBENCH, MSG_SETPATCH, MSG_GRAPHICS_SYSTEM
-    };
     char buffer[80];
-    const char *value;
     ULONG row;
     WORD y = SOFTWARE_PANEL_Y + 22;
 
-    for (row = 0; row < sizeof(labels) / sizeof(labels[0]); row++) {
-        value = buffer;
-        switch (row) {
-        case 0:
-            value = system_software.os_name[0] ? system_software.os_name :
-                    get_string(MSG_UNKNOWN_OS);
-            break;
-        case 1:
-            snprintf(buffer, sizeof(buffer), "%u.%u (%lu KB)",
-                     hw_info.kickstart_version, hw_info.kickstart_revision,
-                     (unsigned long)hw_info.kickstart_size);
-            break;
-        case 2:
-            snprintf(buffer, sizeof(buffer), "%u.%u",
-                     hw_info.kickstart_patch_version,
-                     hw_info.kickstart_patch_revision);
-            break;
-        case 3:
-            if (system_software.has_workbench_version)
-                snprintf(buffer, sizeof(buffer), "%u.%u",
-                         system_software.workbench_version,
-                         system_software.workbench_revision);
-            else
-                value = get_string(MSG_NA);
-            break;
-        case 4:
-            if (system_software.has_setpatch_version) {
-                if (system_software.is_tinysetpatch)
-                    snprintf(buffer, sizeof(buffer), "%u.%u (TinySetPatch %u.%u)",
-                             system_software.setpatch_version,
-                             system_software.setpatch_revision,
-                             system_software.tinysetpatch_version,
-                             system_software.tinysetpatch_revision);
-                else
-                    snprintf(buffer, sizeof(buffer), "%u.%u",
-                             system_software.setpatch_version,
-                             system_software.setpatch_revision);
-            } else
-                value = get_string(MSG_NA);
-            break;
-        default:
-            value = system_software.graphics_system;
-            break;
-        }
-        draw_label_value_max(SOFTWARE_PANEL_X + 4, y, get_string(labels[row]),
-                             value, 100, SOFTWARE_PANEL_X + SOFTWARE_PANEL_W - 4);
+    for (row = 0; row < software_overview_count(); row++) {
+        const char *value = format_software_overview_value(row, buffer,
+                                                          sizeof(buffer));
+        draw_label_value_max(SOFTWARE_PANEL_X + 4, y,
+                             get_string(software_overview_label(row)), value,
+                             100, SOFTWARE_PANEL_X + SOFTWARE_PANEL_W - 4);
         y += TEXT_LINE_HEIGHT;
     }
-    if (hw_info.ppc_runtime[0])
-        draw_label_value_max(SOFTWARE_PANEL_X + 4, y, get_string(MSG_PPC_RUNTIME),
-                             hw_info.ppc_runtime, 100, SOFTWARE_PANEL_X + SOFTWARE_PANEL_W - 4);
 }
 
 /* Erase unused parts of a text field, preserving its foreground pen. */
@@ -1601,22 +1427,8 @@ static void update_software_list(BOOL clear_content)
  */
 static ULONG scale_bar_width(ULONG value, ULONG max_value)
 {
-    if (max_value == 0 || value == 0) return 0;
-
-    if (app->bar_scale == SCALE_EXPAND) {
-        /* Linear scale */
-        return (ULONG)(((unsigned long long)value * SPEED_BAR_MAX_WIDTH) / max_value);
-    } else {
-        /* Shrink mode: A3000 at 100% */
-        ULONG a4000_value = reference_systems[REF_A3000].dhrystones;
-        ULONG ref_width = SPEED_BAR_MAX_WIDTH;
-        if (value <= a4000_value) {
-            return (ULONG)(((unsigned long long)value * ref_width) / a4000_value);
-        }
-        return ref_width +
-            (ULONG)(((unsigned long long)(value - a4000_value) * ref_width) /
-            (max_value - a4000_value));
-    }
+    return scale_speed_value(value, max_value, SPEED_BAR_MAX_WIDTH,
+                             app->bar_scale);
 }
 
 /*
@@ -1821,12 +1633,7 @@ static void refresh_speed_bars(BOOL redraw_scale_button)
         }
     }
 
-    if (app->bar_scale == SCALE_EXPAND) {
-        max_value = get_max_dhrystones();
-    } else {
-        ULONG a4000_value = reference_systems[REF_A4000].dhrystones;
-        max_value = a4000_value ? a4000_value * 2 : 1;
-    }
+    max_value = speed_scale_max(app->bar_scale);
 
     /* Ruler above the bars, same scale mapping as the bars */
     draw_speed_ruler(max_value);
@@ -2027,17 +1834,6 @@ static void draw_speed_panel(void)
 }
 
 /* Refresh just the changing date/time rows, including midnight rollover. */
-static void format_clock_values(char values[2][24])
-{
-    struct ClockData date;
-    if (read_hardware_time(&date)) {
-        snprintf(values[0], 24, "%04u-%02u-%02u", date.year, date.month, date.mday);
-        snprintf(values[1], 24, "%02u:%02u:%02u", date.hour, date.min, date.sec);
-    } else {
-        copy_string(values[0], get_string(MSG_NA), 24);
-        copy_string(values[1], get_string(MSG_NA), 24);
-    }
-}
 
 void refresh_clock_page(void)
 {
@@ -2081,504 +1877,38 @@ static void draw_hardware_panel(void)
     draw_hardware_panel_contents();
 }
 
-static void format_agnus_value(char *buffer, size_t size)
+/* Rows own their values because most callers reuse a formatting buffer. */
+static void collect_hardware_row(const HardwareInfoRow *info, void *data)
 {
-    switch (hw_info.agnus_type) {
-        case AGNUS_OCS_NTSC:
-            snprintf(buffer, size, "%s",
-                  get_string(MSG_AGNUS_OCS_NTSC));
-            break;
-        case AGNUS_OCS_PAL:
-            snprintf(buffer, size, "%s",
-                  get_string(MSG_AGNUS_OCS_PAL));
-            break;
-        case AGNUS_OCS_FAT_NTSC:
-            snprintf(buffer, size, "%s",
-                  get_string(MSG_AGNUS_OCS_FAT_NTSC));
-            break;
-        case AGNUS_OCS_FAT_PAL:
-            snprintf(buffer, size, "%s",
-                  get_string(MSG_AGNUS_OCS_FAT_PAL));
-            break;
-        case AGNUS_ECS_2MB_NTSC:
-            snprintf(buffer, size, "%s",
-                  get_string(MSG_AGNUS_ECS_2MB_NTSC));
-            break;
-        case AGNUS_ECS_2MB_PAL:
-            snprintf(buffer, size, "%s",
-                  get_string(MSG_AGNUS_ECS_2MB_PAL));
-            break;
-        case AGNUS_ECS_NTSC:
-            snprintf(buffer, size, "%s",
-                  get_string(MSG_AGNUS_ECS_NTSC));
-            break;
-        case AGNUS_ECS_B_NTSC:
-            snprintf(buffer, size, "%s",
-                  get_string(MSG_AGNUS_ECS_B_NTSC));
-            break;
-        case AGNUS_ECS_PAL:
-            snprintf(buffer, size, "%s",
-                  get_string(MSG_AGNUS_ECS_PAL));
-            break;
-        case AGNUS_ECS_B_PAL:
-            snprintf(buffer, size, "%s",
-                  get_string(MSG_AGNUS_ECS_B_PAL));
-            break;
-        case AGNUS_ALICE_NTSC:
-            snprintf(buffer, size, "%s Rev. %X",
-                  get_string(MSG_AGNUS_ALICE_NTSC), (hw_info.agnus_rev&0xF));
-            break;
-        case AGNUS_ALICE_PAL:
-            snprintf(buffer, size, "%s Rev. %X",
-                  get_string(MSG_AGNUS_ALICE_PAL), (hw_info.agnus_rev&0xF));
-            break;
-        case AGNUS_SAGA:
-            snprintf(buffer, size, "%s",
-                  get_string(MSG_AGNUS_SAGA));
-            break;
-        case AGNUS_UNKNOWN:
-        default:
-            snprintf(buffer, size, "%s %2X",
-                  get_string(MSG_AGNUS_UNKNOWN), hw_info.agnus_rev);
-            break;
-    }
-}
-
-static void format_denise_value(char *buffer, size_t size)
-{
-    switch (hw_info.denise_type) {
-        case DENISE_OCS:
-            snprintf(buffer, size, "%s",
-                  get_string(MSG_DENISE_OCS));
-            break;
-        case DENISE_ECS:
-            snprintf(buffer, size, "%s",
-                  get_string(MSG_DENISE_ECS));
-            break;
-        case DENISE_LISA:
-            snprintf(buffer, size, "%s",
-                  get_string(MSG_DENISE_LISA));
-            break;
-        case DENISE_ISABEL:
-            snprintf(buffer, size, "%s",
-                  get_string(MSG_DENISE_SAGA));
-            break;
-        case DENISE_UNKNOWN:
-        default:
-            snprintf(buffer, size, "%s %02X",
-                  get_string(MSG_DENISE_UNKNOWN), hw_info.denise_rev);
-            break;
-    }
-}
-
-static void format_paula_value(char *buffer, size_t size)
-{
-    switch (hw_info.paula_type) {
-        case PAULA_ORIG:
-            snprintf(buffer, size, "%s",
-                  get_string(MSG_PAULA_ORIG));
-            break;
-        case PAULA_SAGA:
-            snprintf(buffer, size, "%s %02X",
-                  get_string(MSG_PAULA_SAGA),hw_info.paula_rev);
-            break;
-        case PAULA_UNKNOWN:
-            snprintf(buffer, size, "%s %02X",
-                  get_string(MSG_PAULA_UNKNOWN),hw_info.paula_rev);
-            break;
-    }
-}
-
-static void format_gary_value(char *buffer, size_t size)
-{
-    switch (hw_info.gary_type) {
-        case GARY_A1000:
-            copy_string(buffer, get_string(MSG_GARY_A1000), size);
-            break;
-        case GARY_A500:
-            copy_string(buffer, get_string(MSG_GARY_A500), size);
-            break;
-        case GAYLE:
-            snprintf(buffer, size, "%s %02X", get_string(MSG_GAYLE), hw_info.gary_rev);
-            break;
-        case FAT_GARY:
-            copy_string(buffer, get_string(MSG_FAT_GARY), size);
-            break;
-        case GARY_UNKNOWN:
-        default:
-            copy_string(buffer, get_string(MSG_GARY_UNKNOWN), size);
-            break;
+    HardwareRow *row;
+    (void)data;
+    if (hardware_row_count >= MAX_HARDWARE_ROWS) return;
+    row = &hardware_rows[hardware_row_count++];
+    memset(row, 0, sizeof(*row));
+    row->label = info->label;
+    row->has_value = info->value != NULL;
+    copy_string(row->value, info->value ? info->value : "", sizeof(row->value));
+    row->indent = info->detail ? 14 : 0;
+    row->offset = info->detail ?
+        (info->label == get_string(MSG_CHIP_ID) ? 76 : 110) :
+        !info->value ? 120 :
+        app->hardware_type == HARDWARE_CPU ? 80 :
+        app->hardware_type == HARDWARE_SCSI ? HARDWARE_CHIPSET_VALUE_OFFSET :
+        HARDWARE_OVERVIEW_VALUE_OFFSET;
+    row->height = app->rp->TxHeight;
+    row->group = info->group;
+    if (info->control != CACHE_NONE) {
+        row->control = BTN_ICACHE + info->control - CACHE_ICACHE;
+        row->height += 3;
+        copy_string(row->value, get_string(cache_setting_enabled(info->control) ?
+                    MSG_BTN_ON : MSG_BTN_OFF), sizeof(row->value));
     }
 }
 
 static void build_hardware_rows(void)
 {
-    char buffer[74];
-
     hardware_row_count = 0;
-    hardware_group = 0;
-    if (app->hardware_type == HARDWARE_STD) {
-        /* Identify the machine before listing its components. */
-        hardware_row(0,
-                         "Amiga", hw_info.amiga_model_string,
-                         HARDWARE_OVERVIEW_VALUE_OFFSET);
-
-        /* Mode */
-        hardware_row(0,
-                         get_string(MSG_MODE), hw_info.mode_string,
-                         HARDWARE_OVERVIEW_VALUE_OFFSET);
-
-        /* DMA/Gfx */
-        format_agnus_value(buffer, sizeof(buffer));
-        hardware_row(0,
-                         get_string(MSG_DMA_GFX), buffer,
-                         HARDWARE_OVERVIEW_VALUE_OFFSET);
-
-        /* Display */
-
-        format_denise_value(buffer, sizeof(buffer));
-        hardware_row(0,
-                         get_string(MSG_DISPLAY), buffer,
-                         HARDWARE_OVERVIEW_VALUE_OFFSET);
-
-        /* Sound */
-        format_paula_value(buffer, sizeof(buffer));
-        hardware_row(0,
-                         get_string(MSG_SOUND_SYSTEM), buffer,
-                         HARDWARE_OVERVIEW_VALUE_OFFSET);
-
-        /* Ramsey */
-        format_ramsey_rev_string(buffer, sizeof(buffer));
-        hardware_row(0,
-                         get_string(MSG_RAM_CONTROLLER), buffer,
-                         HARDWARE_OVERVIEW_VALUE_OFFSET);
-
-        /* Gary */
-        format_gary_value(buffer, sizeof(buffer));
-        hardware_row(0,
-                         get_string(MSG_DECODING), buffer,
-                         HARDWARE_OVERVIEW_VALUE_OFFSET);
-
-        /* CPU/MHz */
-        format_cpu_value(buffer, sizeof(buffer));
-        hardware_row(0,
-                         get_string(MSG_CPU_MHZ), buffer,
-                         HARDWARE_OVERVIEW_VALUE_OFFSET);
-
-        /* FPU */
-        format_fpu_value(buffer, sizeof(buffer));
-        hardware_row(0,
-                         get_string(MSG_FPU), buffer,
-                         HARDWARE_OVERVIEW_VALUE_OFFSET);
-
-        /* MMU */
-        format_mmu_value(buffer, sizeof(buffer));
-        hardware_row(0,
-                         get_string(MSG_MMU), buffer,
-                         HARDWARE_OVERVIEW_VALUE_OFFSET);
-
-        /* Comment */
-        hardware_row(0,
-                         get_string(MSG_COMMENT), hw_info.comment,
-                         HARDWARE_OVERVIEW_VALUE_OFFSET);
-
-        if (hw_info.ramsey_rev) {
-            if (hw_info.bus_mhz)
-                format_scaled(buffer, sizeof(buffer), hw_info.bus_mhz, TRUE);
-            else
-                copy_string(buffer, get_string(MSG_NA), sizeof(buffer));
-            hardware_row(0,
-                             get_string(MSG_BUS_MHZ), buffer,
-                             HARDWARE_OVERVIEW_VALUE_OFFSET);
-
-        }
-
-        /* Frequencies - left column continues */
-        {
-            unsigned long long horiz_khz =
-                ((unsigned long long)hw_info.horiz_freq * 100ULL) / 1000ULL;
-            format_scaled(buffer, sizeof(buffer), (ULONG)horiz_khz, FALSE);
-        }
-        hardware_row(0,
-                         get_string(MSG_HORIZ_KHZ), buffer,
-                         HARDWARE_OVERVIEW_VALUE_OFFSET);
-
-        /* EClock */
-        snprintf(buffer, sizeof(buffer), "%lu", (unsigned long)hw_info.eclock_freq);
-        hardware_row(0,
-                         get_string(MSG_ECLOCK_HZ), buffer,
-                         HARDWARE_OVERVIEW_VALUE_OFFSET);
-
-        /* Vert Hz */
-        snprintf(buffer, sizeof(buffer), "%lu", (unsigned long)hw_info.vert_freq);
-        hardware_row(0,
-                         get_string(MSG_VERT_HZ), buffer,
-                         HARDWARE_OVERVIEW_VALUE_OFFSET);
-
-        /* Supply Hz */
-        snprintf(buffer, sizeof(buffer), "%lu", (unsigned long)hw_info.supply_freq);
-        hardware_row(0,
-                         get_string(MSG_SUPPLY_HZ), buffer,
-                         HARDWARE_OVERVIEW_VALUE_OFFSET);
-
-        /* Card Slot */
-        hardware_row(0,
-                         get_string(MSG_CARD_SLOT), hw_info.card_slot_string,
-                         HARDWARE_OVERVIEW_VALUE_OFFSET);
-
-        format_size(memory_regions.total_chip_size, buffer, sizeof(buffer));
-        hardware_row(0,
-                         get_string(MSG_CHIP_RAM), buffer,
-                         HARDWARE_OVERVIEW_VALUE_OFFSET);
-
-        format_size(memory_regions.total_fast_size, buffer, sizeof(buffer));
-        hardware_row(0,
-                         get_string(MSG_FAST_RAM), buffer,
-                         HARDWARE_OVERVIEW_VALUE_OFFSET);
-
-    } else if (app->hardware_type == HARDWARE_CPU) {
-
-        format_cpu_value(buffer, sizeof(buffer));
-        hardware_row(0,
-                         get_string(MSG_CPU_MHZ), buffer, 80);
-
-        format_fpu_value(buffer, sizeof(buffer));
-        hardware_row(0,
-                         get_string(MSG_FPU), buffer, 80);
-
-        format_mmu_value(buffer, sizeof(buffer));
-        hardware_row(0,
-                         get_string(MSG_MMU), buffer, 80);
-
-        if (hw_info.ppc_present) {
-            char clock[16] = "";
-            hardware_group++;
-            if (hw_info.ppc_mhz) {
-                clock[0] = ' ';
-                format_scaled(clock + 1, sizeof(clock) - 1, hw_info.ppc_mhz, FALSE);
-            }
-            snprintf(buffer, sizeof(buffer), "%s%s", hw_info.ppc_string, clock);
-            hardware_row(0, "PPC/MHz", buffer, 80);
-            snprintf(buffer, sizeof(buffer), "$%04lX", hw_info.ppc_revision);
-            hardware_row(0, get_string(MSG_PPC_REVISION), buffer, 80);
-            if (hw_info.ppc_bus_mhz) format_scaled(buffer, sizeof(buffer), hw_info.ppc_bus_mhz, FALSE);
-            else copy_string(buffer, get_string(MSG_NA), sizeof(buffer));
-            hardware_row(0, get_string(MSG_PPC_BUS), buffer, 80);
-        }
-        hardware_group++;
-        format_mmu_address(buffer, sizeof(buffer), hw_info.vbr);
-        hardware_row(0,
-                         get_string(MSG_VBR), buffer, 80);
-
-        format_mmu_address(buffer, sizeof(buffer), hw_info.ssp);
-        hardware_row(0,
-                         get_string(MSG_SSP), buffer, 80);
-
-        format_mmu_address(buffer, sizeof(buffer), (ULONG)SysBase);
-        hardware_row(0,
-                         "ExecBase", buffer, 80);
-
-        format_mmu_address(buffer, sizeof(buffer), 0);
-        hardware_row(0,
-                         "Page 0", buffer, 80);
-
-        hardware_group++;
-        hardware_cache_row(MSG_ICACHE, BTN_ICACHE, hw_info.has_icache);
-        hardware_cache_row(MSG_DCACHE, BTN_DCACHE, hw_info.has_dcache);
-        hardware_cache_row(MSG_IBURST, BTN_IBURST, hw_info.has_iburst);
-        hardware_cache_row(MSG_DBURST, BTN_DBURST, hw_info.has_dburst);
-        hardware_cache_row(MSG_CBACK, BTN_CBACK, hw_info.has_copyback);
-        hardware_cache_row(MSG_SUPER_SCALAR, BTN_SUPER_SCALAR, hw_info.has_super_scalar);
-    } else if (app->hardware_type == HARDWARE_EXT) {
-        format_agnus_value(buffer, sizeof(buffer));
-        hardware_row(0, get_string(MSG_DMA_GFX), buffer, HARDWARE_OVERVIEW_VALUE_OFFSET);
-        if (hw_info.agnus_type != AGNUS_SAGA) {
-            snprintf(buffer, sizeof(buffer), "$%02X", hw_info.agnus_rev);
-            hardware_row(14, get_string(MSG_CHIP_ID), buffer, 76);
-        }
-        hardware_group++;
-        format_denise_value(buffer, sizeof(buffer));
-        hardware_row(0, get_string(MSG_DISPLAY), buffer, HARDWARE_OVERVIEW_VALUE_OFFSET);
-        /* Original Denise has no readable ID register. */
-        if (hw_info.denise_type != DENISE_OCS) {
-            snprintf(buffer, sizeof(buffer), "$%02X", hw_info.denise_rev);
-            hardware_row(14, get_string(MSG_CHIP_ID), buffer, 76);
-        }
-        hardware_group++;
-        format_paula_value(buffer, sizeof(buffer));
-        hardware_row(0, get_string(MSG_SOUND_SYSTEM), buffer, HARDWARE_OVERVIEW_VALUE_OFFSET);
-        hardware_group++;
-        format_gary_value(buffer, sizeof(buffer));
-        hardware_row(0, get_string(MSG_DECODING), buffer, HARDWARE_OVERVIEW_VALUE_OFFSET);
-        if (hw_info.gayle_pcmcia_valid) {
-            static const UWORD access_ns[] = {250, 150, 100, 720};
-            hardware_row(14, get_string(MSG_PCMCIA_CARD),
-                         get_string((hw_info.gayle_pcmcia_status & 0x40) ? MSG_YES : MSG_NO), 110);
-            hardware_row(14, get_string(MSG_PCMCIA_SLOT),
-                         get_string((hw_info.gayle_pcmcia_status & 1) ? MSG_OFF : MSG_ON), 110);
-            snprintf(buffer, sizeof(buffer), "%u ns", access_ns[(hw_info.gayle_pcmcia_config >> 2) & 3]);
-            hardware_row(14, get_string(MSG_PCMCIA_ACCESS), buffer, 110);
-        }
-        if (hw_info.akiko_present) {
-            hardware_group++;
-            snprintf(buffer, sizeof(buffer), "$%08lX", hw_info.akiko_id);
-            hardware_row(0, "Akiko", buffer, HARDWARE_OVERVIEW_VALUE_OFFSET);
-            hardware_row(14, get_string(MSG_AKIKO_C2P),
-                         get_string(hw_info.akiko_c2p_enabled ? MSG_ON : MSG_OFF), 110);
-        }
-        hardware_group++;
-        if (hw_info.ramsey_rev) {
-            format_ramsey_rev_string(buffer, sizeof(buffer));
-            hardware_row(0, get_string(MSG_RAM_CONTROLLER), buffer, HARDWARE_OVERVIEW_VALUE_OFFSET);
-            hardware_group++;
-            /* Ramsey status */
-            hardware_row(0,
-                             get_string(MSG_RAMSEY_CTRL), NULL, 120);
-
-            snprintf(buffer, sizeof(buffer), "%s", hw_info.ramsey_page_enabled ? get_string(MSG_ON) : get_string(MSG_OFF));
-            hardware_row(14,
-                             get_string(MSG_RAMSEY_PAGE), buffer, 110);
-
-            snprintf(buffer, sizeof(buffer), "%s", hw_info.ramsey_burst_enabled ? get_string(MSG_ON) : get_string(MSG_OFF));
-            hardware_row(14,
-                             get_string(MSG_RAMSEY_BURST), buffer, 110);
-
-            snprintf(buffer, sizeof(buffer), "%s", hw_info.ramsey_wrap_enabled ? get_string(MSG_ON) : get_string(MSG_OFF));
-            hardware_row(14,
-                             get_string(MSG_RAMSEY_WRAP), buffer, 110);
-
-            hardware_row(14,
-                             get_string(MSG_RAMSEY_SIZE),
-                             get_ramsey_size_string(), 110);
-
-            if (hw_info.ramsey_rev == 0x0f) {
-                hardware_row(14,
-                                 get_string(MSG_RAMSEY_SKIP),
-                                 get_string(hw_info.ramsey_skip_enabled ?
-                                            MSG_ON : MSG_OFF), 110);
-
-            }
-            switch (hw_info.ramsey_refresh_rate) {
-                case 0:
-                    copy_string(buffer, "156 clk", sizeof(buffer));
-                    break;
-                case 1:
-                    copy_string(buffer, "240 clk", sizeof(buffer));
-                    break;
-                case 2:
-                    copy_string(buffer, "372 clk", sizeof(buffer));
-                    break;
-                default:
-                    copy_string(buffer, get_string(MSG_OFF), sizeof(buffer));
-                    break;
-               }
-            hardware_row(14,
-                             get_string(MSG_RAMSEY_REFRESH), buffer, 110);
-
-        }
-    } else if (app->hardware_type == HARDWARE_SCSI) {
-        if (hw_info.sdmac_present || hw_info.ncr_type != NCR_NONE) {
-            format_dma_string(buffer, sizeof(buffer));
-            hardware_row(0, get_string(MSG_DMA_CHIP), buffer, HARDWARE_CHIPSET_VALUE_OFFSET);
-        }
-        if (hw_info.resdmac_version) {
-            format_resdmac_version(buffer, sizeof(buffer));
-            hardware_row(14,
-                             get_string(MSG_DMA_VERSION), buffer, 110);
-
-        }
-        hardware_group++;
-        if (hw_info.sdmac_present || hw_info.ncr_type != NCR_NONE) {
-            format_scsi_chip_string(buffer, sizeof(buffer));
-            hardware_row(0, get_string(MSG_SDMAC_REV), buffer, HARDWARE_CHIPSET_VALUE_OFFSET);
-        }
-
-        if (hw_info.sdmac_present && wd_info.chip != WD_UNKNOWN) {
-            static const LocaleStringID labels[WD_DETAIL_COUNT] = {
-                MSG_WD_MICROCODE, MSG_WD_CLOCK, MSG_WD_MODE,
-                MSG_TIMEOUT, MSG_WD_SYNC_OFFSET
-            };
-            unsigned detail;
-            for (detail = 0; detail < WD_DETAIL_COUNT; detail++) {
-                format_wd_detail(detail, buffer, sizeof(buffer));
-                hardware_row(14,
-                                 get_string(labels[detail]), buffer, 110);
-
-            }
-        }
-        if (hw_info.ncr_type != NCR_NONE) {
-            static const LocaleStringID labels[NCR_DETAIL_COUNT] = {
-                MSG_SCSI_HOST_ID, MSG_NCR_DMA_BURST, MSG_WD_SYNC_OFFSET,
-                MSG_NCR_WIDTH, MSG_NCR_PARITY, MSG_NCR_DOUBLER
-            };
-            unsigned detail;
-            unsigned count = hw_info.ncr_type == NCR_53C770 ?
-                             NCR_DETAIL_COUNT : NCR_DETAIL_DOUBLER;
-            for (detail = 0; detail < count; detail++) {
-                format_ncr_detail(detail, buffer, sizeof(buffer));
-                hardware_row(14,
-                                 get_string(labels[detail]), buffer, 110);
-
-            }
-        }
-    } else if (app->hardware_type == HARDWARE_CLOCK) {
-        hardware_row(0,
-                         get_string(MSG_CLOCK), hw_info.clock_string,
-                         HARDWARE_OVERVIEW_VALUE_OFFSET);
-
-        {
-            char values[2][24];
-            format_clock_values(values);
-            hardware_row(0, get_string(MSG_RTC_DATE), values[0], HARDWARE_OVERVIEW_VALUE_OFFSET);
-            hardware_row(0, get_string(MSG_RTC_TIME), values[1], HARDWARE_OVERVIEW_VALUE_OFFSET);
-        }
-        hardware_group++;
-
-        if (hw_info.battMemData.available) {
-            hardware_row(0,
-                             get_string(MSG_NV_RAM), NULL, 120);
-
-            if (hw_info.battMemData.valid_data) {
-                snprintf(buffer, sizeof(buffer), "%s", hw_info.battMemData.amnesia_amiga ? get_string(MSG_YES) : get_string(MSG_NO));
-                hardware_row(14,
-                                get_string(MSG_AMNESIA), buffer, 110);
-
-                snprintf(buffer, sizeof(buffer), "%s", hw_info.battMemData.amnesia_shared ? get_string(MSG_YES) : get_string(MSG_NO));
-                hardware_row(14,
-                                get_string(MSG_SHARED_AMNESIA), buffer, 110);
-
-                snprintf(buffer, sizeof(buffer), "%s", hw_info.battMemData.long_timeout ? get_string(MSG_LONG) : get_string(MSG_SHORT));
-                hardware_row(14,
-                                get_string(MSG_TIMEOUT), buffer, 110);
-
-                snprintf(buffer, sizeof(buffer), "%s", hw_info.battMemData.scan_luns ? get_string(MSG_ON) : get_string(MSG_OFF));
-                hardware_row(14,
-                                get_string(MSG_SCAN_LUN), buffer, 110);
-
-                snprintf(buffer, sizeof(buffer), "%s", hw_info.battMemData.sync_transfer ? get_string(MSG_ON) : get_string(MSG_OFF));
-                hardware_row(14,
-                                get_string(MSG_SYNC_TRANS), buffer, 110);
-
-                snprintf(buffer, sizeof(buffer), "%s", hw_info.battMemData.fast_sync_transfer ? get_string(MSG_ON) : get_string(MSG_OFF));
-                hardware_row(14,
-                                get_string(MSG_FAST_SYNC), buffer, 110);
-
-                snprintf(buffer, sizeof(buffer), "%s", hw_info.battMemData.tagged_queuing ? get_string(MSG_ON) : get_string(MSG_OFF));
-                hardware_row(14,
-                                get_string(MSG_QUEUING), buffer, 110);
-
-                snprintf(buffer, sizeof(buffer), "%d", hw_info.battMemData.scsi_id);
-                hardware_row(14,
-                                get_string(MSG_SCSI_HOST_ID), buffer, 110);
-
-            }
-            else {
-                copy_string(buffer, get_string(MSG_NA), sizeof(buffer));
-                hardware_row(14, get_string(MSG_NA), NULL, 120);
-
-            }
-        }
-    }
+    visit_hardware_rows(app->hardware_type, collect_hardware_row, NULL);
     layout_hardware_rows();
 }
 

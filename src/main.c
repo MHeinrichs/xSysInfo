@@ -48,6 +48,7 @@
 #include "locale_str.h"
 #include "debug.h"
 #include "loading.h"
+#include "display.h"
 
 /* Amiga version string for the Version command */
 __attribute__((used))
@@ -481,38 +482,7 @@ int main(int argc, char **argv)
         debug(XSYSINFO_NAME ": Draw screen...\n");
         redraw_current_view();
 
-        /* The GUI is ready to replace the boot floppy's loading screen. */
-        {
-            struct Task *scroller;
-            Forbid();
-            scroller = FindTask((CONST_STRPTR)LOADING_TASK_NAME);
-            Permit();
-            if (scroller && app->use_custom_screen) {
-                ScreenToFront(app->screen);
-                /* Let Intuition install the new display before the loader
-                 * closes its screen and rebuilds the merged Copper list. */
-                WaitTOF();
-                WaitTOF();
-            }
-            Forbid();
-            scroller = FindTask((CONST_STRPTR)LOADING_TASK_NAME);
-            if (scroller)
-                Signal(scroller, SIGBREAKF_CTRL_C);
-            Permit();
-            if (scroller && app->use_custom_screen) {
-                unsigned int frame;
-                for (frame = 0; frame < 100; ++frame) {
-                    Forbid();
-                    scroller = FindTask((CONST_STRPTR)LOADING_TASK_NAME);
-                    Permit();
-                    if (!scroller)
-                        break;
-                    ScreenToFront(app->screen);
-                    WaitTOF();
-                }
-                ScreenToFront(app->screen);
-            }
-        }
+        display_ready(app->use_custom_screen ? app->screen : NULL);
 
         center_mouse_pointer();
 

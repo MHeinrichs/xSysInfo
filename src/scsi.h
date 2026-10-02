@@ -86,4 +86,6 @@ const char *get_scsi_ansi_string(ScsiAnsiVersion version);
 /* Calculate unit number for wide SCSI */
 ULONG calculate_unit_number(int target, int lun);
 
+void format_size_mb(ULONG size_mb, char *buffer, size_t size);
+
 #endif /* SCSI_H */

@@ -354,7 +354,6 @@ static void bstr_to_device_name(BSTR bstr, char *name, ULONG maxlen)
 
 /* Helpers */
 static BOOL is_floppy_device(ULONG total_blocks);
-static BOOL drive_has_media_evidence(const DriveInfo *drive);
 
 #define MIN_KICK_DEVICE_VERSION 36
 
@@ -867,7 +866,7 @@ static BOOL is_floppy_device(ULONG total_blocks)
     return (total_blocks > 0 && total_blocks <= 7040);
 }
 
-static BOOL drive_has_media_evidence(const DriveInfo *drive)
+BOOL drive_has_media_evidence(const DriveInfo *drive)
 {
     if (!drive || drive->disk_state == DISK_NO_DISK) {
         return FALSE;
@@ -1615,7 +1614,7 @@ cleanup:
 /*
  * Draw drives data area (buttons, info panel, action buttons - no title)
  */
-static void format_drive_speed(const DriveInfo *drive, char *buffer,
+void format_drive_speed(const DriveInfo *drive, char *buffer,
                                size_t size)
 {
     if (drive->speed_measured) {

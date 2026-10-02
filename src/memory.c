@@ -315,7 +315,7 @@ ULONG measure_memory_speed(ULONG index)
 /*
  * Draw memory view
  */
-static void format_memory_speed(const MemoryRegion *region, char *buffer,
+void format_memory_speed(const MemoryRegion *region, char *buffer,
                                 size_t size)
 {
     if (region->speed_measured) {
