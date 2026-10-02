@@ -452,11 +452,11 @@ $(OPENPCI_SDK_FILES): $(OPENPCI_LHA)
 # on every floppy. Let Identify's makefile handle incremental dependencies.
 identify-library: $(FLEXCAT_BIN) $(MMU_SDK_FILES) $(OPENPCI_SDK_FILES) $(PCI_IDS) $(VASM_PPC)
 	@echo "  BUILD identify.library (68000)"
-	@$(MAKE) -s -C 3rdparty/identify \
+	@PATH="$(dir $(VASM_PPC)):$(dir $(abspath $(FLEXCAT_BIN))):$(PATH)" \
+		$(MAKE) -s -C 3rdparty/identify \
 		OBJP="$(abspath $(IDENTIFY_BUILD_DIR))" \
 		NDK_I="$(NDK_PATH)" NDK_H="$(NDK_PATH)" NDK_LIB="$(NDK_LIB_PATH)" \
 		AMIGA_INCLUDES="$(abspath $(MMU_INC)) $(abspath $(OPENPCI_INC))" \
-		PATH="$(dir $(VASM_PPC)):$(dir $(abspath $(FLEXCAT_BIN))):$(PATH)" \
 		"$(abspath $(IDENTIFY_LIBRARY))"
 
 # Identify's release target cleans before building and modifies generated
@@ -467,10 +467,10 @@ identify-release: $(FLEXCAT_BIN) $(MMU_SDK_FILES) $(OPENPCI_SDK_FILES) $(PCI_IDS
 	@mkdir -p $(IDENTIFY_RELEASE_BUILD_DIR)/pciids
 	@cp -R $(addprefix 3rdparty/identify/,$(IDENTIFY_RELEASE_SOURCES)) $(IDENTIFY_RELEASE_BUILD_DIR)/
 	@cp $(PCI_IDS) $(IDENTIFY_RELEASE_BUILD_DIR)/pciids/
-	@$(MAKE) -s -j1 -C $(IDENTIFY_RELEASE_BUILD_DIR) \
+	@PATH="$(dir $(VASM_PPC)):$(dir $(abspath $(FLEXCAT_BIN))):$(PATH)" \
+		$(MAKE) -s -j1 -C $(IDENTIFY_RELEASE_BUILD_DIR) \
 		NDK_I="$(NDK_PATH)" NDK_H="$(NDK_PATH)" NDK_LIB="$(NDK_LIB_PATH)" \
 		AMIGA_INCLUDES="$(abspath $(MMU_INC)) $(abspath $(OPENPCI_INC)) $(MUI_INC)" \
-		PATH="$(dir $(VASM_PPC)):$(dir $(abspath $(FLEXCAT_BIN))):$(PATH)" \
 		release
 
 # Download and prepare libraries and developer files.
