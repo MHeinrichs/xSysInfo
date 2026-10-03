@@ -184,8 +184,8 @@ Dark mode, enabled with `xSysInfo DARK`:
 These settings are read from the program's icon when xSysInfo starts from
 Workbench. Edit the icon's ToolTypes, with one entry per line. The supplied
 icon contains `DISPLAY=auto`, plus disabled examples `(DISPLAY=window)`,
-`(DISPLAY=screen)`, `(DISPLAY=pal)`, `(DISPLAY=ntsc)`, `(DARK)`, `(DEBUG)`,
-and `(SCSI)`.
+`(DISPLAY=screen)`, `(DISPLAY=pal)`, `(DISPLAY=ntsc)`, `(DISPLAY=mui)`,
+`(DARK)`, `(DEBUG)`, and `(SCSI)`.
 
 | ToolType | Description |
 | --- | --- |
