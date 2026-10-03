@@ -6,7 +6,7 @@
  *
  * Presents the same information as the classic interface on register
  * pages in a resizable MUI window. It is selected with the MUI switch or
- * the DISPLAY=MUI tooltype and only needs MUI 3.8 (muimaster.library V11)
+ * the DISPLAY=MUI tooltype and only needs MUI 3.8
  * at runtime; without it, main.c falls back to the classic interface.
  */
 
@@ -56,7 +56,12 @@
     ((ULONG)(a) << 24 | (ULONG)(b) << 16 | (ULONG)(c) << 8 | (ULONG)(d))
 #endif
 
-#define MUI_MIN_VERSION 11      /* MUI 3.8 */
+/* Supported by MUI 3.8, but omitted from its original public headers. */
+#ifndef MUIA_Window_DisableKeys
+#define MUIA_Window_DisableKeys 0x80424c36
+#endif
+
+#define MUI_MIN_VERSION 15      /* MUIA_Window_DisableKeys */
 #define NUM_SPEED_ROWS  (NUM_REFERENCE_SYSTEMS + 1)   /* "You" first */
 #define INFO_COLUMN_SPACING 12
 
@@ -948,6 +953,8 @@ static BOOL create_application(const char *version_string)
 
         SubWindow, main_window = WindowObject,
             MUIA_Window_Title, (ULONG)window_title,
+            /* Keep Escape available to dialogs without quitting the app. */
+            MUIA_Window_DisableKeys, MUIKEYF_WINDOW_CLOSE,
             MUIA_Window_ID, MAKE_ID('M', 'A', 'I', 'N'),
             WindowContents, VGroup,
                 Child, register_group = RegisterGroup(register_titles),

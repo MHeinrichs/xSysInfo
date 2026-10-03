@@ -151,7 +151,7 @@ The Clock page shows the battery-backed clock live. CPU caches use
 checkmarks, the SCSI device list opens in its own window, and **Project > Save report...**
 writes the text report to a file chosen in an ASL requester.
 
-The MUI interface needs MUI 3.8 (muimaster.library V11) or newer at
+The MUI interface needs MUI 3.8 or newer at
 runtime. Without it, xSysInfo opens the regular interface. The MUI code
 is built by default; build without it using `make MUI=0`. Switching this
 option rebuilds the affected code without requiring `make clean`. The build
