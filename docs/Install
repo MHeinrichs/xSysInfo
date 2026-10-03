@@ -17,7 +17,7 @@
     )
 )
 
-; Installer returns only the major version and revision from a $VER tag.
+; Installer reads major/revision from a RomTag ID string or a $VER tag.
 (procedure version-text
     (if version
         (cat (/ version 65536) "." (BITAND version 65535))
@@ -29,6 +29,9 @@
 ; fixes without changing its upstream version number.
 (procedure replace-file
     (
+        (if (<> (exists dest-file) 1)
+            (abort (cat "Expected a file, but found a drawer at:\n" dest-file))
+        )
         (set version (getversion source-file))
         (set new-version (version-text))
         (set version (getversion dest-file))
@@ -52,6 +55,16 @@
     )
 )
 
+; Check the payload before asking about replacements or copying files.
+(if (<> (exists "xSysInfo") 1)
+    (abort "The package's xSysInfo executable is missing or is a drawer.\n"
+        "Run Install from the extracted xSysInfo package drawer.")
+)
+(if (<> (exists "Libs/identify.library") 1)
+    (abort "The package's Libs/identify.library is missing or is a drawer.\n"
+        "Extract the complete xSysInfo package before installing.")
+)
+
 (set @default-dest
     (askdir
         (prompt "Select the xSysInfo installation drawer.\n\n"
@@ -61,6 +74,12 @@
         (default @default-dest)
         (newpath)
     )
+)
+
+(if (= (exists @default-dest) 1)
+    (abort (cat "The installation path is a file, not a drawer:\n"
+        @default-dest "\n\nSelect the drawer containing xSysInfo, "
+        "or enter a new drawer name."))
 )
 
 (set source-file "xSysInfo")
