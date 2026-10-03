@@ -504,7 +504,8 @@ int main(int argc, char **argv)
 
         display_ready(app->use_custom_screen ? app->screen : NULL);
 
-        center_mouse_pointer();
+        if (app->use_custom_screen)
+            center_mouse_pointer();
 
         if (scsi_error) {
             show_status_overlay(scsi_error);
