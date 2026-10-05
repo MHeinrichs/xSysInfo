@@ -21,6 +21,7 @@ typedef enum {
     MSG_SPEED_COMPARISONS,
     MSG_MEMORY_INFO,
     MSG_BOARDS_INFO,
+    MSG_BOARDS_DETAIL_INFO,
     MSG_DRIVES_INFO,
     MSG_SCSI_INFO,
 
@@ -130,6 +131,7 @@ typedef enum {
     MSG_BTN_PRINT,
     MSG_BTN_PREV,
     MSG_BTN_NEXT,
+    MSG_BTN_DETAIL,
     MSG_BTN_EXIT,
     MSG_BTN_SCSI,
     MSG_BTN_OK,

@@ -58,7 +58,15 @@ typedef enum {
     BTN_BOARD_PREV,
     BTN_BOARD_NEXT,
     BTN_BOARD_DISPLAY,
+    BTN_BOARD_DETAIL,
     BTN_BOARD_EXIT,
+
+    /* Boards detail view buttons */
+    BTN_BOARD_DETAIL_PREV,
+    BTN_BOARD_DETAIL_COUNTER,
+    BTN_BOARD_DETAIL_NEXT,
+    BTN_BOARD_DETAIL_DISPLAY,
+    BTN_BOARD_DETAIL_EXIT,
 
     /* SCSI view button */
     BTN_SCSI_EXIT,

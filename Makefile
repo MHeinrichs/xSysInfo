@@ -90,6 +90,7 @@ SRCS = src/main.c \
        src/drives.c \
        src/scsi.c \
        src/boards.c \
+       src/boards_detail.c \
        src/software.c \
        src/cache.c \
        src/print.c \

@@ -32,6 +32,7 @@
 #include "memory.h"
 #include "drives.h"
 #include "boards.h"
+#include "boards_detail.h"
 #include "scsi.h"
 #include "print.h"
 #include "cache.h"
@@ -49,6 +50,7 @@ extern SoftwareList mmu_list;
 extern MemoryRegionList memory_regions;
 extern DriveList drive_list;
 extern BoardList board_list;
+extern LONG board_detail_index;
 extern struct GfxBase *GfxBase;
 
 /* Button definitions for main view */
@@ -511,6 +513,10 @@ void update_button_states(void)
             boards_view_update_buttons();
             break;
 
+        case VIEW_BOARDS_DETAIL:
+            board_detail_view_update_buttons();
+            break;
+
         case VIEW_SCSI:
             scsi_view_update_buttons();
             break;
@@ -542,6 +548,9 @@ void redraw_current_view(void)
             break;
         case VIEW_BOARDS:
             draw_boards_view();
+            break;
+        case VIEW_BOARDS_DETAIL:
+            draw_board_detail_view();
             break;
         case VIEW_SCSI:
             draw_scsi_view();
@@ -2016,6 +2025,10 @@ void handle_button_press(ButtonID btn_id)
         case VIEW_BOARDS:
             boards_view_handle_button(btn_id);
             break;
+        
+        case VIEW_BOARDS_DETAIL:
+            board_detail_view_handle_button(btn_id);
+            break;
 
         case VIEW_SCSI:
             scsi_view_handle_button(btn_id);
@@ -2098,6 +2111,9 @@ void switch_to_view(ViewMode view)
             break;
         case VIEW_BOARDS:
             app->board_scroll = 0;
+            break;
+        case VIEW_BOARDS_DETAIL:
+            board_detail_index = 0;
             break;
         default:
             break;

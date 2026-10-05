@@ -92,6 +92,7 @@ typedef enum {
     VIEW_MEMORY,
     VIEW_DRIVES,
     VIEW_BOARDS,
+    VIEW_BOARDS_DETAIL,
     VIEW_SCSI
 } ViewMode;
 

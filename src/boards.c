@@ -113,12 +113,15 @@ static BOOL append_zorro_board(struct ConfigDev *cd, const char *manufacturer,
     board->manufacturer_id = cd->cd_Rom.er_Manufacturer;
     board->product_id = cd->cd_Rom.er_Product;
     board->serial_number = (ULONG)cd->cd_Rom.er_SerialNumber;
+    board->rom_vector = (UWORD)cd->cd_Rom.er_InitDiagVec;
+    board->board_type_flags = (UBYTE)cd->cd_Rom.er_Type;
+    board->board_flags =  (UBYTE)cd->cd_Rom.er_Flags;
 
     debug("  boards: Found Zorro board at $%08X\n",
           (ULONG)board->board_address);
 
-    if ((cd->cd_Rom.er_Flags & ERFF_ZORRO_III) ||
-        ((cd->cd_Rom.er_Type & ERT_TYPEMASK) == ERT_ZORROIII)) {
+    if ((board->board_flags & ERFF_ZORRO_III) ||
+        ((board->board_type & ERT_TYPEMASK) == ERT_ZORROIII)) {
         board->board_type = BOARD_ZORRO_III;
     } else {
         board->board_type = BOARD_ZORRO_II;
@@ -177,6 +180,9 @@ static BOOL append_pci_board(struct pci_dev *pci, const char *manufacturer,
     board->serial_number = 0;
     board->board_address = 0;
     board->board_size = 0;
+    board->rom_vector = 0;
+    board->board_type = 0;
+    board->board_flags =0;
 
     snprintf(board->address_string, sizeof(board->address_string), "--");
     snprintf(board->size_string, sizeof(board->size_string), "--");
@@ -480,6 +486,8 @@ void draw_boards_view(void)
     if (btn) draw_button(btn);
     btn = find_button(BTN_BOARD_DISPLAY);
     if (btn) draw_cycle_button(btn);
+    btn = find_button(BTN_BOARD_DETAIL);
+    if (btn) draw_button(btn);
     btn = find_button(BTN_BOARD_EXIT);
     if (btn) draw_button(btn);
 }
@@ -497,6 +505,10 @@ void boards_view_update_buttons(void)
     add_button(170, 188, 100, 12,
                get_string(display_labels[app->board_display]),
                BTN_BOARD_DISPLAY, board_list.count > 0);
+
+    add_button(290, 188, 100, 12,
+           get_string(MSG_BTN_DETAIL),
+           BTN_BOARD_DETAIL, board_list.count > 0);
 
     if (max_scroll > 0) {
         add_button(20, 188, 60, 12,
@@ -539,6 +551,9 @@ void boards_view_handle_button(ButtonID id)
             redraw_current_view();
             break;
 
+        case BTN_BOARD_DETAIL:
+            switch_to_view(VIEW_BOARDS_DETAIL);
+            break;
         case BTN_BOARD_EXIT:
             switch_to_view(VIEW_MAIN);
             break;

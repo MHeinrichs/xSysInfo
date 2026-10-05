@@ -31,6 +31,7 @@ static const char *default_strings[MSG_COUNT] = {
     /* MSG_SPEED_COMPARISONS */      "SPEED COMPARISONS",
     /* MSG_MEMORY_INFO */            "MEMORY INFORMATION",
     /* MSG_BOARDS_INFO */            "AUTOCONFIG BOARDS INFORMATION",
+    /* MSG_BOARDS_DETAIL_INFO */     "AUTOCONFIG BOARDS DETAILS",
     /* MSG_DRIVES_INFO */            "DRIVES INFORMATION",
     /* MSG_SCSI_INFO */              "SCSI DEVICE INFORMATION",
 
@@ -140,6 +141,7 @@ static const char *default_strings[MSG_COUNT] = {
     /* MSG_BTN_PRINT */              "PRINT",
     /* MSG_BTN_PREV */               "PREV",
     /* MSG_BTN_NEXT */               "NEXT",
+    /* MSG_BTN_DETAIL */             "DETAIL",
     /* MSG_BTN_EXIT */               "EXIT",
     /* MSG_BTN_SCSI */               "SCSI",
     /* MSG_BTN_OK */                 "OK",

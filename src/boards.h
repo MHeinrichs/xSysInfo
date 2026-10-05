@@ -29,11 +29,15 @@ typedef struct {
     UWORD product_id;
     BoardType board_type;
     ULONG serial_number;
+    UWORD rom_vector;
     char product_name[64];
     char manufacturer_name[64];
     char size_string[16];       /* Human-readable size */
     char address_string[16];    /* Human-readable address or placeholder */
     char detail_string[32];     /* Serial number or PCI class */
+    UBYTE board_type_flags;
+    UBYTE board_flags;
+
 } BoardInfo;
 
 /* Board list */
