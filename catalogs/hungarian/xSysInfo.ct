@@ -1039,3 +1039,15 @@ Jelentés mentve: %s
 MSG_REPORT_SAVE_FAILED
 A jelentés mentése sikertelen
 ;
+MSG_FONT_INVALID
+Hibás FONT érték. Formátum: FONT=név.méret.
+;
+MSG_FONT_UNAVAILABLE
+A kért betûtípus nem nyitható meg.
+;
+MSG_FONT_TOO_LARGE
+A betûtípus túllépi a 8 x 8 képpontos korlátot.
+;
+MSG_FONT_FALLBACK
+A topaz.8 betûtípus lesz használva.
+;

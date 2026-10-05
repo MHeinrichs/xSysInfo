@@ -384,6 +384,11 @@ typedef enum {
     MSG_VOLUME,
     MSG_REPORT_SAVED,
     MSG_REPORT_SAVE_FAILED,
+    MSG_FONT_INVALID,
+    MSG_FONT_UNAVAILABLE,
+    MSG_FONT_TOO_LARGE,
+    MSG_FONT_FALLBACK,
+
     MSG_COUNT  /* Total number of strings */
 } LocaleStringID;
 

@@ -41,12 +41,6 @@ static inline void copy_string(char *dest, const char *src, size_t destsize)
     *dest = '\0';
 }
 
-/* Default font settings */
-#define DEFAULT_FONT_NAME   "topaz.font"
-#define DEFAULT_FONT_HEIGHT 8
-
-extern struct TextAttr Topaz8Font;
-
 /* Program name */
 #define XSYSINFO_NAME       "xSysInfo"
 /* Version information is coming from Makefile */

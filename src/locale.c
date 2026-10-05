@@ -397,7 +397,10 @@ static const char *default_strings[MSG_COUNT] = {
     /* MSG_VOLUME */ "Volume",
     /* MSG_REPORT_SAVED */ "Report saved to %s",
     /* MSG_REPORT_SAVE_FAILED */ "Could not save report",
-
+    /* MSG_FONT_INVALID */ "Invalid FONT setting. Use FONT=name.size.",
+    /* MSG_FONT_UNAVAILABLE */ "Could not open the requested font.",
+    /* MSG_FONT_TOO_LARGE */ "Font exceeds the 8 x 8 pixel limit.",
+    /* MSG_FONT_FALLBACK */ "Using topaz.8."
 };
 
 /* Get string by ID - uses catalog if available, falls back to English */

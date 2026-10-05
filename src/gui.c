@@ -3,6 +3,11 @@
 
 /*
  * xSysInfo - GUI rendering and event handling
+ *
+ * The TextLength() calls immediately before Move()/Text() are deliberate
+ * workarounds for missing text on AmiKit/AfA_OS setups. Keep them even
+ * when the width is unused or was measured earlier. Their necessity must
+ * be checked on an affected setup before changing this call sequence.
  */
 
 #include <string.h>
@@ -150,6 +155,8 @@ void TightText(struct RastPort *rp, int x, int y, CONST_STRPTR str, int charGap,
      */
     if (charGap < 0)
         targetWidth = 8 + charGap;
+    if (spaceWidth > TextLength(rp, (CONST_STRPTR)" ", 1))
+        spaceWidth = TextLength(rp, (CONST_STRPTR)" ", 1);
 
     Move(rp, x, y);
 
@@ -693,7 +700,7 @@ static void draw_header(void)
     /* Title text */
     snprintf(title, sizeof(title), "%s - %s", XSYSINFO_VERSION, get_string(MSG_TAGLINE));
     title_len = strlen(title);
-    title_width = title_len * 8;
+    title_width = TextLength(rp, (CONST_STRPTR)title, title_len);
     title_x = title_area_x;
     if (title_width < title_area_w) {
         title_x += (title_area_w - title_width) / 2;
@@ -703,7 +710,7 @@ static void draw_header(void)
     snprintf(subtitle, sizeof(subtitle), "%s https://github.com/reinauer/xsysinfo",
              get_string(MSG_CONTACT_LABEL));
     subtitle_len = strlen(subtitle);
-    subtitle_width = subtitle_len * 8;
+    subtitle_width = TextLength(rp, (CONST_STRPTR)subtitle, subtitle_len);
     subtitle_x = title_area_x;
     if (subtitle_width < title_area_w) {
         subtitle_x += (title_area_w - subtitle_width) / 2;
@@ -831,8 +838,9 @@ void draw_button(Button *btn)
     /* Label - centered */
     if (btn->label) {
         text_len = strlen(btn->label);
-        text_x = btn->x + (btn->width - text_len * 8) / 2;
-        text_y = btn->y + (btn->height + 6) / 2;
+        text_x = btn->x + (btn->width -
+                 TextLength(rp, (CONST_STRPTR)btn->label, text_len)) / 2;
+        text_y = btn->y + (btn->height - rp->TxHeight) / 2 + rp->TxBaseline;
 
         SetAPen(rp, btn->enabled ? COLOR_TEXT : COLOR_PANEL_BG);
         SetBPen(rp, btn->enabled ? COLOR_PANEL_BG : COLOR_BUTTON_DARK);
@@ -866,7 +874,7 @@ void draw_cycle_button(Button *btn)
 
     /* Draw the cycle marker as a crisp '>' glyph. */
     icon_x = btn->x + 4;
-    text_y = btn->y + (btn->height + 6) / 2 - 1;
+    text_y = btn->y + (btn->height - rp->TxHeight) / 2 + rp->TxBaseline;
 
     SetAPen(rp, shadow_text_color());
     TextLength(rp, (CONST_STRPTR)">", 1);
@@ -1294,8 +1302,7 @@ static void draw_software_field(WORD x, WORD y, const char *text,
 
     if (tight) {
         for (; *text; text++) {
-            WORD char_width = *text == ' ' ? 8 :
-                              TextLength(rp, (CONST_STRPTR)text, 1);
+            WORD char_width = TextLength(rp, (CONST_STRPTR)text, 1);
             if (x + char_width > right) break;
             end = x + char_width;
             if (*text == ' ') {
@@ -1956,7 +1963,8 @@ static void show_timed_overlay(const char *message, ULONG ticks)
 {
     struct RastPort *rp = app->rp;
     WORD text_len = strlen(message);
-    WORD dialog_w = (text_len * 8) + 32;
+    WORD text_width = TextLength(rp, (CONST_STRPTR)message, text_len);
+    WORD dialog_w = text_width + 32;
     WORD dialog_h = 28;
     WORD dialog_x = (SCREEN_WIDTH - dialog_w) / 2;
     WORD dialog_y = (app->screen_height - dialog_h) / 2;
@@ -1969,7 +1977,7 @@ static void show_timed_overlay(const char *message, ULONG ticks)
 
     SetAPen(rp, COLOR_HIGHLIGHT);
     SetBPen(rp, COLOR_BAR_YOU);
-    Move(rp, dialog_x + (dialog_w - text_len * 8) / 2, dialog_y + 16);
+    Move(rp, dialog_x + (dialog_w - text_width) / 2, dialog_y + 16);
     Text(rp, (CONST_STRPTR)message, text_len);
 
     Delay(ticks);
@@ -2236,7 +2244,8 @@ static void show_status_overlay_centered(const char *message,
     WORD text_len = strlen(message);
 
     /* Dialog dimensions and position (centered) */
-    WORD dialog_w = (text_len * 8) + 32;
+    WORD text_width = TextLength(rp, (CONST_STRPTR)message, text_len);
+    WORD dialog_w = text_width + 32;
     WORD dialog_h = 28;
     WORD dialog_x = area_x + (area_w - dialog_w) / 2;
     WORD dialog_y = area_y + (area_h - dialog_h) / 2;
@@ -2264,7 +2273,7 @@ static void show_status_overlay_centered(const char *message,
     SetAPen(rp, COLOR_HIGHLIGHT);  /* White text in both palettes */
     SetBPen(rp, COLOR_BAR_YOU);
     TextLength(rp, (CONST_STRPTR)message, text_len);
-    Move(rp, dialog_x + (dialog_w - text_len * 8) / 2, dialog_y + 16);
+    Move(rp, dialog_x + (dialog_w - text_width) / 2, dialog_y + 16);
     Text(rp, (CONST_STRPTR)message, text_len);
 }
 
@@ -2313,7 +2322,7 @@ static void draw_requester_field(WORD field_x, WORD field_y, WORD field_w, WORD 
                                  const char *filename, ULONG cursor_pos)
 {
     struct RastPort *rp = app->rp;
-    WORD cursor_x;
+    WORD cursor_x, cursor_w;
     WORD max_text_w;
 
     /* Clear field interior */
@@ -2332,11 +2341,16 @@ static void draw_requester_field(WORD field_x, WORD field_y, WORD field_w, WORD 
     if (cursor_pos > 0) {
         cursor_x += TextLength(rp, (CONST_STRPTR)filename, cursor_pos);
     }
-    if (cursor_x > field_x + field_w - 10) {
-        cursor_x = field_x + field_w - 10;
+    cursor_w = TextLength(rp, filename[cursor_pos] ?
+                          (CONST_STRPTR)&filename[cursor_pos] :
+                          (CONST_STRPTR)" ", 1);
+    if (cursor_w < 1) cursor_w = 1;
+    if (cursor_x > field_x + field_w - cursor_w - 2) {
+        cursor_x = field_x + field_w - cursor_w - 2;
     }
     SetAPen(rp, COLOR_TEXT);
-    RectFill(rp, cursor_x, field_y + 2, cursor_x + 7, field_y + field_h - 3);
+    RectFill(rp, cursor_x, field_y + 2,
+             cursor_x + cursor_w - 1, field_y + field_h - 3);
     /* Draw character at cursor position in inverse */
     if (filename[cursor_pos]) {
         SetAPen(rp, COLOR_BACKGROUND);

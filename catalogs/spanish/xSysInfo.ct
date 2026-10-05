@@ -1040,3 +1040,15 @@ Informe guardado en %s
 MSG_REPORT_SAVE_FAILED
 No se pudo guardar el informe
 ;
+MSG_FONT_INVALID
+Valor FONT no válido. Use FONT=nombre.tamaño.
+;
+MSG_FONT_UNAVAILABLE
+No se pudo abrir la fuente solicitada.
+;
+MSG_FONT_TOO_LARGE
+La fuente supera el límite de 8 x 8 píxeles.
+;
+MSG_FONT_FALLBACK
+Se usará topaz.8.
+;

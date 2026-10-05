@@ -34,6 +34,7 @@
 
 #include "xsysinfo.h"
 #include "gui.h"
+#include "font.h"
 #include "hardware.h"
 #include "wdprobe.h"
 #include "software.h"
@@ -89,16 +90,11 @@ static BOOL g_mui_mode = FALSE;
 
 /* Global application context */
 AppContext app_context;
-struct TextAttr Topaz8Font = {
-    (STRPTR)DEFAULT_FONT_NAME,
-    DEFAULT_FONT_HEIGHT,
-    FS_NORMAL,
-    FPF_ROMFONT
-};
+static LocaleStringID font_error = MSG_COUNT;
 AppContext *app = &app_context;
 
 /* Command line argument template */
-#define TEMPLATE "DEBUG/S,BRIEF/S,FULL/S,WHICH/S,DARK/S,SCSI/S,MUI/S"
+#define TEMPLATE "DEBUG/S,BRIEF/S,FULL/S,WHICH/S,DARK/S,SCSI/S,MUI/S,FONT/K"
 
 /* Argument array indices */
 enum {
@@ -109,6 +105,7 @@ enum {
     ARG_DARK,
     ARG_SCSI,
     ARG_MUI,
+    ARG_FONT,
     ARG_COUNT
 };
 
@@ -242,6 +239,14 @@ static BOOL parse_args(int argc, char **argv)
                 g_scsi_check = TRUE;
             else if (xstricmp(argv[i], "mui") == 0)
                 g_mui_mode = TRUE;
+            else if (xstricmp(argv[i], "font") == 0)
+                set_ui_font_option(i + 1 < argc ? argv[++i] : "");
+            else if ((argv[i][0] == 'F' || argv[i][0] == 'f') &&
+                     (argv[i][1] == 'O' || argv[i][1] == 'o') &&
+                     (argv[i][2] == 'N' || argv[i][2] == 'n') &&
+                     (argv[i][3] == 'T' || argv[i][3] == 't') &&
+                     argv[i][4] == '=')
+                set_ui_font_option(argv[i] + 5);
         }
     }
     return TRUE;
@@ -286,6 +291,10 @@ static void parse_tooltypes(void)
                 g_mui_mode = TRUE;
             }
         }
+
+        value = find_icon_tooltype(tooltypes, ICON_STR("FONT"));
+        if (value)
+            set_ui_font_option((const char *)value);
 
         /* Check for DEBUG tooltype */
         if (find_icon_tooltype(tooltypes, ICON_STR("DEBUG"))) {
@@ -506,6 +515,23 @@ int main(int argc, char **argv)
 
         if (app->use_custom_screen)
             center_mouse_pointer();
+
+        if (font_error != MSG_COUNT) {
+            const char *message = get_string(font_error);
+            ret = RETURN_WARN;
+            if (wb_startup) {
+                struct IntuiText fallback = {1, 0, JAM2, 0, 12, NULL,
+                    (UBYTE *)get_string(MSG_FONT_FALLBACK), NULL};
+                struct IntuiText body = {1, 0, JAM2, 0, 0, NULL,
+                    (UBYTE *)message, &fallback};
+                struct IntuiText ok = {1, 0, JAM2, 0, 0, NULL,
+                    (UBYTE *)get_string(MSG_BTN_OK), NULL};
+                AutoRequest(app->window, &body, NULL, &ok, 0, 0, 420, 80);
+            } else {
+                Printf((CONST_STRPTR)"%s\n%s\n", (LONG)message,
+                       (LONG)get_string(MSG_FONT_FALLBACK));
+            }
+        }
 
         if (scsi_error) {
             show_status_overlay(scsi_error);
@@ -796,11 +822,20 @@ static BOOL open_display(void)
 {
     struct NewScreen *newScreen;
     struct NewWindow *newWindow;
+    struct TextAttr display_font;
     struct Screen *wb_screen;
     BOOL use_window = FALSE;
     BOOL has_v36_intuition = (IntuitionBase->LibNode.lib_Version >= 36);
     BOOL loader_running;
     ULONG display_id = HIRES_KEY;
+
+    app->tf = open_ui_font(&font_error);
+    if (!app->tf)
+        return FALSE;
+    display_font.ta_Name = (STRPTR)app->tf->tf_Message.mn_Node.ln_Name;
+    display_font.ta_YSize = app->tf->tf_YSize;
+    display_font.ta_Style = app->tf->tf_Style;
+    display_font.ta_Flags = app->tf->tf_Flags;
 
     Forbid();
     loader_running = FindTask((CONST_STRPTR)LOADING_TASK_NAME) != NULL;
@@ -903,15 +938,6 @@ static BOOL open_display(void)
                              app->window->BorderTop -
                              app->window->BorderBottom;
 
-        /* If default screen font is larger than Topaz8, switch to Topaz8 */
-        if (app->window->IFont->tf_YSize > Topaz8Font.ta_YSize)
-        {
-            app->tf = OpenFont(&Topaz8Font);
-            if (app->tf)
-            {
-                SetFont(app->rp, app->tf);
-            }
-        }
     } else {
         debug(XSYSINFO_NAME " open_display: opening screen, mode ID $%08lx\n",
               display_id);
@@ -928,7 +954,7 @@ static BOOL open_display(void)
                 SA_Depth, SCREEN_DEPTH,
                 SA_Title, (ULONG)XSYSINFO_NAME " " XSYSINFO_VERSION,
                 SA_Type, CUSTOMSCREEN,
-                SA_Font, (ULONG)&Topaz8Font,
+                SA_Font, (ULONG)&display_font,
                 SA_DisplayID, display_id,
                 SA_Pens, (ULONG)default_pens,
                 SA_ShowTitle, FALSE,
@@ -943,7 +969,7 @@ static BOOL open_display(void)
                 newScreen->DefaultTitle = (UBYTE *)(XSYSINFO_NAME " " XSYSINFO_VERSION);
                 newScreen->Type = CUSTOMSCREEN |
                                   (loader_running ? SCREENBEHIND : 0);
-                newScreen->Font = &Topaz8Font;
+                newScreen->Font = &display_font;
                 newScreen->ViewModes = HIRES;
                 app->screen = OpenScreen(newScreen);
                 if (app->screen) {
@@ -998,6 +1024,8 @@ static BOOL open_display(void)
 
         app->rp = app->window->RPort;
     }
+    /* Always use the validated font, including on a public screen. */
+    SetFont(app->rp, app->tf);
     debug(XSYSINFO_NAME " open_display: allocating pens\n");
 
     /* Allocate/map pens for drawing */
@@ -1052,11 +1080,6 @@ static void close_display(void)
     /* Release any allocated pens before closing */
     release_pens();
 
-    if (app->tf) {
-        CloseFont(app->tf);
-        app->tf = NULL;
-    }
-
     if (app->window) {
         CloseWindowSafely(app->window);
         app->window = NULL;
@@ -1072,6 +1095,10 @@ static void close_display(void)
     }
 
     app->rp = NULL;
+    if (app->tf) {
+        CloseFont(app->tf);
+        app->tf = NULL;
+    }
 }
 
 /*

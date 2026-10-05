@@ -74,6 +74,7 @@ LIBS = -lamiga -lgcc
 SRCS = src/main.c \
        src/gui.c \
        src/format.c \
+       src/font.c \
        src/display.c \
        src/battmem.c \
        src/hardware.c \
@@ -329,6 +330,7 @@ src/clock.o: src/clock.c src/clock.h src/hardware.h
 src/main.o: src/main.c src/xsysinfo.h src/gui.h src/hardware.h src/which.h src/software.h src/memory.h src/boards.h src/benchmark.h src/busclock.h src/locale_str.h
 src/gui.o: src/gui.c src/bayer-16x16.c src/xsysinfo.h src/gui.h src/hardware.h src/benchmark.h src/software.h src/memory.h src/locale_str.h
 src/hardware.o: src/hardware.c src/xsysinfo.h src/hardware.h src/benchmark.h
+src/main.o src/font.o: src/font.h src/locale_str.h
 src/hardware.o src/rom.o: src/rom.h
 src/hardware.o src/wdprobe.o: src/berr_trap.h
 src/ppc.o: src/hardware.h

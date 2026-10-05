@@ -38,6 +38,9 @@ without a leading dash.
           text report to Shell output.
   WHICH   Write a column-aligned system report compatible with the
           WhichAmiga 1.3.3 text format to Shell output.
+  FONT=name.size
+          Choose the classic interface font, for example FONT=6pack.8.
+          Defaults to FONT=topaz.8. FONT name.size is also accepted.
   DARK    Use the dark blue palette in the graphical interface.
           The default is the gray palette.
   MUI     Use the MUI interface if MUI 3.8 or newer is installed;
@@ -120,7 +123,7 @@ These settings come from the program's icon when xSysInfo starts from
 Workbench. Edit the icon's ToolTypes, with one entry per line.
 The supplied icon contains DISPLAY=auto, plus disabled examples
 (DISPLAY=window), (DISPLAY=screen), (DISPLAY=pal), (DISPLAY=ntsc),
-(DISPLAY=mui), (DARK), (DEBUG), and (SCSI).
+(DISPLAY=mui), (FONT=topaz.8), (DARK), (DEBUG), and (SCSI).
 
   ToolType        Description
   --------------  ------------------------------------------------------
@@ -133,6 +136,9 @@ The supplied icon contains DISPLAY=auto, plus disabled examples
   DISPLAY=ntsc    Open a separate NTSC HIRES screen (640 x 200).
   DISPLAY=mui     Use the MUI interface. Falls back to DISPLAY=auto
                   when MUI is not installed.
+  FONT=topaz.8    Font for the classic interface, in name.size form.
+                  For example, FONT=6pack.8 loads FONTS:6pack.font at
+                  size 8. Applies to both window and screen modes.
   DARK            Use the dark blue palette. Omit this entry to use the
                   default gray palette.
   DEBUG           Enable diagnostic output. Omit this entry to leave
@@ -143,6 +149,13 @@ The supplied icon contains DISPLAY=auto, plus disabled examples
 Keep exactly one DISPLAY entry enabled to select the display mode; put
 parentheses around the other choices. Remove the parentheses from (DARK),
 (DEBUG), or (SCSI) to enable an option, and restore them to disable it.
+
+Fonts must fit the existing layout: at most 8 pixels tall, with glyphs
+and character advances fitting an 8-pixel-wide cell. Proportional fonts
+are checked character by character, including the fallback glyph. Missing,
+invalid or oversized fonts produce a message and fall back to Topaz 8.
+Disk fonts require diskfont.library; the default ROM font does not.
+MUI continues to use its own font preferences.
 
 AUTO and SCREEN respect AmigaOS Mode Promotion. PAL and NTSC explicitly
 select native timing on AmigaOS 2.0 or later. On Kickstart 1.3, they

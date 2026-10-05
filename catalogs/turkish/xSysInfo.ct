@@ -1039,3 +1039,15 @@ Rapor %s konumuna kaydedildi
 MSG_REPORT_SAVE_FAILED
 Rapor kaydedilemedi
 ;
+MSG_FONT_INVALID
+Geçersiz FONT deðeri. Biçim: FONT=ad.boyut.
+;
+MSG_FONT_UNAVAILABLE
+Ýstenen yazý tipi açýlamadý.
+;
+MSG_FONT_TOO_LARGE
+Yazý tipi 8 x 8 piksel sýnýrýný aþýyor.
+;
+MSG_FONT_FALLBACK
+topaz.8 kullanýlýyor.
+;

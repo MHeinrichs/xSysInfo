@@ -1039,3 +1039,15 @@ Bericht gespeichert unter %s
 MSG_REPORT_SAVE_FAILED
 Bericht konnte nicht gespeichert werden
 ;
+MSG_FONT_INVALID
+Ungültiger FONT-Wert. Format: FONT=Name.Größe.
+;
+MSG_FONT_UNAVAILABLE
+Die gewünschte Schrift konnte nicht geöffnet werden.
+;
+MSG_FONT_TOO_LARGE
+Die Schrift überschreitet die Grenze von 8 x 8 Pixeln.
+;
+MSG_FONT_FALLBACK
+Topaz.8 wird verwendet.
+;

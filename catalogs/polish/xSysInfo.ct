@@ -1039,3 +1039,15 @@ Raport zapisano w %s
 MSG_REPORT_SAVE_FAILED
 Nie mo¿na zapisaæ raportu
 ;
+MSG_FONT_INVALID
+B³êdna opcja FONT. U¿yj FONT=nazwa.rozmiar.
+;
+MSG_FONT_UNAVAILABLE
+Nie mo¿na otworzyæ wybranej czcionki.
+;
+MSG_FONT_TOO_LARGE
+Czcionka przekracza limit 8 x 8 pikseli.
+;
+MSG_FONT_FALLBACK
+U¿yto topaz.8.
+;

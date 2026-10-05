@@ -1039,3 +1039,15 @@ Rapporto salvato in %s
 MSG_REPORT_SAVE_FAILED
 Impossibile salvare il rapporto
 ;
+MSG_FONT_INVALID
+Valore FONT non valido. Usare FONT=nome.dimensione.
+;
+MSG_FONT_UNAVAILABLE
+Impossibile aprire il carattere richiesto.
+;
+MSG_FONT_TOO_LARGE
+Il carattere supera il limite di 8 x 8 pixel.
+;
+MSG_FONT_FALLBACK
+Viene usato topaz.8.
+;
