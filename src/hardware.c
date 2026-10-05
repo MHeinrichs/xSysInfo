@@ -36,6 +36,7 @@
 #include "cache.h"
 #include "benchmark.h" //for frequencies
 #include "berr_trap.h"
+#include "rom.h"
 
 typedef struct DeviceTreeProperty {
     struct DeviceTreeProperty *next;
@@ -142,15 +143,9 @@ void detect_kickstart(void)
         hw_info.kickstart_revision = SysBase->SoftVer;
     }
 
-    /* Get ROM size*/
-    UWORD kick_size = *((volatile UWORD *)0xF80000);
-    if (kick_size == 0x1111) {
-        hw_info.kickstart_size = 256;
-    }
-    else {
-        /* Fallback: default to 512K */
-        hw_info.kickstart_size = 512;
-    }
+    hw_info.kickstart_size = detect_rom_size(
+        hw_info.amiga_model_id == IDSYS_AMIGA1200,
+        hw_info.gary_type == FAT_GARY);
 
     //save SysBase-Version in case we are softkicking
     hw_info.kickstart_patch_version = SysBase->LibNode.lib_Version;

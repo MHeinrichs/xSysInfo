@@ -300,7 +300,7 @@ typedef struct {
     UWORD kickstart_revision;
     UWORD kickstart_patch_version;
     UWORD kickstart_patch_revision;
-    ULONG kickstart_size;
+    ULONG kickstart_size;         /* KiB, including mapped ROM extensions */
 
 } HardwareInfo;
 

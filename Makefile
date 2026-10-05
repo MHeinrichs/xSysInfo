@@ -77,6 +77,7 @@ SRCS = src/main.c \
        src/display.c \
        src/battmem.c \
        src/hardware.c \
+       src/rom.c \
        src/ppc.c \
        src/wdprobe.c \
        src/probeclock.c \
@@ -328,6 +329,7 @@ src/clock.o: src/clock.c src/clock.h src/hardware.h
 src/main.o: src/main.c src/xsysinfo.h src/gui.h src/hardware.h src/which.h src/software.h src/memory.h src/boards.h src/benchmark.h src/busclock.h src/locale_str.h
 src/gui.o: src/gui.c src/bayer-16x16.c src/xsysinfo.h src/gui.h src/hardware.h src/benchmark.h src/software.h src/memory.h src/locale_str.h
 src/hardware.o: src/hardware.c src/xsysinfo.h src/hardware.h src/benchmark.h
+src/hardware.o src/rom.o: src/rom.h
 src/ppc.o: src/hardware.h
 src/wdprobe.o: src/wdprobe.c src/wdprobe.h src/hardware.h src/locale_str.h
 src/main.o src/gui.o src/hardware.o src/print.o: src/wdprobe.h
