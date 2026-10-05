@@ -18,6 +18,7 @@
 #include <proto/exec.h>
 
 #include "hardware.h"
+#include "berr_trap.h"
 #include "wdprobe.h"
 #include "probeclock.h"
 #include "locale_str.h"
@@ -121,7 +122,7 @@ static BOOL selection_ticks(UBYTE timeout, ULONG deadline, ULONG *ticks)
 
 WDProbeStatus probe_wd_controller(void)
 {
-    UBYTE saved[WD_SOURCE + 1], queue_tag = 0, status, old_timeout;
+    UBYTE saved[WD_SOURCE + 1], queue_tag = 0, status, asr, istr;
     ULONG short_ticks, long_ticks, rates[2] = {0, 0}, deadline;
     struct EClockVal now;
     WDProbeInfo result;
@@ -134,6 +135,13 @@ WDProbeStatus probe_wd_controller(void)
     if (!hw_info.sdmac_present || hw_info.gary_type != FAT_GARY ||
         hw_info.ncr_type != NCR_NONE)
         return WD_PROBE_NOT_APPLICABLE;
+    /* An absent register can take a full bus timeout. Probe before the
+     * timed section, which must fit within the probe clock's range. */
+    if (berr_probe_byte((ULONG)SDMAC_WD_ASR, &asr) ||
+        berr_probe_byte((ULONG)SDMAC_ISTR, &istr))
+        return WD_PROBE_UNAVAILABLE;
+    if (asr != 0 || istr != SDMAC_ISTR_FIFOE)
+        return WD_PROBE_BUSY;
     if (!acquire_probe_clock())
         return WD_PROBE_UNAVAILABLE;
     memset(&result, 0, sizeof(result));
@@ -150,8 +158,6 @@ WDProbeStatus probe_wd_controller(void)
     }
     clock_start = now.ev_lo;
     deadline = clock_rate * 60 / 1000;
-    old_timeout = *(volatile UBYTE *)FAT_GARY_TIME_OUT_REG;
-    *(volatile UBYTE *)FAT_GARY_TIME_OUT_REG = FAT_GARY_TIME_OUT_DSACK;
 
     /* Refuse busy, pending-interrupt, parity-error and open-bus states
      * before touching the WD selector or acknowledging any interrupt. */
@@ -262,7 +268,6 @@ recover:
         memset(&result, 0, sizeof(result));
     }
 done:
-    *(volatile UBYTE *)FAT_GARY_TIME_OUT_REG = old_timeout;
     Enable();
     Permit();
     release_probe_clock();

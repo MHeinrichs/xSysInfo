@@ -46,9 +46,6 @@
 #define FAT_GARY_POWER_REG 0xDE0002
 #define FAT_GARY_POWER_CYCLE 0x80
 #define FAT_GARY_POWER_GOOD 0x0
-#define FAT_GARY_TIME_OUT_REG 0xDE0000
-#define FAT_GARY_TIME_OUT_DSACK 0x0
-#define FAT_GARY_TIME_OUT_BERR 0x80
 #define SDMAC_ISTR      ((volatile uint8_t *)0xDD001F)
 #define SDMAC_WTC       ((volatile uint32_t *)0xDD0004)
 #define SDMAC_WD_ASR    ((volatile uint8_t *)0xDD0049)

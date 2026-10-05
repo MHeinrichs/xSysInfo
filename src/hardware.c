@@ -1007,10 +1007,10 @@ void detect_chipset(void)
  * measures that alias, not the chip's part number or installed RAM size.
  *
  * Use an owned buffer instead of WhichAmiga's writes to addresses 0/4.
- * The existing bus-error guard is 68000-only. Restricting the probe to
- * that CPU also avoids CPU caches and MMU translations of either address;
- * a missing mmu.library or remap-table entry would not establish that on
- * an accelerator. Do not disable an MMU to perform this diagnostic.
+ * Restricting the probe to a plain 68000 avoids CPU caches and MMU
+ * translations of either address. A missing mmu.library or remap-table
+ * entry would not establish that on an accelerator. Do not disable an MMU
+ * to perform this diagnostic.
  */
 static void probe_agnus_alias(void)
 {
@@ -1192,7 +1192,7 @@ void detect_clock(void)
     // A Spirit Insider 1000 maps an MK48T02 TimeKeeper with its clock
     // registers on odd bytes at $DC0FF1..$DC0FFF.  Probe under bus-error
     // protection so we don't crash on machines without the card.
-    // Only plain 68000 is supported here (VBR=0 and simple group-0 frame).
+    // Keep the optional A1000 clock probe restricted to unaccelerated CPUs.
     if (hw_info.gary_type == GARY_A1000 && hw_info.cpu_type == CPU_68000) {
         UBYTE sec = 0, min = 0, hour = 0, day = 0, date = 0, mon = 0;
         if (berr_probe_byte(0xDC0FF3, &sec) == 0 &&
@@ -1320,15 +1320,13 @@ static BOOL detect_ncr53c770(unsigned char *revision)
     int attempt;
 
     for (attempt = 0; attempt < 4; attempt++) {
-        uint8_t old_timeout, gpcntl, macntl, ctest3;
+        UBYTE gpcntl, macntl, ctest3;
         BOOL valid;
 
-        old_timeout = *((volatile uint8_t *)FAT_GARY_TIME_OUT_REG);
-        *((volatile uint8_t *)FAT_GARY_TIME_OUT_REG) = FAT_GARY_TIME_OUT_DSACK;
-        gpcntl = *((volatile uint8_t *)NCR770_GPCNTL_REG);
-        macntl = *((volatile uint8_t *)NCR770_MACNTL_REG);
-        ctest3 = *((volatile uint8_t *)NCR770_CTEST3_REG);
-        *((volatile uint8_t *)FAT_GARY_TIME_OUT_REG) = old_timeout;
+        if (berr_probe_byte(NCR770_GPCNTL_REG, &gpcntl) ||
+            berr_probe_byte(NCR770_MACNTL_REG, &macntl) ||
+            berr_probe_byte(NCR770_CTEST3_REG, &ctest3))
+            return FALSE;
 
         /* GPIO0-3 inputs, GPIO4 output; MACNTL chip type 2 is 53C770. */
         valid = ((gpcntl & 0x1f) == 0x0f) && ((macntl >> 4) == 2);
@@ -1355,21 +1353,23 @@ static BOOL detect_ncr53c770(unsigned char *revision)
  * SCRIPTS execution; values describe the configuration at detection time. */
 static void read_ncr_config(void)
 {
-    volatile UBYTE *base = (volatile UBYTE *)(hw_info.ncr_type == NCR_53C770 ?
-                                             0xdd0000 : 0xdd0040);
-    UBYTE old_timeout = *(volatile UBYTE *)FAT_GARY_TIME_OUT_REG;
+    static const UBYTE offsets[] = {0x07, 0x06, 0x03, 0x02, 0x3b, 0x00, 0x4e};
+    UBYTE values[7] = {0};
+    BOOL wide = hw_info.ncr_type == NCR_53C770;
+    ULONG base = wide ? 0xdd0000 : 0xdd0040;
+    unsigned i;
 
-    *(volatile UBYTE *)FAT_GARY_TIME_OUT_REG = FAT_GARY_TIME_OUT_DSACK;
-    hw_info.ncr_config.scid = base[0x07];
-    hw_info.ncr_config.sxfer = base[0x06];
-    hw_info.ncr_config.scntl0 = base[0x03];
-    hw_info.ncr_config.scntl1 = base[0x02];
-    hw_info.ncr_config.dmode = base[0x3b];
-    if (hw_info.ncr_type == NCR_53C770) {
-        hw_info.ncr_config.scntl3 = base[0x00];
-        hw_info.ncr_config.stest1 = base[0x4e];
+    for (i = 0; i < (wide ? 7 : 5); i++) {
+        if (berr_probe_byte(base + offsets[i], &values[i]))
+            return;
     }
-    *(volatile UBYTE *)FAT_GARY_TIME_OUT_REG = old_timeout;
+    hw_info.ncr_config.scid = values[0];
+    hw_info.ncr_config.sxfer = values[1];
+    hw_info.ncr_config.scntl0 = values[2];
+    hw_info.ncr_config.scntl1 = values[3];
+    hw_info.ncr_config.dmode = values[4];
+    hw_info.ncr_config.scntl3 = values[5];
+    hw_info.ncr_config.stest1 = values[6];
     debug("    ncr: SCID=%02x SXFER=%02x SCNTL0=%02x SCNTL1=%02x "
           "DMODE=%02x SCNTL3=%02x STEST1=%02x\n",
           hw_info.ncr_config.scid, hw_info.ncr_config.sxfer,
@@ -1382,11 +1382,10 @@ static void read_ncr_config(void)
 void detect_sdmac(void)
 {
     unsigned char ncr_rev;
-    uint32_t ovalue, rvalue;
+    ULONG ovalue, rvalue, revision;
     uint8_t sdmac_version = 0;
-    uint8_t istr;
+    UBYTE istr, asr;
     int pass;
-    uint8_t old_timeout;
     hw_info.sdmac_rev = 0;
     hw_info.sdmac_present = FALSE;
     hw_info.resdmac_version = 0;
@@ -1403,21 +1402,14 @@ void detect_sdmac(void)
             return;
         }
 
-        // Switch to DSACK timeout to avoid bus errors when probing
-        old_timeout = *((volatile uint8_t *)FAT_GARY_TIME_OUT_REG);
-        *((volatile uint8_t *)FAT_GARY_TIME_OUT_REG) = FAT_GARY_TIME_OUT_DSACK;
-
-        // now test for A4000T NCR53C710: upper four bits of CTEST8-register contains the chip-rev.
-        ncr_rev = *((volatile unsigned char *)(NCR_CTEST8_REG));
-        ncr_rev = (ncr_rev & 0xF0) >> 4; // only upper four bits matter
-        if (ncr_rev != 0 && ncr_rev != 0xF)
-        {
-            hw_info.ncr_rev = ncr_rev;
-            hw_info.ncr_type = NCR_53C710;
+        /* A4000T NCR53C710: CTEST8 contains the revision nibble. */
+        if (berr_probe_byte(NCR_CTEST8_REG, &ncr_rev) == 0) {
+            ncr_rev >>= 4;
+            if (ncr_rev != 0 && ncr_rev != 0xf) {
+                hw_info.ncr_rev = ncr_rev;
+                hw_info.ncr_type = NCR_53C710;
+            }
         }
-
-        // Restore original timeout mode
-        *((volatile uint8_t *)FAT_GARY_TIME_OUT_REG) = old_timeout;
         if (hw_info.ncr_type != NCR_NONE)
             read_ncr_config();
     }
@@ -1425,42 +1417,40 @@ void detect_sdmac(void)
     /* SDMAC access requires Fat Gary and Ramsey. */
     if (hw_info.ramsey_rev > 0 && hw_info.gary_type == FAT_GARY &&
         hw_info.ncr_type == NCR_NONE) {
-        // Switch to DSACK timeout to avoid bus errors on A4000
-        old_timeout = *((volatile uint8_t *)FAT_GARY_TIME_OUT_REG);
-        *((volatile uint8_t *)FAT_GARY_TIME_OUT_REG) = FAT_GARY_TIME_OUT_DSACK;
-
         /* ReSDMAC exposes four ASCII bytes (e.g. "v1.2"), not a chip
          * revision byte. Validate the whole signature and its stability. */
-        rvalue = *(volatile uint32_t *)SDMAC_REVISION;
-        if ((rvalue & 0xff00ff00UL) == 0x76002e00UL &&
+        if (berr_probe_long(SDMAC_REVISION, &rvalue) == 0 &&
+            (rvalue & 0xff00ff00UL) == 0x76002e00UL &&
             ((rvalue >> 16) & 0xff) >= '0' &&
             ((rvalue >> 16) & 0xff) <= '9' &&
             (rvalue & 0xff) >= '0' && (rvalue & 0xff) <= '9') {
             (void)*(volatile uint8_t *)RAMSEY_VER;
-            if (rvalue == *(volatile uint32_t *)SDMAC_REVISION) {
+            if (berr_probe_long(SDMAC_REVISION, &revision) == 0 &&
+                rvalue == revision) {
                 hw_info.resdmac_version = rvalue;
                 hw_info.sdmac_present = TRUE;
                 hw_info.sdmac_rev = 4;
             }
         }
         if (hw_info.resdmac_version)
-            goto sdmac_done;
+            return;
         if (hw_info.sdmac_rev == 0) {
             /* Quick check: ISTR bits - FIFO cannot be both empty and full */
-            istr = *SDMAC_ISTR;
-            if (istr == 0xff)
-                goto sdmac_done;
+            if (berr_probe_byte((ULONG)SDMAC_ISTR, &istr) || istr == 0xff)
+                return;
             if ((istr & SDMAC_ISTR_FIFOE) && (istr & SDMAC_ISTR_FIFOF))
-                goto sdmac_done;
+                return;
             /* ASR is read-only and does not acknowledge WD interrupts.
              * Reserved bits 2/3 distinguish open bus from a WD33C93. */
-            if (*SDMAC_WD_ASR & WD_ASR_RESERVED)
-                goto sdmac_done;
+            if (berr_probe_byte((ULONG)SDMAC_WD_ASR, &asr) ||
+                (asr & WD_ASR_RESERVED))
+                return;
             hw_info.sdmac_present = TRUE;
             sdmac_version = 2; //default version
             /* Probe WTC registers to distinguish SDMAC-02 from SDMAC-04 */
             for (pass = 0; pass < 6; pass++) {
                 uint32_t wvalue;
+                int fault;
                 switch (pass) {
                     case 0: wvalue = 0x00000000; break;
                     case 1: wvalue = 0xffffffff; break;
@@ -1472,23 +1462,27 @@ void detect_sdmac(void)
                 Disable();
                 /* Never change a transfer count while SCSI is active or
                  * awaiting service (INT, BSY, CIP, DBR in the WD ASR). */
-                if ((*SDMAC_WD_ASR & (WD_ASR_ACTIVE | WD_ASR_RESERVED)) ||
-                    *SDMAC_ISTR != SDMAC_ISTR_FIFOE) {
+                if (berr_probe_byte((ULONG)SDMAC_WD_ASR, &asr) ||
+                    berr_probe_byte((ULONG)SDMAC_ISTR, &istr) ||
+                    (asr & (WD_ASR_ACTIVE | WD_ASR_RESERVED)) ||
+                    istr != SDMAC_ISTR_FIFOE ||
+                    berr_probe_long((ULONG)SDMAC_WTC, &ovalue)) {
                     Enable();
-                    goto sdmac_done;
+                    return;
                 }
-                ovalue = *(volatile uint32_t *)SDMAC_WTC;
                 *(volatile uint32_t *)SDMAC_WTC = wvalue;
                 (void) *(volatile uint32_t *)RAMSEY_VER; /* Push write to bus */
-                rvalue = *(volatile uint32_t *)SDMAC_WTC;
+                fault = berr_probe_long((ULONG)SDMAC_WTC, &rvalue);
                 *(volatile uint32_t *)SDMAC_WTC = ovalue;
                 (void) *(volatile uint32_t *)RAMSEY_VER;
                 Enable();
+                if (fault)
+                    return;
                 if (rvalue == wvalue) {
                     if ((wvalue != 0x00000000) && (wvalue != 0xffffffff)) {
                         sdmac_version = 0; /* Detection failed */
                         hw_info.sdmac_present = FALSE;
-                        goto sdmac_done;
+                        return;
                     }
                 } else if (((rvalue ^ wvalue) & 0x00ffffff) == 0) {
                     /* SDMAC-02: only upper byte differs */
@@ -1500,14 +1494,11 @@ void detect_sdmac(void)
                 else {
                     sdmac_version = 0; /* Detection failed */
                     hw_info.sdmac_present = FALSE;
-                    goto sdmac_done;
+                    return;
                 }
             }
             hw_info.sdmac_rev = sdmac_version;
         }
-sdmac_done:
-        // Restore original timeout mode
-        *((volatile uint8_t *)FAT_GARY_TIME_OUT_REG) = old_timeout;
     }
 }
 
