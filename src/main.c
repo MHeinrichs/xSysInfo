@@ -1024,6 +1024,9 @@ static BOOL open_display(void)
 
         app->rp = app->window->RPort;
     }
+    if (!init_drawing())
+        return FALSE;
+
     /* Always use the validated font, including on a public screen. */
     SetFont(app->rp, app->tf);
     debug(XSYSINFO_NAME " open_display: allocating pens\n");
@@ -1077,6 +1080,8 @@ static void CloseWindowSafely(struct Window *win)
  */
 static void close_display(void)
 {
+    cleanup_drawing();
+
     /* Release any allocated pens before closing */
     release_pens();
 

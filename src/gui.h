@@ -122,6 +122,10 @@ typedef struct {
 
 /* Function prototypes */
 
+/* Classic display drawing resources. */
+BOOL init_drawing(void);
+void cleanup_drawing(void);
+
 /* Main drawing functions */
 void draw_main_view(void);
 void draw_memory_view(void);

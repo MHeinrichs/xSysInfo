@@ -568,9 +568,23 @@ void draw_main_view(void)
     draw_bottom_buttons();
 }
 
-static BOOL xsysinfo_logo_pixel(WORD x, WORD y)
+/* Shared by the logo and gradients; allow a partial word at either edge. */
+#define DRAWING_TEMPLATE_SIZE (((SCREEN_WIDTH + 30) / 16) * 2 * 16)
+static UWORD *drawing_template;
+
+BOOL init_drawing(void)
 {
-    return (xsysinfo_logo_template[y][x >> 4] & (0x8000 >> (x & 15))) != 0;
+    drawing_template = AllocMem(DRAWING_TEMPLATE_SIZE, MEMF_CHIP);
+    return drawing_template != NULL;
+}
+
+void cleanup_drawing(void)
+{
+    if (drawing_template) {
+        WaitBlit();
+        FreeMem(drawing_template, DRAWING_TEMPLATE_SIZE);
+        drawing_template = NULL;
+    }
 }
 
 static BOOL gradients_available(void)
@@ -580,34 +594,53 @@ static BOOL gradients_available(void)
 
 #include "bayer-16x16.c"
 
-/* Fill a gradient in 16-pixel-wide bands using pre-generated dither patterns. */
+/* Build one period of the area pattern in Chip RAM. The band boundaries
+ * start at left, but RectFill's pattern bits follow raster coordinates.
+ * Keep that phase when a band straddles two source words. */
+static WORD build_gradient_template(WORD left, WORD top, WORD width)
+{
+    WORD phase = left & 15;
+    WORD words = (phase + width + 15) / 16;
+    UWORD low_mask = 0xffffU >> phase;
+    WORD offset, row;
+
+    memset(drawing_template, 0, words * sizeof(UWORD) * 16);
+    for (offset = 0; offset < width; offset += 16) {
+        WORD level = width > 1 ? ((LONG)offset * 256) / (width - 1) : 0;
+        WORD word = offset / 16;
+        for (row = 0; row < 16; row++) {
+            UWORD pattern = bayer16x16[level][(top + row) & 15];
+            drawing_template[row * words + word] |= pattern & low_mask;
+            if (phase && word + 1 < words)
+                drawing_template[row * words + word + 1] |= pattern & ~low_mask;
+        }
+    }
+    return words * sizeof(UWORD);
+}
+
+/* Draw one 16-row period at a time; graphics.library handles layer clipping. */
 static void draw_gradient(WORD left, WORD top, WORD width, WORD height,
                           WORD start_color, WORD end_color)
 {
     struct RastPort *rp = app->rp;
-    LONG offset;
-    LONG bottom = (LONG)top + height - 1;
+    WORD stride;
+    LONG row;
 
-    if (width <= 0 || height <= 0)
+    if (width <= 0 || width > SCREEN_WIDTH || height <= 0)
         return;
 
+    stride = build_gradient_template(left, top, width);
     SetDrMd(rp, JAM2);
     SetBPen(rp, start_color);
     SetAPen(rp, end_color);
-
-    for (offset = 0; offset < width; offset += 16) {
-        WORD fill_width = width - offset;
-        WORD level;
-
-        if (fill_width > 16)
-            fill_width = 16;
-
-        /* Pattern indices run from 0 to 256; a single pixel uses the start color. */
-        level = width > 1 ? (offset * 256) / (width - 1) : 0;
-        SetAfPt(rp, bayer16x16[level], 4); /* 2^4 = 16 pattern rows */
-        RectFill(rp, left + offset, top, left + offset + fill_width - 1, bottom);
+    for (row = 0; row < height; row += 16) {
+        WORD rows = height - row;
+        if (rows > 16) rows = 16;
+        BltTemplate(drawing_template, left & 15, stride, rp,
+                    left, top + row, width, rows);
     }
-
+    /* The next draw may overwrite the shared source. */
+    WaitBlit();
     SetAfPt(rp, NULL, 0);
 }
 
@@ -631,38 +664,19 @@ static WORD shadow_text_color(void)
     return app->dark_mode ? COLOR_BACKGROUND : COLOR_TEXT;
 }
 
-static void draw_xsysinfo_logo_mask(struct RastPort *rp, WORD x, WORD y, WORD color)
-{
-    WORD row, col, start;
-
-    SetAPen(rp, color);
-    for (row = 0; row < XSYSINFO_LOGO_H; row++) {
-        start = -1;
-        for (col = 0; col <= XSYSINFO_LOGO_W; col++) {
-            BOOL on = (col < XSYSINFO_LOGO_W) && xsysinfo_logo_pixel(col, row);
-
-            if (on && start < 0) {
-                start = col;
-            } else if (!on && start >= 0) {
-                if (start == col - 1) {
-                    WritePixel(rp, x + start, y + row);
-                } else {
-                    Move(rp, x + start, y + row);
-                    Draw(rp, x + col - 1, y + row);
-                }
-                start = -1;
-            }
-        }
-    }
-}
-
 static void draw_xsysinfo_logo(WORD x, WORD y)
 {
     struct RastPort *rp = app->rp;
 
+    memcpy(drawing_template, xsysinfo_logo_template, sizeof(xsysinfo_logo_template));
     SetDrMd(rp, JAM1);
-    draw_xsysinfo_logo_mask(rp, x + 1, y + 1, shadow_text_color());
-    draw_xsysinfo_logo_mask(rp, x, y, COLOR_HIGHLIGHT);
+    SetAPen(rp, shadow_text_color());
+    BltTemplate(drawing_template, 0, XSYSINFO_LOGO_BPR, rp, x + 1, y + 1,
+                XSYSINFO_LOGO_W, XSYSINFO_LOGO_H);
+    SetAPen(rp, COLOR_HIGHLIGHT);
+    BltTemplate(drawing_template, 0, XSYSINFO_LOGO_BPR, rp, x, y,
+                XSYSINFO_LOGO_W, XSYSINFO_LOGO_H);
+    WaitBlit();
 }
 
 /*
