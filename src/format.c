@@ -646,3 +646,24 @@ void visit_hardware_rows(HardwareType page, HardwareRowVisitor visit,
         }
     }
 }
+
+/* Callers choose precision and retain their unmeasured/zero placeholders. */
+void format_transfer_rate(ULONG speed, BOOL fractional_kb,
+                          char *buffer, size_t size)
+{
+    if (speed >= 1000000) {
+        snprintf(buffer, size, "%lu.%lu MB/s",
+                 (unsigned long)(speed / 1000000),
+                 (unsigned long)((speed % 1000000) / 100000));
+    } else if (speed >= 10000) {
+        if (fractional_kb) {
+            snprintf(buffer, size, "%lu.%lu KB/s",
+                     (unsigned long)(speed / 1000),
+                     (unsigned long)((speed % 1000) / 100));
+        } else {
+            snprintf(buffer, size, "%lu KB/s", (unsigned long)(speed / 1000));
+        }
+    } else {
+        snprintf(buffer, size, "%lu B/s", (unsigned long)speed);
+    }
+}

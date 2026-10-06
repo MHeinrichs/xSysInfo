@@ -30,4 +30,6 @@ const char *format_software_overview_value(ULONG row, char *buffer, size_t size)
 ULONG speed_scale_max(BarScale scale);
 ULONG scale_speed_value(ULONG value, ULONG max_value, ULONG extent,
                         BarScale scale);
+void format_transfer_rate(ULONG speed, BOOL fractional_kb,
+                          char *buffer, size_t size);
 #endif

@@ -16,6 +16,7 @@
 #include <proto/graphics.h>
 
 #include "xsysinfo.h"
+#include "format.h"
 #include "memory.h"
 #include "gui.h"
 #include "locale_str.h"
@@ -318,27 +319,21 @@ ULONG measure_memory_speed(ULONG index)
 void format_memory_speed(const MemoryRegion *region, char *buffer,
                                 size_t size)
 {
-    if (region->speed_measured) {
-        ULONG speed = region->speed_bytes_sec;
-        if (speed >= 1000000) {
-            snprintf(buffer, size, "%lu.%lu MB/s",
-                     (unsigned long)(speed / 1000000),
-                     (unsigned long)((speed % 1000000) / 100000));
-        } else if (speed >= 10000) {
-            snprintf(buffer, size, "%lu.%lu KB/s",
-                     (unsigned long)(speed / 1000),
-                     (unsigned long)((speed % 1000) / 100));
-        } else if (speed > 0) {
-            snprintf(buffer, size, "%lu B/s", (unsigned long)speed);
-        } else {
-            snprintf(buffer, size, "---");
-        }
+    if (region->speed_measured && region->speed_bytes_sec > 0) {
+        format_transfer_rate(region->speed_bytes_sec, TRUE, buffer, size);
     } else {
         snprintf(buffer, size, "---");
     }
 }
 
 static void draw_memory_value(WORD y, const char *value);
+
+static void clear_memory_values(WORD first, WORD last)
+{
+    SetAPen(app->rp, COLOR_PANEL_BG);
+    RectFill(app->rp, MEMORY_VALUE_X, first - 8, MEMORY_VALUE_MAX_X, last + 2);
+}
+
 
 static void draw_memory_speed_row(void)
 {
@@ -353,6 +348,7 @@ static void draw_memory_speed_row(void)
     region = &memory_regions.regions[app->memory_region_index];
     format_memory_speed(region, buffer, sizeof(buffer));
 
+    clear_memory_values(164, 164);
     draw_memory_value(164, buffer);
 }
 
@@ -360,8 +356,6 @@ static void draw_memory_value(WORD y, const char *value)
 {
     struct RastPort *rp = app->rp;
 
-    SetAPen(rp, COLOR_PANEL_BG);
-    RectFill(rp, MEMORY_VALUE_X, y - 8, MEMORY_VALUE_MAX_X, y + 2);
     SetAPen(rp, COLOR_HIGHLIGHT);
     SetBPen(rp, COLOR_PANEL_BG);
     draw_text_clipped(MEMORY_VALUE_X, y, value,
@@ -456,99 +450,38 @@ static void draw_memory_buttons(void)
  */
 static void draw_memory_data(BOOL full_redraw)
 {
-    struct RastPort *rp = app->rp;
-    char buffer[64];
-    WORD y;
-    MemoryRegion *region;
+    static const LocaleStringID labels[] = {
+        MSG_START_ADDRESS,
+        MSG_END_ADDRESS,
+        MSG_TOTAL_SIZE,
+        MSG_MEMORY_TYPE,
+        MSG_PRIORITY,
+        MSG_LOWER_BOUND,
+        MSG_UPPER_BOUND,
+        MSG_FIRST_ADDRESS,
+        MSG_AMOUNT_FREE,
+        MSG_LARGEST_BLOCK,
+        MSG_NUM_CHUNKS,
+        MSG_NODE_NAME,
+        MSG_MEMORY_SPEED
+    };
+    ULONG row;
 
     if (memory_regions.count == 0) {
-        SetAPen(rp, COLOR_TEXT);
-        SetBPen(rp, COLOR_PANEL_BG);
-        Move(rp, 200, 120);
-        Text(rp, (CONST_STRPTR)"No memory regions found", 23);
+        draw_text(200, 120, "No memory regions found", COLOR_TEXT);
         return;
     }
 
     if (full_redraw) {
-        /* Draw memory info panel with 3D border */
         draw_panel(100, 28, 520, 150, NULL);
+        for (row = 0; row < sizeof(labels) / sizeof(labels[0]); row++) {
+            draw_label_value(128, 44 + row * 10, get_string(labels[row]),
+                             NULL, 168);
+        }
     } else {
-        draw_memory_values();
-        draw_memory_buttons();
-        return;
+        clear_memory_values(44, 164);
     }
-
-    /* Refresh current region data */
-    refresh_memory_region(app->memory_region_index);
-    region = &memory_regions.regions[app->memory_region_index];
-
-    /* Draw memory info */
-    y = 44;
-
-    /* Start address */
-    snprintf(buffer, sizeof(buffer), "$%08lX", (unsigned long)region->start_address);
-    draw_label_value(128, y, get_string(MSG_START_ADDRESS), buffer, 168);
-    y += 10;
-
-    /* End address */
-    snprintf(buffer, sizeof(buffer), "$%08lX", (unsigned long)region->end_address);
-    draw_label_value(128, y, get_string(MSG_END_ADDRESS), buffer, 168);
-    y += 10;
-
-    /* Total size */
-    format_size(region->total_size, buffer, sizeof(buffer));
-    draw_label_value(128, y, get_string(MSG_TOTAL_SIZE), buffer, 168);
-    y += 10;
-
-    /* Memory type */
-    draw_label_value_max(128, y, get_string(MSG_MEMORY_TYPE),
-                         region->type_string, 168, 618);
-    y += 10;
-
-    /* Priority */
-    snprintf(buffer, sizeof(buffer), "%d", region->priority);
-    draw_label_value(128, y, get_string(MSG_PRIORITY), buffer, 168);
-    y += 10;
-
-    /* Lower bound */
-    snprintf(buffer, sizeof(buffer), "$%08lX", (unsigned long)region->lower_bound);
-    draw_label_value(128, y, get_string(MSG_LOWER_BOUND), buffer, 168);
-    y += 10;
-
-    /* Upper bound */
-    snprintf(buffer, sizeof(buffer), "$%08lX", (unsigned long)region->upper_bound);
-    draw_label_value(128, y, get_string(MSG_UPPER_BOUND), buffer, 168);
-    y += 10;
-
-    /* First free address */
-    snprintf(buffer, sizeof(buffer), "$%08lX", (unsigned long)region->first_free);
-    draw_label_value(128, y, get_string(MSG_FIRST_ADDRESS), buffer, 168);
-    y += 10;
-
-    /* Amount free */
-    snprintf(buffer, sizeof(buffer), "%lu Bytes", (unsigned long)region->amount_free);
-    draw_label_value(128, y, get_string(MSG_AMOUNT_FREE), buffer, 168);
-    y += 10;
-
-    /* Largest block */
-    snprintf(buffer, sizeof(buffer), "%lu Bytes", (unsigned long)region->largest_block);
-    draw_label_value(128, y, get_string(MSG_LARGEST_BLOCK), buffer, 168);
-    y += 10;
-
-    /* Number of chunks */
-    snprintf(buffer, sizeof(buffer), "%lu", (unsigned long)region->num_chunks);
-    draw_label_value(128, y, get_string(MSG_NUM_CHUNKS), buffer, 168);
-    y += 10;
-
-    /* Node name */
-    draw_label_value_max(128, y, get_string(MSG_NODE_NAME),
-                         region->node_name, 168, 618);
-    y += 10;
-
-    format_memory_speed(region, buffer, sizeof(buffer));
-    draw_label_value(128, y, get_string(MSG_MEMORY_SPEED), buffer, 168);
-
-    /* Draw navigation buttons */
+    draw_memory_values();
     draw_memory_buttons();
 }
 

@@ -15,6 +15,7 @@
 #include <proto/dos.h>
 
 #include "xsysinfo.h"
+#include "format.h"
 #include "print.h"
 #include "hardware.h"
 #include "wdprobe.h"
@@ -86,16 +87,8 @@ static const char *yes_no_string(BOOL enabled)
 
 static void format_speed_display(ULONG speed, char *buffer, ULONG size)
 {
-    if (speed >= 1000000) {
-        snprintf(buffer, size, "%lu.%lu MB/s",
-                 (unsigned long)(speed / 1000000),
-                 (unsigned long)((speed % 1000000) / 100000));
-    } else if (speed >= 10000) {
-        snprintf(buffer, size, "%lu.%lu KB/s",
-                 (unsigned long)(speed / 1000),
-                 (unsigned long)((speed % 1000) / 100));
-    } else if (speed > 0) {
-        snprintf(buffer, size, "%lu B/s", (unsigned long)speed);
+    if (speed > 0) {
+        format_transfer_rate(speed, TRUE, buffer, size);
     } else {
         snprintf(buffer, size, "---");
     }
@@ -652,12 +645,7 @@ void export_memory(BPTR fh)
         write_formatted(fh, "  Free:    %lu bytes", (unsigned long)r->amount_free);
         write_formatted(fh, "  Largest: %lu bytes", (unsigned long)r->largest_block);
         write_formatted(fh, "  Chunks:  %lu", (unsigned long)r->num_chunks);
-        if (r->speed_measured) {
-            format_speed_display(r->speed_bytes_sec, speed_str,
-                                 sizeof(speed_str));
-        } else {
-            snprintf(speed_str, sizeof(speed_str), "---");
-        }
+        format_memory_speed(r, speed_str, sizeof(speed_str));
         write_formatted(fh, "  Speed:   %s", speed_str);
         WRITE_LINE(fh, "");
     }
