@@ -505,9 +505,6 @@ int main(int argc, char **argv)
             goto cleanup;
         }
 
-        debug(XSYSINFO_NAME ": Init buttons...\n");
-        init_buttons();
-
         debug(XSYSINFO_NAME ": Draw screen...\n");
         redraw_current_view();
 

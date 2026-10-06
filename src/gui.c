@@ -280,15 +280,6 @@ void TightText(struct RastPort *rp, int x, int y, CONST_STRPTR str,
 }
 
 /*
- * Initialize buttons for current view
- */
-void init_buttons(void)
-{
-    clear_buttons();
-    update_button_states();
-}
-
-/*
  * Clear all buttons
  */
 static void clear_buttons(void)

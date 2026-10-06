@@ -166,7 +166,6 @@ void handle_button_press(ButtonID btn);
 void handle_scrollbar_click(WORD mx, WORD my);
 
 /* Button state management */
-void init_buttons(void);
 void update_button_states(void);
 void add_button(WORD x, WORD y, WORD w, WORD h, const char *label, ButtonID id, BOOL enabled);
 Button *find_button(ButtonID id);
