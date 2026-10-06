@@ -987,33 +987,20 @@ static BOOL open_display(void)
         /* Set our palette */
         set_palette();
 
-        /* Open borderless window on our screen */
-        if (has_v36_intuition) {
-            app->window = OpenWindowTags(NULL,
-                WA_CustomScreen, (ULONG)app->screen,
-                WA_Left, 0,
-                WA_Top, 0,
-                WA_Width, SCREEN_WIDTH,
-                WA_Height, app->screen_height,
-                WA_IDCMP, IDCMP_MOUSEBUTTONS | IDCMP_VANILLAKEY | IDCMP_REFRESHWINDOW |
-                          IDCMP_MOUSEMOVE | IDCMP_RAWKEY,
-                WA_Flags, WFLG_BORDERLESS | WFLG_ACTIVATE | WFLG_BACKDROP |
-                          WFLG_RMBTRAP | WFLG_SMART_REFRESH | WFLG_REPORTMOUSE,
-                TAG_DONE);
-        } else {
-            newWindow = (struct NewWindow *)AllocMem(sizeof(struct NewWindow), MEMF_ANY | MEMF_CLEAR);
-            if (newWindow) {
-                newWindow->Type = CUSTOMSCREEN;
-                newWindow->Width = SCREEN_WIDTH;
-                newWindow->Height = app->screen_height;
-                newWindow->IDCMPFlags = IDCMP_MOUSEBUTTONS | IDCMP_VANILLAKEY | IDCMP_REFRESHWINDOW |
-                            IDCMP_MOUSEMOVE | IDCMP_RAWKEY;
-                newWindow->Flags = WFLG_BORDERLESS | WFLG_ACTIVATE | WFLG_BACKDROP |
-                            WFLG_RMBTRAP | WFLG_SMART_REFRESH | WFLG_REPORTMOUSE;
-                newWindow->Screen = app->screen;
-                app->window = OpenWindow(newWindow);
-                FreeMem(newWindow, sizeof(struct NewWindow));
-            }
+        /* This window needs no attributes beyond the V34 NewWindow ABI. */
+        {
+            struct NewWindow window = { 0 };
+
+            window.Type = CUSTOMSCREEN;
+            window.Width = SCREEN_WIDTH;
+            window.Height = app->screen_height;
+            window.IDCMPFlags = IDCMP_MOUSEBUTTONS | IDCMP_VANILLAKEY |
+                                IDCMP_REFRESHWINDOW | IDCMP_MOUSEMOVE |
+                                IDCMP_RAWKEY;
+            window.Flags = WFLG_BORDERLESS | WFLG_ACTIVATE | WFLG_BACKDROP |
+                           WFLG_RMBTRAP | WFLG_SMART_REFRESH | WFLG_REPORTMOUSE;
+            window.Screen = app->screen;
+            app->window = OpenWindow(&window);
         }
 
         if (!app->window) {
