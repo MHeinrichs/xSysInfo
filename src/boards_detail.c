@@ -89,10 +89,213 @@ static void draw_board_detail_value(WORD y, const char *value)
 static void draw_board_detail_values(void)
 {
     char buffer[64];
-    WORD y = 44;
-  
-  
+    WORD y = 40;
+    BoardInfo *board = (board_list.boards+board_detail_index);
+    UBYTE erType = (board->board_type_flags >> 6);
+    
+    /* Board Address */
+    snprintf(buffer, sizeof(buffer), "%s", (unsigned long)board->address_string);
     draw_board_detail_value(y, buffer);
+    y += 10;
+
+    /* Total size */
+    draw_board_detail_value(y, board->size_string);
+    y += 10;
+
+    /* Board type */
+    draw_board_detail_value(y, get_board_type_string(board->board_type));
+    y += 10;
+
+    /* Product */
+    if (app->board_display == BOARD_DISPLAY_NAMES) {
+        snprintf(buffer, sizeof(buffer), "%s", board->product_name);
+    } else if (app->board_display == BOARD_DISPLAY_HEX) {
+        snprintf(buffer, sizeof(buffer),
+                board->board_type == BOARD_PCI ? "$%04lX" : "$%02lX",
+                (unsigned long)board->product_id);
+    } else {
+        snprintf(buffer, sizeof(buffer), "%u", board->product_id);
+    }    
+    draw_board_detail_value(y, buffer);
+    y += 10;
+
+    /* Manufactor */
+    if (app->board_display == BOARD_DISPLAY_NAMES) {
+        snprintf(buffer, sizeof(buffer), "%s", board->manufacturer_name);
+    } else if (app->board_display == BOARD_DISPLAY_HEX) {
+        snprintf(buffer, sizeof(buffer), "$%04lX",
+                 (unsigned long)board->manufacturer_id);
+    } else {
+        snprintf(buffer, sizeof(buffer), "%u", board->manufacturer_id);
+    }
+    draw_board_detail_value(y, buffer);
+    y += 10;
+
+    /* Serial or PCI class */
+    if (board->board_type == BOARD_PCI ||
+        app->board_display == BOARD_DISPLAY_NAMES) {
+        snprintf(buffer, sizeof(buffer), "%s", board->detail_string);
+    } else {
+        snprintf(buffer, sizeof(buffer),
+                app->board_display == BOARD_DISPLAY_HEX ? "$%08lX" : "%lu",
+                (unsigned long)board->serial_number);
+    }
+    draw_board_detail_value(y, buffer);
+    y += 10;
+
+    /* System memory */
+    if(board->board_type_flags & (1<<5)){
+        snprintf(buffer, sizeof(buffer), "%s", get_string(MSG_YES));
+    }
+    else{
+        snprintf(buffer, sizeof(buffer), "%s", get_string(MSG_NO));
+    }
+    draw_board_detail_value(y, buffer);
+    y += 10;
+
+    /* Is IO Board */
+    if(board->board_flags & (1<<7)){
+        if(erType == 2){
+            snprintf(buffer, sizeof(buffer), "%s", get_string(MSG_BOARD_Z3_MEM_DEVICE));
+        }
+        else{
+            snprintf(buffer, sizeof(buffer), "%s", get_string(MSG_BOARD_Z2_MEM));
+        }
+    }
+    else{
+        if(erType == 2){
+            snprintf(buffer, sizeof(buffer), "%s", get_string(MSG_BOARD_Z3_IO_DEVICE));
+        }
+        else{
+            snprintf(buffer, sizeof(buffer), "%s", get_string(MSG_BOARD_Z2_ANY));
+        }
+    }
+    draw_board_detail_value(y, buffer);
+    y += 10;
+
+    /* Has rom */
+    if(board->board_type_flags & (1<<4)){
+        snprintf(buffer, sizeof(buffer), "%s", get_string(MSG_YES));
+    }
+    else{
+        snprintf(buffer, sizeof(buffer), "%s", get_string(MSG_NO));
+    }
+    draw_board_detail_value(y, buffer);
+    y += 10;
+
+    if(board->board_type_flags & (1<<4)){
+        snprintf(buffer, sizeof(buffer), "$%04X", board->rom_vector);
+    }
+    else{
+        snprintf(buffer, sizeof(buffer), "%s", get_string(MSG_NA));
+    }
+    draw_board_detail_value(y, buffer);
+    y += 10;
+
+    /* Is next board related */
+    if(board->board_type_flags & (1<<3)){
+        snprintf(buffer, sizeof(buffer), "%s", get_string(MSG_YES));
+    }
+    else{
+        snprintf(buffer, sizeof(buffer), "%s", get_string(MSG_NO));
+    }
+    draw_board_detail_value(y, buffer);
+    y += 10;
+
+    /* can shut up */
+    if(board->board_flags & (1<<6)){
+        snprintf(buffer, sizeof(buffer), "%s", get_string(MSG_NO));
+    }
+    else{
+        snprintf(buffer, sizeof(buffer), "%s", get_string(MSG_YES));
+    }
+    draw_board_detail_value(y, buffer);
+    y += 10;
+
+    /* Is Z3 (from flags)*/
+    if(board->board_flags & (1<<4)){
+        snprintf(buffer, sizeof(buffer), "%s", get_string(MSG_YES));
+    }
+    else{
+        snprintf(buffer, sizeof(buffer), "%s", get_string(MSG_NO));
+    }
+    draw_board_detail_value(y, buffer);
+    y += 10;
+
+    /* size extension (Z3)*/
+    if(erType == 2){
+        if(board->board_flags & (1<<5)){
+            snprintf(buffer, sizeof(buffer), "%s", get_string(MSG_YES));
+        }
+        else{
+            snprintf(buffer, sizeof(buffer), "%s", get_string(MSG_NO));
+        }
+    }
+    else{
+        snprintf(buffer, sizeof(buffer), "%s", get_string(MSG_NA));
+    }
+    draw_board_detail_value(y, buffer);
+    y += 10;
+
+    if(erType == 2){
+        UBYTE size = (board->board_type_flags & 0x7);
+        switch(size){
+            case 0:
+                snprintf(buffer, sizeof(buffer), "%s", get_string(MSG_BOARD_LOGIC_MATCH));
+                break;
+            case 1:
+                snprintf(buffer, sizeof(buffer), "%s", get_string(MSG_BOARD_AUTO_SIZE));
+                break;
+            case 2:
+                snprintf(buffer, sizeof(buffer), "64KB");
+                break;
+            case 3:
+                snprintf(buffer, sizeof(buffer), "128KB");
+                break;
+            case 4:
+                snprintf(buffer, sizeof(buffer), "256KB");
+                break;
+            case 5:
+                snprintf(buffer, sizeof(buffer), "512KB");
+                break;
+            case 6:
+                snprintf(buffer, sizeof(buffer), "1MB");
+                break;
+            case 7:
+                snprintf(buffer, sizeof(buffer), "2MB");
+                break;
+            case 8:
+                snprintf(buffer, sizeof(buffer), "4MB");
+                break;
+            case 9:
+                snprintf(buffer, sizeof(buffer), "6MB");
+                break;
+            case 10:
+                snprintf(buffer, sizeof(buffer), "8MB");
+                break;
+            case 11:
+                snprintf(buffer, sizeof(buffer), "10MB");
+                break;
+            case 12:
+                snprintf(buffer, sizeof(buffer), "12MB");
+                break;
+            case 13:
+                snprintf(buffer, sizeof(buffer), "14MB");
+                break;
+            case 14:
+            case 15:
+            default:
+                snprintf(buffer, sizeof(buffer), "%s", get_string(MSG_BOARD_RESERVED));
+                break;
+        }
+        buffer[0];
+    }
+    else{
+        snprintf(buffer, sizeof(buffer), "%s", get_string(MSG_NA));
+    }
+    draw_board_detail_value(y, buffer);
+    y += 10;
+    
 }
 
 /*
@@ -101,18 +304,81 @@ static void draw_board_detail_values(void)
 static void draw_board_detail_data(BOOL full_redraw)
 {
     struct RastPort *rp = app->rp;
-    char buffer[64];
-    WORD y;
+    char buffer[4];
+    WORD y = 40;
 
     if (full_redraw) {
         /* Draw memory info panel with 3D border */
-        draw_panel(100, 28, 520, 150, NULL);
+        draw_panel(100, 28, 520, 158, NULL);
     } else {
         draw_board_detail_values();
         draw_board_detail_buttons();
         return;
     }
 
+    //now draw the fix text values
+
+    /* Board Address */
+    draw_label_value(128, y, get_string(MSG_BOARD_ADDRESS), buffer, 168);
+    y += 10;
+
+    /* Total size */
+    draw_label_value(128, y, get_string(MSG_BOARD_SIZE), buffer, 168);
+    y += 10;
+
+    /* Board type */
+    draw_label_value_max(128, y, get_string(MSG_BOARD_TYPE), buffer, 168, 618);
+    y += 10;
+
+    /* Product */
+    draw_label_value(128, y, get_string(MSG_PRODUCT), buffer, 168);
+    y += 10;
+
+    /* Manufactor */
+    draw_label_value(128, y, get_string(MSG_MANUFACTURER), buffer, 168);
+    y += 10;
+
+    /* Serial or PCI class */
+    draw_label_value(128, y, get_string(MSG_SERIAL_NO), buffer, 168);
+    y += 10;
+
+    /* System memory */
+    draw_label_value(128, y, get_string(MSG_BOARD_SYS_MEM), buffer, 168);
+    y += 10;
+
+    /* is an IO board*/
+    draw_label_value(128, y, get_string(MSG_BOARD_IO), buffer, 168);
+    y += 10;
+
+    /* Has rom */
+    draw_label_value(128, y, get_string(MSG_BOARD_ROM), buffer, 168);
+    y += 10;
+
+    /* ROM vector offset */
+    draw_label_value(128, y, get_string(MSG_BOARD_ROM_VECTOR), buffer, 168);
+    y += 10;
+
+    /* is next board related*/
+    draw_label_value(128, y, get_string(MSG_BOARD_NEXT_RELATED), buffer, 168);
+    y += 10;
+
+    /* Can shut up */
+    draw_label_value(128, y, get_string(MSG_BOARD_CAN_SHUTUP), buffer, 168);
+    y += 10;
+
+    /* type from flags */
+    draw_label_value(128, y, get_string(MSG_BOARD_TYPE_FLAG), buffer, 168);
+    y += 10;
+
+    /* uses size extension */
+    draw_label_value(128, y, get_string(MSG_BOARD_SIZE_EXTENSION), buffer, 168);
+    y += 10;
+
+    /* Sub size */
+    draw_label_value(128, y, get_string(MSG_BOARD_SUB_SIZE), buffer, 168);
+    y += 10;
+
+    draw_board_detail_values(); //fill the values
 
     /* Draw navigation buttons */
     draw_board_detail_buttons();
