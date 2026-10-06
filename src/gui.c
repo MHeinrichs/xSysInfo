@@ -144,41 +144,125 @@ static void refresh_hardware_benchmark_rows(void);
 static void build_hardware_rows(void);
 static void add_hardware_buttons(void);
 
+/* Shared by gradients, the logo, and TightText's ink/coverage planes.
+ * UI fonts are validated by open_ui_font(): at most eight pixels high. */
+#define DRAWING_TEMPLATE_SIZE (((SCREEN_WIDTH + 30) / 16) * 2 * 16)
+#define TEXT_TEMPLATE_WORDS ((SCREEN_WIDTH + 15) / 16)
+static UWORD *drawing_template;
+
+/* Compose the validated UI bitmap font, preserving skipped spaces and
+ * per-character overwrite order. Two masks also retain JAM1/COMPLEMENT. */
 void TightText(struct RastPort *rp, int x, int y, CONST_STRPTR str, int charGap, int spaceWidth)
 {
-    int currentX = x;
-    int targetWidth = 0;
+    const struct TextFont *font = rp->Font;
+    const ULONG *locations = font->tf_CharLoc;
+    const WORD *kerning = font->tf_CharKern;
+    UWORD *ink = drawing_template;
+    UWORD *coverage = ink + TEXT_TEMPLATE_WORDS * font->tf_YSize;
+    UBYTE mode = rp->DrawMode;
+    UBYTE pen = rp->FgPen;
+    int currentX = x, finalX = x;
+    int targetWidth = charGap < 0 ? 8 + charGap : 0;
+    int left = SCREEN_WIDTH, right = 0;
+    int space = TextLength(rp, (CONST_STRPTR)" ", 1);
 
-    /*
-     * Negative gaps were tuned around Topaz 8. Treat them as target
-     * advances from that font and leave already-narrow fonts alone.
-     */
-    if (charGap < 0)
-        targetWidth = 8 + charGap;
-    if (spaceWidth > TextLength(rp, (CONST_STRPTR)" ", 1))
-        spaceWidth = TextLength(rp, (CONST_STRPTR)" ", 1);
+    if (spaceWidth > space) spaceWidth = space;
+    memset(ink, 0, TEXT_TEMPLATE_WORDS * sizeof(UWORD) * font->tf_YSize * 2);
 
-    Move(rp, x, y);
+    for (; *str; str++) {
+        unsigned ch = (UBYTE)*str, index;
+        ULONG location;
+        int advance, gap = charGap, kern, width, extent, row;
+        const UBYTE *glyph;
 
-    for (int i = 0; str[i]; i++) {
-        if (str[i] == ' ') {
+        if (ch == ' ') {
             currentX += spaceWidth;
-        } else {
-            int charWidth = TextLength(rp, &str[i], 1);
-            int effectiveGap = charGap;
-
-            if (targetWidth > 0) {
-                if (charWidth <= targetWidth)
-                    effectiveGap = 0;
-                else
-                    effectiveGap = targetWidth - charWidth;
-            }
-
-            Move(rp, currentX, y);
-            Text(rp, &str[i], 1);
-            currentX += charWidth + effectiveGap;
+            continue;
         }
+        advance = TextLength(rp, str, 1);
+        if (targetWidth > 0)
+            gap = advance > targetWidth ? targetWidth - advance : 0;
+        index = ch >= font->tf_LoChar && ch <= font->tf_HiChar ?
+                ch - font->tf_LoChar : font->tf_HiChar - font->tf_LoChar + 1;
+        location = locations[index];
+        kern = kerning ? kerning[index] : 0;
+        width = location & 0xffff;
+        glyph = (const UBYTE *)font->tf_CharData + (location >> 19);
+        extent = advance;
+        /* V34 Text clips ink extending past its final pen position. */
+        if (GfxBase->LibNode.lib_Version >= 36 && kern + width > extent)
+            extent = kern + width;
+
+        {
+            int first = currentX < 0 ? -currentX : 0;
+            int last = currentX + extent > SCREEN_WIDTH ? SCREEN_WIDTH - currentX : extent;
+            int glyphFirst = first > kern ? first : kern;
+            int glyphLast = last < kern + width ? last : kern + width;
+            int dest = currentX + first;
+            ULONG cell, keep, invert;
+            ULONG *out, *covered;
+            unsigned sourceBit = 0, sourceShift = 0, destShift = 0;
+            ULONG sourceMask = 0;
+            BOOL crossesByte = FALSE;
+
+            if (last > first) {
+                cell = ((1UL << (last - first)) - 1) << (32 - (dest & 15) - (last - first));
+                keep = mode & JAM2 ? ~cell : ~0UL;
+                invert = mode & INVERSVID ? cell : 0;
+                /* A glyph spans at most two words. The shared allocation
+                 * includes a spare word beyond the final coverage row. */
+                out = (ULONG *)(ink + (dest >> 4));
+                covered = (ULONG *)(coverage + (dest >> 4));
+                if (glyphLast > glyphFirst) {
+                    sourceBit = (location >> 16) + glyphFirst - kern;
+                    glyph = (const UBYTE *)font->tf_CharData + (sourceBit >> 3);
+                    sourceShift = 16 - (sourceBit & 7) - (glyphLast - glyphFirst);
+                    sourceMask = (1UL << (glyphLast - glyphFirst)) - 1;
+                    crossesByte = (sourceBit & 7) + glyphLast - glyphFirst > 8;
+                    destShift = 32 - (dest & 15) - (glyphLast - first);
+                }
+                if (dest < left) left = dest;
+                if (currentX + last > right) right = currentX + last;
+                for (row = 0; row < font->tf_YSize; row++) {
+                    ULONG bits = 0;
+                    if (glyphLast > glyphFirst) {
+                        bits = (UWORD)glyph[0] << 8;
+                        if (crossesByte) bits |= glyph[1];
+                        bits = ((bits >> sourceShift) & sourceMask) << destShift;
+                        glyph += font->tf_Modulo;
+                    }
+                    bits ^= invert;
+                    *covered |= cell;
+                    if (mode & COMPLEMENT) *out ^= bits;
+                    else *out = (*out & keep) | bits;
+                    out = (ULONG *)((UWORD *)out + TEXT_TEMPLATE_WORDS);
+                    covered = (ULONG *)((UWORD *)covered + TEXT_TEMPLATE_WORDS);
+                }
+            }
+        }
+        finalX = currentX + advance;
+        currentX += advance + gap;
     }
+
+    if (right > left) {
+        WORD offset = left >> 4;
+        WORD top = y - font->tf_Baseline;
+
+        /* Coverage leaves spaces untouched. Replacing covered ink above
+         * reproduces the original per-character JAM2 overlap order. */
+        SetDrMd(rp, mode & COMPLEMENT ? COMPLEMENT : JAM1);
+        if ((mode & JAM2) && !(mode & COMPLEMENT)) {
+            SetAPen(rp, rp->BgPen);
+            BltTemplate(coverage + offset, left & 15, TEXT_TEMPLATE_WORDS * 2,
+                        rp, left, top, right - left, font->tf_YSize);
+            SetAPen(rp, pen);
+        }
+        BltTemplate(ink + offset, left & 15, TEXT_TEMPLATE_WORDS * 2,
+                    rp, left, top, right - left, font->tf_YSize);
+        WaitBlit();
+        SetDrMd(rp, mode);
+    }
+    Move(rp, finalX, y);
 }
 
 /*
@@ -568,9 +652,6 @@ void draw_main_view(void)
     draw_bottom_buttons();
 }
 
-/* Shared by the logo and gradients; allow a partial word at either edge. */
-#define DRAWING_TEMPLATE_SIZE (((SCREEN_WIDTH + 30) / 16) * 2 * 16)
-static UWORD *drawing_template;
 
 BOOL init_drawing(void)
 {
