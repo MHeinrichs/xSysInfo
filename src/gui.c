@@ -1109,10 +1109,11 @@ void draw_scroll_bar(WORD x, WORD y, WORD w, WORD h, ULONG pos, ULONG total, ULO
 /*
  * Draw text at position
  */
-void draw_text(WORD x, WORD y, const char *text, UBYTE color)
+/* Explicit spans keep the compatibility sequence in one place. */
+static void draw_text_span(WORD x, WORD y, const char *text, WORD len,
+                           UBYTE color)
 {
     struct RastPort *rp = app->rp;
-    WORD len = strlen(text);
 
     SetAPen(rp, color);
     SetBPen(rp, COLOR_PANEL_BG);
@@ -1121,27 +1122,25 @@ void draw_text(WORD x, WORD y, const char *text, UBYTE color)
     Text(rp, (CONST_STRPTR)text, len);
 }
 
-/*
- * Draw text right-aligned
- */
-void draw_text_right(WORD x, WORD y, WORD width, const char *text, UBYTE color)
+void draw_text(WORD x, WORD y, const char *text, UBYTE color)
 {
-    struct RastPort *rp = app->rp;
-    WORD text_x = x + width - TextLength(rp, (CONST_STRPTR)text, strlen(text));
-
-    draw_text(text_x, y, text, color);
+    draw_text_span(x, y, text, strlen(text), color);
 }
 
-/*
- * Draw text centered within a width
- */
+void draw_text_right(WORD x, WORD y, WORD width, const char *text, UBYTE color)
+{
+    WORD len = strlen(text);
+    WORD text_x = x + width - TextLength(app->rp, (CONST_STRPTR)text, len);
+
+    draw_text_span(text_x, y, text, len, color);
+}
+
 void draw_text_centered(WORD x, WORD y, WORD width, const char *text, UBYTE color)
 {
-    struct RastPort *rp = app->rp;
-    WORD text_x = x + (width - TextLength(rp, (CONST_STRPTR)text,
-                                           strlen(text))) / 2;
+    WORD len = strlen(text);
+    WORD text_x = x + (width - TextLength(app->rp, (CONST_STRPTR)text, len)) / 2;
 
-    draw_text(text_x, y, text, color);
+    draw_text_span(text_x, y, text, len, color);
 }
 
 /*
