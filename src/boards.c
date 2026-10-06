@@ -28,7 +28,8 @@
 
 #define BOARD_LIST_FIRST_Y 56
 #define BOARD_LIST_LINE_H 10
-#define BOARD_LIST_BOTTOM_PAD 50
+/* Navigation stays at y=188 regardless of screen height. */
+#define BOARD_LIST_ROWS 13
 
 #define OPENPCI_MANUFACTURER_FIRST 1729
 #define OPENPCI_MANUFACTURER_LAST  1735
@@ -351,24 +352,13 @@ static void draw_board_field_clipped(WORD x, WORD y, const char *text,
     draw_text_clipped(x, y, text, max_x - x);
 }
 
-static LONG visible_board_rows(void)
-{
-    LONG rows;
-
-    rows = ((LONG)app->screen_height - BOARD_LIST_BOTTOM_PAD -
-            BOARD_LIST_FIRST_Y + BOARD_LIST_LINE_H - 1) / BOARD_LIST_LINE_H;
-    return rows > 0 ? rows : 1;
-}
-
 static LONG max_board_scroll(void)
 {
-    LONG rows = visible_board_rows();
-
-    if ((LONG)board_list.count <= rows) {
+    if (board_list.count <= BOARD_LIST_ROWS) {
         return 0;
     }
 
-    return (LONG)board_list.count - rows;
+    return (LONG)board_list.count - BOARD_LIST_ROWS;
 }
 
 /*
@@ -388,7 +378,7 @@ static void draw_board_list(void)
 
     y = BOARD_LIST_FIRST_Y;
     for (i = app->board_scroll;
-         i < board_list.count && y < app->screen_height - BOARD_LIST_BOTTOM_PAD;
+         i < board_list.count && i < (ULONG)app->board_scroll + BOARD_LIST_ROWS;
          i++) {
 
         BoardInfo *board = &board_list.boards[i];
@@ -501,7 +491,7 @@ static void refresh_board_list(void)
 {
     struct RastPort *rp = app->rp;
     WORD top = BOARD_LIST_FIRST_Y - rp->TxBaseline;
-    WORD bottom = top + (visible_board_rows() - 1) * BOARD_LIST_LINE_H +
+    WORD bottom = top + (BOARD_LIST_ROWS - 1) * BOARD_LIST_LINE_H +
                   rp->TxHeight - 1;
 
     SetAPen(rp, COLOR_BACKGROUND);
