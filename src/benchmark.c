@@ -66,13 +66,9 @@ void format_reference_label(char *buffer, size_t buffer_size, const ReferenceSys
 
 /* Timer resources */
 static struct MsgPort *timer_port = NULL;
-static struct MsgPort *etimer_port = NULL;
 static struct timerequest *timer_req = NULL;
 struct Device *TimerBase = NULL;
 static BOOL timer_open = FALSE;
-static struct timerequest *etimer_req = NULL;
-struct Device *ETimerBase = NULL;
-static BOOL etimer_open = FALSE;
 
 
 /* External references */
@@ -105,38 +101,6 @@ BOOL init_timer(void)
     timer_open = TRUE;
     TimerBase = (struct Device *)timer_req->tr_node.io_Device;
 
-    if (SysBase->LibNode.lib_Version < 36) {
-        return TRUE;
-    }
-
-    etimer_port = CreatePort(NULL, 0);
-    if (!etimer_port) {
-        debug("    init_timer: no etimer_port, falling back to microhz timer\n");
-        return TRUE;
-    }
-
-    etimer_req = (struct timerequest *)
-        CreateExtIO(etimer_port, sizeof(struct timerequest));
-    if (!etimer_req) {
-        debug("    init_timer: no etimer_req, falling back to microhz timer\n");
-        DeletePort(etimer_port);
-        etimer_port = NULL;
-        return TRUE;
-    }
-
-    if (OpenDevice((CONST_STRPTR)"timer.device", UNIT_ECLOCK,
-                   (struct IORequest *)etimer_req, 0) != 0) {
-        debug("    init_timer: no OpenDevice etimer_req, falling back to microhz timer\n");
-        DeleteExtIO((struct IORequest *)etimer_req);
-        etimer_req = NULL;
-        DeletePort(etimer_port);
-        etimer_port = NULL;
-        return TRUE;
-    }
-
-    ETimerBase = (struct Device *)etimer_req->tr_node.io_Device;
-    etimer_open = TRUE;
-
     return TRUE;
 }
 
@@ -155,29 +119,12 @@ void cleanup_timer(void)
         timer_req = NULL;
     }
 
-    if (etimer_open) {
-        CloseDevice((struct IORequest *)etimer_req);
-        etimer_open = FALSE;
-    }
-
-    if (etimer_req) {
-        DeleteExtIO((struct IORequest *)etimer_req);
-        etimer_req = NULL;
-    }
-
     if (timer_port) {
         DeletePort(timer_port);
         timer_port = NULL;
     }
 
-    if (etimer_port) {
-        DeletePort(etimer_port);
-        etimer_port = NULL;
-    }
-
-
     TimerBase = NULL;
-    ETimerBase = NULL;
 }
 
 BOOL benchmark_timer_available(void)
@@ -212,18 +159,9 @@ ULONG read_benchmark_clock(struct EClockVal *val)
         return 0;
     }
 
-    if (ETimerBase && etimer_open) {
+    if (TimerBase->dd_Library.lib_Version >= 36 &&
+        SysBase->LibNode.lib_Version >= 36) {
         return ReadEClock(val);
-    }
-
-    if (SysBase->LibNode.lib_Version >= 36) {
-        /*
-         * GetSysTime() is a V36+ timer.device call. timeval and EClockVal
-         * share the same two ULONG fields, so the diff helper below can
-         * reuse them; returning 0 selects its microsecond path.
-         */
-        GetSysTime((struct timeval *)val);
-        return 0;
     }
 
     /*
