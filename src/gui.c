@@ -187,7 +187,7 @@ static WORD draw_tight_text(struct RastPort *rp, int x, int y,
         if (targetWidth > 0)
             gap = advance > targetWidth ? targetWidth - advance : 0;
         index = ch >= font->tf_LoChar && ch <= font->tf_HiChar ?
-                ch - font->tf_LoChar : font->tf_HiChar - font->tf_LoChar + 1;
+                ch - font->tf_LoChar : font->tf_HiChar - font->tf_LoChar + 1U;
         location = locations[index];
         kern = kerning ? kerning[index] : 0;
         width = location & 0xffff;
