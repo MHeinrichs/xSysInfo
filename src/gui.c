@@ -2056,27 +2056,9 @@ static void refresh_all_cache_buttons(void)
 
 static void show_timed_overlay(const char *message, ULONG ticks)
 {
-    struct RastPort *rp = app->rp;
-    WORD text_len = strlen(message);
-    WORD text_width = TextLength(rp, (CONST_STRPTR)message, text_len);
-    WORD dialog_w = text_width + 32;
-    WORD dialog_h = 28;
-    WORD dialog_x = (SCREEN_WIDTH - dialog_w) / 2;
-    WORD dialog_y = (app->screen_height - dialog_h) / 2;
-
-    SetAPen(rp, COLOR_BAR_YOU);
-    RectFill(rp, dialog_x, dialog_y,
-             dialog_x + dialog_w - 1, dialog_y + dialog_h - 1);
-
-    draw_3d_box(dialog_x, dialog_y, dialog_w, dialog_h, FALSE);
-
-    SetAPen(rp, COLOR_HIGHLIGHT);
-    SetBPen(rp, COLOR_BAR_YOU);
-    Move(rp, dialog_x + (dialog_w - text_width) / 2, dialog_y + 16);
-    Text(rp, (CONST_STRPTR)message, text_len);
-
+    show_status_overlay(message);
     Delay(ticks);
-    redraw_current_view();
+    hide_status_overlay();
 }
 
 /*
@@ -2268,27 +2250,22 @@ static BOOL save_overlay_area(WORD x, WORD y, WORD w, WORD h)
     overlay_backup.allocated_bitmap = FALSE;
 
     if (GfxBase->LibNode.lib_Version >= 39) {
-        ULONG flags = BMF_CLEAR;
+        ULONG flags = 0;
 
         if (app->use_custom_screen)
             flags |= BMF_STANDARD;
 
         overlay_backup.bitmap = AllocBitMap(w, h, depth, flags,
                                             app->rp->BitMap);
-        if (overlay_backup.bitmap) {
-            overlay_backup.allocated_bitmap = TRUE;
-        }
-    }
-
-    if (!overlay_backup.bitmap) {
+        if (!overlay_backup.bitmap)
+            return FALSE;
+        overlay_backup.allocated_bitmap = TRUE;
+    } else {
         if (depth > 8)
             return FALSE;
 
         InitBitMap(&overlay_backup.legacy_bitmap, depth, w, h);
         overlay_backup.bitmap = &overlay_backup.legacy_bitmap;
-    }
-
-    if (!overlay_backup.allocated_bitmap) {
         for (plane = 0; plane < depth; plane++) {
             overlay_backup.legacy_bitmap.Planes[plane] = AllocRaster(w, h);
             if (!overlay_backup.legacy_bitmap.Planes[plane]) {
@@ -2345,17 +2322,14 @@ static void show_status_overlay_centered(const char *message,
     WORD dialog_x = area_x + (area_w - dialog_w) / 2;
     WORD dialog_y = area_y + (area_h - dialog_h) / 2;
 
-    save_overlay_area(dialog_x, dialog_y, dialog_w, dialog_h);
+    if (!save_overlay_area(dialog_x, dialog_y, dialog_w, dialog_h))
+        return;
 
     /* Allocate explicitly: some toolchains lose __chip hunk flags. */
     if (!blank_pointer)
         blank_pointer = AllocMem(BLANK_POINTER_SIZE, MEMF_CHIP | MEMF_CLEAR);
     if (blank_pointer)
         SetPointer(app->window, blank_pointer, 1, 16, 0, 0);
-
-    /* Draw shadow */
-    //SetAPen(rp, COLOR_BUTTON_DARK);
-    //RectFill(rp, dialog_x + 2, dialog_y + 2, dialog_x + dialog_w + 1, dialog_y + dialog_h + 1);
 
     /* Draw red background */
     SetAPen(rp, COLOR_BAR_YOU);  /* Red color */
@@ -2393,8 +2367,6 @@ static void show_speed_status_overlay(const char *message)
  */
 void hide_status_overlay(void)
 {
-    BOOL restored;
-
     if (blank_pointer) {
         ClearPointer(app->window);
         /* Let the copper switch pointers before releasing sprite data. */
@@ -2403,11 +2375,7 @@ void hide_status_overlay(void)
         blank_pointer = NULL;
     }
 
-    restored = restore_overlay_area();
-    if (!restored) {
-        /* Fallback for deep/unknown bitmaps or allocation failure. */
-        redraw_current_view();
-    }
+    restore_overlay_area();
 }
 
 /*
@@ -2573,7 +2541,8 @@ BOOL show_filename_requester(const char *title, char *filename, ULONG filename_s
     Button ok_btn = { ok_x, btn_y, btn_w, btn_h, get_string(MSG_BTN_OK), BTN_NONE, TRUE, FALSE };
     Button cancel_btn = { cancel_x, btn_y, btn_w, btn_h, get_string(MSG_BTN_CANCEL), BTN_NONE, TRUE, FALSE };
 
-    save_overlay_area(dialog_x, dialog_y, dialog_w, dialog_h);
+    if (!save_overlay_area(dialog_x, dialog_y, dialog_w, dialog_h))
+        return FALSE;
 
     /* Initialize cursor position at end of filename */
     filename_len = strlen(filename);
