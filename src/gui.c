@@ -152,7 +152,9 @@ static UWORD *drawing_template;
 
 /* Compose the validated UI bitmap font, preserving skipped spaces and
  * per-character overwrite order. Two masks also retain JAM1/COMPLEMENT. */
-void TightText(struct RastPort *rp, int x, int y, CONST_STRPTR str, int charGap, int spaceWidth)
+static WORD draw_tight_text(struct RastPort *rp, int x, int y,
+                            CONST_STRPTR str, int charGap, int spaceWidth,
+                            int right_edge, BOOL erase_spaces)
 {
     const struct TextFont *font = rp->Font;
     const ULONG *locations = font->tf_CharLoc;
@@ -175,11 +177,13 @@ void TightText(struct RastPort *rp, int x, int y, CONST_STRPTR str, int charGap,
         int advance, gap = charGap, kern, width, extent, row;
         const UBYTE *glyph;
 
-        if (ch == ' ') {
+        if (ch == ' ' && !erase_spaces) {
             currentX += spaceWidth;
             continue;
         }
         advance = TextLength(rp, str, 1);
+        if (right_edge >= 0 && currentX + advance > right_edge)
+            break;
         if (targetWidth > 0)
             gap = advance > targetWidth ? targetWidth - advance : 0;
         index = ch >= font->tf_LoChar && ch <= font->tf_HiChar ?
@@ -188,6 +192,9 @@ void TightText(struct RastPort *rp, int x, int y, CONST_STRPTR str, int charGap,
         kern = kerning ? kerning[index] : 0;
         width = location & 0xffff;
         glyph = (const UBYTE *)font->tf_CharData + (location >> 19);
+        if (ch == ' ' && erase_spaces) {
+            width = kern = gap = 0;
+        }
         extent = advance;
         /* V34 Text clips ink extending past its final pen position. */
         if (GfxBase->LibNode.lib_Version >= 36 && kern + width > extent)
@@ -263,6 +270,13 @@ void TightText(struct RastPort *rp, int x, int y, CONST_STRPTR str, int charGap,
         SetDrMd(rp, mode);
     }
     Move(rp, finalX, y);
+    return finalX;
+}
+
+void TightText(struct RastPort *rp, int x, int y, CONST_STRPTR str,
+               int charGap, int spaceWidth)
+{
+    draw_tight_text(rp, x, y, str, charGap, spaceWidth, -1, FALSE);
 }
 
 /*
@@ -1396,19 +1410,8 @@ static void draw_software_field(WORD x, WORD y, const char *text,
     WORD end = x;
 
     if (tight) {
-        for (; *text; text++) {
-            WORD char_width = TextLength(rp, (CONST_STRPTR)text, 1);
-            if (x + char_width > right) break;
-            end = x + char_width;
-            if (*text == ' ') {
-                clear_software_text(x, y, char_width);
-                x = end;
-            } else {
-                Move(rp, x, y);
-                Text(rp, (CONST_STRPTR)text, 1);
-                x += char_width > 7 ? 7 : char_width;
-            }
-        }
+        end = draw_tight_text(rp, x, y, (CONST_STRPTR)text, -1, 0,
+                              right, TRUE);
     } else {
         Move(rp, x, y);
         draw_text_clipped(x, y, text, width);
