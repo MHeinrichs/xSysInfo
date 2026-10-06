@@ -374,34 +374,12 @@ static LONG max_board_scroll(void)
 /*
  * Draw boards view
  */
-void draw_boards_view(void)
+static void draw_board_list(void)
 {
     struct RastPort *rp = app->rp;
     WORD y;
     ULONG i;
     char buffer[128];
-    Button *btn;
-
-    /* Draw title panel */
-    draw_panel(20,  0, 600, 24, NULL);
-
-    draw_text_centered(20, 14, 600, get_string(MSG_BOARDS_INFO), COLOR_TEXT);
-
-    /* Draw column headers */
-    y = 40;
-    SetAPen(rp, COLOR_TEXT);
-
-    TightText(rp,  25, y, (CONST_STRPTR)get_string(MSG_BOARD_ADDRESS), -1, 4);
-    TightText(rp, 136, y, (CONST_STRPTR)get_string(MSG_BOARD_SIZE), -1, 4);
-    TightText(rp, 214, y, (CONST_STRPTR)get_string(MSG_BOARD_TYPE), -1, 4);
-    TightText(rp, 296, y, (CONST_STRPTR)get_string(MSG_PRODUCT), -1, 4);
-    TightText(rp, 420, y, (CONST_STRPTR)get_string(MSG_MANUFACTURER), -1, 4);
-    TightText(rp, 550, y, (CONST_STRPTR)get_string(MSG_SERIAL_NO), -1, 4);
-
-    /* Draw separator line */
-    SetAPen(rp, COLOR_BUTTON_DARK);
-    Move(rp, 20, y + 4);
-    Draw(rp, 628, y + 4);
 
     /* Draw board entries */
     if (app->board_scroll > max_board_scroll()) {
@@ -472,6 +450,11 @@ void draw_boards_view(void)
         draw_text_clipped(200, 120, get_string(MSG_BOARDS_NO_BOARDS_FOUND),
                           SCREEN_WIDTH - 204);
     }
+}
+
+static void draw_board_buttons(void)
+{
+    Button *btn;
 
     /* Draw bottom buttons */
     btn = find_button(BTN_BOARD_PREV);
@@ -482,6 +465,50 @@ void draw_boards_view(void)
     if (btn) draw_cycle_button(btn);
     btn = find_button(BTN_BOARD_EXIT);
     if (btn) draw_button(btn);
+}
+
+void draw_boards_view(void)
+{
+    struct RastPort *rp = app->rp;
+    WORD y;
+
+    /* Draw title panel */
+    draw_panel(20,  0, 600, 24, NULL);
+
+    draw_text_centered(20, 14, 600, get_string(MSG_BOARDS_INFO), COLOR_TEXT);
+
+    /* Draw column headers */
+    y = 40;
+    SetAPen(rp, COLOR_TEXT);
+
+    TightText(rp,  25, y, (CONST_STRPTR)get_string(MSG_BOARD_ADDRESS), -1, 4);
+    TightText(rp, 136, y, (CONST_STRPTR)get_string(MSG_BOARD_SIZE), -1, 4);
+    TightText(rp, 214, y, (CONST_STRPTR)get_string(MSG_BOARD_TYPE), -1, 4);
+    TightText(rp, 296, y, (CONST_STRPTR)get_string(MSG_PRODUCT), -1, 4);
+    TightText(rp, 420, y, (CONST_STRPTR)get_string(MSG_MANUFACTURER), -1, 4);
+    TightText(rp, 550, y, (CONST_STRPTR)get_string(MSG_SERIAL_NO), -1, 4);
+
+    /* Draw separator line */
+    SetAPen(rp, COLOR_BUTTON_DARK);
+    Move(rp, 20, y + 4);
+    Draw(rp, 628, y + 4);
+
+    draw_board_list();
+    draw_board_buttons();
+}
+
+static void refresh_board_list(void)
+{
+    struct RastPort *rp = app->rp;
+    WORD top = BOARD_LIST_FIRST_Y - rp->TxBaseline;
+    WORD bottom = top + (visible_board_rows() - 1) * BOARD_LIST_LINE_H +
+                  rp->TxHeight - 1;
+
+    SetAPen(rp, COLOR_BACKGROUND);
+    RectFill(rp, 20, top, SCREEN_WIDTH - 1, bottom);
+    draw_board_list();
+    update_button_states();
+    draw_board_buttons();
 }
 
 /*
@@ -523,20 +550,20 @@ void boards_view_handle_button(ButtonID id)
         case BTN_BOARD_PREV:
             if (app->board_scroll > 0) {
                 app->board_scroll--;
-                redraw_current_view();
+                refresh_board_list();
             }
             break;
 
         case BTN_BOARD_NEXT:
             if (app->board_scroll < max_board_scroll()) {
                 app->board_scroll++;
-                redraw_current_view();
+                refresh_board_list();
             }
             break;
 
         case BTN_BOARD_DISPLAY:
             app->board_display = (app->board_display + 1) % BOARD_DISPLAY_COUNT;
-            redraw_current_view();
+            refresh_board_list();
             break;
 
         case BTN_BOARD_EXIT:
