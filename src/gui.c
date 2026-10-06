@@ -1555,33 +1555,47 @@ static const UBYTE micro_glyphs[11][5] = {
     { 5, 6, 4, 6, 5 },  /* K */
 };
 
-static WORD draw_micro_glyph(WORD x, WORD y, int glyph)
+/* The ruler shares the drawing scratch; each mask is five rows high. */
+static void clear_ruler_span(UWORD *bits, WORD x, WORD width)
 {
-    struct RastPort *rp = app->rp;
-    WORD row, col;
+    while (width > 0) {
+        WORD phase = x & 15;
+        WORD count = 16 - phase;
+        WORD row;
+        UWORD keep;
+
+        if (count > width) count = width;
+        keep = ~((0xffffU >> phase) & (0xffffU << (16 - phase - count)));
+        for (row = 0; row < 5; row++)
+            bits[row * TEXT_TEMPLATE_WORDS + (x >> 4)] &= keep;
+        x += count;
+        width -= count;
+    }
+}
+
+static WORD draw_micro_glyph(WORD x, int glyph)
+{
+    WORD row;
 
     for (row = 0; row < 5; row++) {
-        UBYTE bits = micro_glyphs[glyph][row];
-        for (col = 0; col < 3; col++) {
-            if (bits & (4 >> col)) {
-                WritePixel(rp, x + col, y + row);
-            }
-        }
+        ULONG *out = (ULONG *)(drawing_template +
+                              row * TEXT_TEMPLATE_WORDS + (x >> 4));
+        *out |= (ULONG)micro_glyphs[glyph][row] << (29 - (x & 15));
     }
     return x + 4;
 }
 
-static void draw_micro_number(WORD x, WORD y, ULONG value, BOOL kilo)
+static void draw_micro_number(WORD x, ULONG value, BOOL kilo)
 {
     char buf[12];
     int i;
 
     snprintf(buf, sizeof(buf), "%lu", (unsigned long)value);
     for (i = 0; buf[i]; i++) {
-        x = draw_micro_glyph(x, y, buf[i] - '0');
+        x = draw_micro_glyph(x, buf[i] - '0');
     }
     if (kilo && value > 0) {
-        draw_micro_glyph(x, y, 10);
+        draw_micro_glyph(x, 10);
     }
 }
 
@@ -1597,7 +1611,8 @@ static void draw_speed_ruler(ULONG max_value)
     WORD y = SPEED_PANEL_Y + 15;
     ULONG lab_max, mag, q, step, v;
     BOOL kilo;
-    WORD x;
+    WORD x, last_tick = x0;
+    UWORD *dots = drawing_template + TEXT_TEMPLATE_WORDS * 5;
 
     /* Clear the band */
     SetAPen(rp, COLOR_PANEL_BG);
@@ -1629,10 +1644,11 @@ static void draw_speed_ruler(ULONG max_value)
 
     SetDrMd(rp, JAM1);
 
+    memset(drawing_template, 0, TEXT_TEMPLATE_WORDS * sizeof(UWORD) * 10);
+
     /* Dotted baseline across the bar width */
-    SetAPen(rp, COLOR_BUTTON_DARK);
     for (x = x0; x < x0 + SPEED_BAR_MAX_WIDTH; x += 4) {
-        WritePixel(rp, x, y + 4);
+        dots[4 * TEXT_TEMPLATE_WORDS + (x >> 4)] |= 0x8000U >> (x & 15);
     }
 
     for (v = 0; ; v += step) {
@@ -1645,21 +1661,32 @@ static void draw_speed_ruler(ULONG max_value)
         x = x0 + (WORD)w;
 
         /* Tick mark */
-        SetAPen(rp, COLOR_TEXT);
-        Move(rp, x, y + 2);
-        Draw(rp, x, y + 4);
+        {
+            WORD row;
+            for (row = 2; row < 5; row++)
+                drawing_template[row * TEXT_TEMPLATE_WORDS + (x >> 4)] |=
+                    0x8000U >> (x & 15);
+            last_tick = x;
+        }
 
         /* Label to the right of the tick, interrupting the dotted line */
         snprintf(buf, sizeof(buf), "%lu", (unsigned long)label);
         label_w = strlen(buf) * 4 + ((kilo && label) ? 4 : 0);
         if (x + 3 + label_w <= x0 + SPEED_BAR_MAX_WIDTH) {
-            SetAPen(rp, COLOR_PANEL_BG);
-            RectFill(rp, x + 2, y, x + 2 + label_w, y + 4);
-            SetAPen(rp, COLOR_TEXT);
-            draw_micro_number(x + 3, y, label, kilo);
+            clear_ruler_span(drawing_template, x + 2, label_w + 1);
+            clear_ruler_span(dots, x + 2, label_w + 1);
+            draw_micro_number(x + 3, label, kilo);
         }
     }
 
+    SetAPen(rp, COLOR_BUTTON_DARK);
+    BltTemplate(dots + (x0 >> 4), x0 & 15, TEXT_TEMPLATE_WORDS * 2,
+                rp, x0, y, SPEED_BAR_MAX_WIDTH, 5);
+    SetAPen(rp, COLOR_TEXT);
+    BltTemplate(drawing_template + (x0 >> 4), x0 & 15, TEXT_TEMPLATE_WORDS * 2,
+                rp, x0, y, SPEED_BAR_MAX_WIDTH, 5);
+    WaitBlit();
+    Move(rp, last_tick, y + 4);
     SetDrMd(rp, JAM2);
 }
 
